@@ -58,11 +58,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "http://localhost:3000", "https://localhost:3000", "http://localhost:5000", "https://localhost:5000", "http://localhost:3001", "https://localhost:3001"],
+      imgSrc: ["'self'", "data:", "http://localhost:3000", "https://localhost:3000", "http://localhost:5000", "https://localhost:5000", "http://localhost:3001", "https://localhost:3001", "https://weary-iota.vercel.app", "https://weary-git-main-dhia7s-projects.vercel.app", "https://weary-kndtv5wjk-dhia7s-projects.vercel.app"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "https:", "data:"],
-      connectSrc: ["'self'", "http://localhost:3000", "https://localhost:3000", "http://localhost:5000", "https://localhost:5000", "http://localhost:3001", "https://localhost:3001"],
+      connectSrc: ["'self'", "http://localhost:3000", "https://localhost:3000", "http://localhost:5000", "https://localhost:5000", "http://localhost:3001", "https://localhost:3001", "https://weary-iota.vercel.app", "https://weary-git-main-dhia7s-projects.vercel.app", "https://weary-kndtv5wjk-dhia7s-projects.vercel.app"],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -97,7 +97,11 @@ const corsOptions = {
     'http://127.0.0.1:3000',
     'https://localhost:3000',
     'http://localhost:3001',
-    'https://localhost:3001'
+    'https://localhost:3001',
+    // Vercel deployment domains
+    'https://weary-iota.vercel.app',
+    'https://weary-git-main-dhia7s-projects.vercel.app',
+    'https://weary-kndtv5wjk-dhia7s-projects.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
