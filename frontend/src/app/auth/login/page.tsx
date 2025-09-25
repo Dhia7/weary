@@ -40,11 +40,23 @@ export default function LoginPage() {
       const result = await login(data.email, data.password);
       
       if (result.success) {
-        router.push('/account');
+        // Redirect admin users to admin dashboard, regular users to main page with success notification
+        if (result.user?.isAdmin) {
+          router.push('/admin');
+        } else {
+          // Redirect to main page with login success parameters
+          const userName = result.user?.firstName || result.user?.fullName;
+          const params = new URLSearchParams();
+          params.set('loginSuccess', 'true');
+          if (userName) {
+            params.set('userName', userName);
+          }
+          router.push(`/?${params.toString()}`);
+        }
       } else {
         setError(result.message);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -193,7 +205,7 @@ export default function LoginPage() {
               Forgot your password?
             </Link>
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link
                 href="/auth/signup"
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Check } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -96,11 +96,11 @@ export default function SignupPage() {
       });
       
       if (result.success) {
-        router.push('/account');
+        router.push('/');
       } else {
         setError(result.message);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

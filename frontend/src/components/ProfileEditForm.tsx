@@ -7,10 +7,7 @@ import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { 
   User, 
-  Mail, 
   Phone, 
-  MapPin, 
-  Settings, 
   Save,
   X,
   Plus,
@@ -18,6 +15,22 @@ import {
   Crown
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+const ALLOWED_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+type AllowedSize = typeof ALLOWED_SIZES[number];
+const ALLOWED_CATEGORIES = ['men', 'women', 'kids', 'accessories', 'shoes'] as const;
+type AllowedCategory = typeof ALLOWED_CATEGORIES[number];
+type AddressForm = {
+  type: 'home' | 'work' | 'other';
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
+};
 
 const profileSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters').max(50, 'First name must be less than 50 characters'),
@@ -49,7 +62,7 @@ interface ProfileEditFormProps {
 }
 
 export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditFormProps) {
-  const { user, updateProfileComprehensive } = useAuth();
+  const { user, updateProfileComprehensive, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -67,12 +80,18 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       phone: user?.phone || '',
       isAdmin: user?.isAdmin || false,
       preferences: {
-        sizePreference: user?.preferences?.sizePreference || 'M',
+        sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user?.preferences?.sizePreference as string) || '')
+          ? (user?.preferences?.sizePreference as AllowedSize)
+          : 'M',
         newsletter: user?.preferences?.newsletter || true,
         marketingEmails: user?.preferences?.marketingEmails || true,
-        favoriteCategories: user?.preferences?.favoriteCategories || []
+        favoriteCategories: Array.isArray(user?.preferences?.favoriteCategories)
+          ? (user?.preferences?.favoriteCategories.filter((c) =>
+              (ALLOWED_CATEGORIES as readonly string[]).includes((c as string) || '')
+            ) as AllowedCategory[])
+          : []
       },
-      addresses: user?.addresses || []
+      addresses: ((user as unknown as { addresses?: AddressForm[] })?.addresses as AddressForm[]) || []
     }
   });
 
@@ -81,9 +100,38 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
     name: 'addresses'
   });
 
+  // Update form values when user data changes
+  useEffect(() => {
+    if (user) {
+      console.log('ProfileEditForm: Updating form with user data:', user);
+      reset({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        phone: user.phone || '',
+        isAdmin: user.isAdmin || false,
+        preferences: {
+          sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user.preferences?.sizePreference as string) || '')
+            ? (user.preferences?.sizePreference as AllowedSize)
+            : 'M',
+          newsletter: user.preferences?.newsletter || true,
+          marketingEmails: user.preferences?.marketingEmails || true,
+          favoriteCategories: Array.isArray(user.preferences?.favoriteCategories)
+            ? (user.preferences?.favoriteCategories.filter((c) =>
+                (ALLOWED_CATEGORIES as readonly string[]).includes((c as string) || '')
+              ) as AllowedCategory[])
+            : []
+        },
+        addresses: ((user as unknown as { addresses?: AddressForm[] })?.addresses as AddressForm[]) || []
+      });
+    }
+  }, [user, reset]);
+
   const onSubmit = async (data: ProfileFormData) => {
     setIsLoading(true);
     setError('');
+
+    console.log('ProfileEditForm: Submitting form data:', data);
+    console.log('ProfileEditForm: Current user data:', user);
 
     try {
       // First update the profile
@@ -96,14 +144,17 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       });
 
       if (result.success) {
-        // Then update admin status if it changed
+        // Handle admin status changes if needed
         if (data.isAdmin !== user?.isAdmin) {
+          console.log('ProfileEditForm: Admin status changed, updating...');
           try {
             const token = localStorage.getItem('token');
             
             if (data.isAdmin && !user?.isAdmin) {
-              // User is requesting admin privileges - use the request endpoint
-              const adminResponse = await fetch(`http://localhost:5000/api/admin/users/${user?.id}/request-admin`, {
+              // User is requesting admin privileges - use the auth endpoint
+              console.log('ProfileEditForm: Requesting admin privileges...');
+              const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+              const adminResponse = await fetch(`${API_BASE_URL}/auth/users/${user?.id}/request-admin`, {
                 method: 'PUT',
                 headers: {
                   'Content-Type': 'application/json',
@@ -111,38 +162,48 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
                 }
               });
 
-            const adminData = await adminResponse.json();
-            
-            if (adminData.success) {
-              console.log('Admin privileges granted:', adminData.message);
-            } else {
-              console.error('Failed to get admin privileges:', adminData.message);
-              // Don't fail the entire form submission for admin status update failure
-            }
-          } else if (!data.isAdmin && user?.isAdmin) {
-            // User is removing admin privileges - use the regular admin endpoint
-            const adminResponse = await fetch(`http://localhost:5000/api/admin/users/${user?.id}/admin`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ isAdmin: false })
-            });
+              const adminData = await adminResponse.json();
+              console.log('ProfileEditForm: Admin response:', adminData);
+              
+              if (adminData.success) {
+                console.log('ProfileEditForm: Admin privileges granted:', adminData.message);
+              } else {
+                console.error('ProfileEditForm: Failed to get admin privileges:', adminData.message);
+                setError(`Failed to update admin status: ${adminData.message}`);
+                return;
+              }
+            } else if (!data.isAdmin && user?.isAdmin) {
+              // User is removing admin privileges - use the admin endpoint
+              console.log('ProfileEditForm: Removing admin privileges...');
+              const adminResponse = await fetch(`${API_BASE_URL}/admin/users/${user?.id}/admin`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ isAdmin: false })
+              });
 
-            const adminData = await adminResponse.json();
-            
-            if (!adminData.success) {
-              console.error('Failed to remove admin status:', adminData.message);
-              // Don't fail the entire form submission for admin status update failure
+              const adminData = await adminResponse.json();
+              console.log('ProfileEditForm: Admin removal response:', adminData);
+              
+              if (!adminData.success) {
+                console.error('ProfileEditForm: Failed to remove admin status:', adminData.message);
+                setError(`Failed to update admin status: ${adminData.message}`);
+                return;
+              }
             }
-          }
           } catch (adminError) {
-            console.error('Error updating admin status:', adminError);
-            // Don't fail the entire form submission for admin status update failure
+            console.error('ProfileEditForm: Error updating admin status:', adminError);
+            setError('Failed to update admin status. Please try again.');
+            return;
           }
         }
         
+        // Refresh user data to reflect any changes
+        console.log('ProfileEditForm: Refreshing user data...');
+        await refreshUser();
+        console.log('ProfileEditForm: User data refreshed, calling onSuccess');
         onSuccess();
       } else {
         setError(result.message);

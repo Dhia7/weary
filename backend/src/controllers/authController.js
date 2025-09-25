@@ -132,6 +132,7 @@ const login = async (req, res) => {
           lastName: user.lastName,
           fullName: user.getFullName(),
           isEmailVerified: user.isEmailVerified,
+          isAdmin: user.isAdmin,
           preferences: user.preferences
         },
         token
@@ -151,12 +152,8 @@ const login = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.userId, {
-      include: [{
-        model: Address,
-        as: 'addresses'
-      }]
-    });
+    // Use the user data that was already fetched in the middleware
+    const user = req.userData;
     
     if (!user) {
       return res.status(404).json({
@@ -632,6 +629,66 @@ const verifyTOTPCode = (secret, code) => {
   return code.length === 6 && /^\d{6}$/.test(code);
 };
 
+// @desc    Request admin privileges (for self-promotion)
+// @route   PUT /api/auth/users/:id/request-admin
+// @access  Private (authenticated user can request for themselves)
+const requestAdminPrivileges = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requestingUserId = req.user.userId;
+    
+    console.log('requestAdminPrivileges: Requested ID:', id, 'Type:', typeof id);
+    console.log('requestAdminPrivileges: User ID from token:', requestingUserId, 'Type:', typeof requestingUserId);
+    
+    // Users can only request admin privileges for themselves
+    if (String(id) !== String(requestingUserId)) {
+      console.log('requestAdminPrivileges: ID mismatch - rejecting request');
+      return res.status(403).json({
+        success: false,
+        message: 'You can only request admin privileges for yourself'
+      });
+    }
+    
+    const user = await User.findByPk(id);
+    if (!user) {
+      console.log('requestAdminPrivileges: User not found with ID:', id);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('requestAdminPrivileges: Found user:', user.email, 'Current isAdmin:', user.isAdmin);
+
+    // For now, we'll grant admin privileges directly
+    // In a real application, this might require approval from other admins
+    user.isAdmin = true;
+    await user.save();
+
+    console.log('requestAdminPrivileges: Updated user isAdmin to:', user.isAdmin);
+
+    res.json({
+      success: true,
+      message: 'Admin privileges granted successfully',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isAdmin: user.isAdmin
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Request admin privileges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
@@ -663,5 +720,6 @@ module.exports = {
   verifyTwoFactorCode,
   forgotPassword,
   resetPassword,
+  requestAdminPrivileges,
   logout
 };

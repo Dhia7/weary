@@ -1,19 +1,19 @@
 # Wear Backend API
 
-Backend API for the Wear e-commerce platform built with Node.js, Express, PostgreSQL, and PgBouncer for connection pooling.
+Backend API for the Wear e-commerce platform built with Node.js, Express, and PostgreSQL.
 
 ## Features
 
 - **Authentication & Authorization**: JWT-based authentication system
-- **Database**: PostgreSQL with PgBouncer connection pooling
+- **Database**: PostgreSQL database
 - **ORM**: Sequelize for database operations
 - **Security**: Helmet, CORS, rate limiting, input validation
-- **Performance**: Compression, connection pooling with PgBouncer
+- **Performance**: Compression and optimized queries
 
 ## Prerequisites
 
 - Node.js (v16 or higher)
-- Docker and Docker Compose
+- PostgreSQL (v12 or higher)
 - npm or yarn
 
 ## Quick Start
@@ -58,17 +58,18 @@ JWT_SECRET=your_jwt_secret_key_here_make_it_long_and_secure
 FRONTEND_URL=http://localhost:3000
 ```
 
-### 3. Start Database Services
+### 3. Set Up Database
 
-Start PostgreSQL and PgBouncer using Docker Compose:
+Make sure PostgreSQL is installed and running on your system. Then set up the database:
 
 ```bash
-npm run db:up
+npm run setup:db
 ```
 
-This will start:
-- PostgreSQL on port 5432
-- PgBouncer on port 6432 (connection pooler)
+This will:
+- Create the `wear_db` database
+- Set up the database structure
+- Create necessary tables and relationships
 
 ### 4. Run the Application
 
@@ -87,38 +88,27 @@ The API will be available at `http://localhost:5000`
 ### Available Commands
 
 ```bash
-# Start database services
-npm run db:up
+# Set up database
+npm run setup:db
 
-# Stop database services
-npm run db:down
+# Test database connection
+npm run test:postgres
 
-# Restart database services
-npm run db:restart
+# Validate product data
+npm run validate:products
 
-# View database logs
-npm run db:logs
-
-# Reset database (removes all data)
-npm run db:reset
+# Check data integrity
+npm run check:integrity
 ```
 
-### PgBouncer Configuration
+### Database Configuration
 
-PgBouncer is configured with the following settings:
+The application connects directly to PostgreSQL:
 
-- **Pool Mode**: Transaction (recommended for most applications)
-- **Max Client Connections**: 1000
-- **Default Pool Size**: 20
-- **Reserve Pool Size**: 5
-- **Server Lifetime**: 600 seconds
-- **Server Idle Timeout**: 600 seconds
-
-### Connection Flow
-
-```
-Application → PgBouncer (port 6432) → PostgreSQL (port 5432)
-```
+- **Host**: localhost (or your PostgreSQL host)
+- **Port**: 5432 (default PostgreSQL port)
+- **Database**: wear_db
+- **Connection**: Direct connection to PostgreSQL
 
 ## API Endpoints
 
@@ -148,12 +138,12 @@ src/
 
 ### Database Configuration
 
-The application uses PgBouncer for connection pooling:
+The application connects directly to PostgreSQL:
 
-- **Direct PostgreSQL**: Used only for database creation
-- **PgBouncer**: Used for all application queries
-- **Connection Pool**: Optimized for high concurrency
-- **Prepared Statements**: Disabled for PgBouncer compatibility
+- **PostgreSQL**: Used for all database operations
+- **Connection**: Direct connection to PostgreSQL
+- **ORM**: Sequelize for database operations
+- **Migrations**: Automatic table creation and updates
 
 ### Environment Variables
 
@@ -161,30 +151,28 @@ The application uses PgBouncer for connection pooling:
 |----------|-------------|---------|
 | `DB_HOST` | PostgreSQL host | localhost |
 | `DB_PORT` | PostgreSQL port | 5432 |
-| `PGBOUNCER_HOST` | PgBouncer host | localhost |
-| `PGBOUNCER_PORT` | PgBouncer port | 6432 |
-| `DB_NAME` | Database name | wear_ecommerce |
-| `DB_USER` | Database user | wear_user |
-| `DB_PASSWORD` | Database password | wear_password |
+| `DB_NAME` | Database name | wear_db |
+| `DB_USER` | Database user | postgres |
+| `DB_PASSWORD` | Database password | dhianaija123 |
 
 ## Performance Benefits
 
-With PgBouncer, you get:
+With direct PostgreSQL connection, you get:
 
-1. **Connection Pooling**: Reuses database connections
-2. **Reduced Overhead**: Faster connection establishment
-3. **Better Scalability**: Handles more concurrent users
-4. **Connection Limits**: Prevents database overload
-5. **Failover Support**: Automatic connection recovery
+1. **Direct Access**: Fast, direct database access
+2. **Full Feature Support**: Access to all PostgreSQL features
+3. **Simple Configuration**: Easy setup and maintenance
+4. **Reliable Connection**: Stable database connectivity
+5. **Sequelize Optimization**: ORM-level query optimization
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Connection Refused**: Ensure Docker services are running
+1. **Connection Refused**: Ensure PostgreSQL is running on your system
 2. **Authentication Failed**: Check database credentials in `.env`
-3. **Pool Exhausted**: Increase pool size in PgBouncer configuration
-4. **Prepared Statement Errors**: Ensure `prepare: false` in Sequelize config
+3. **Database Not Found**: Run `npm run setup:db` to create the database
+4. **Port Conflicts**: Ensure PostgreSQL is running on port 5432
 
 ### Logs
 
@@ -194,8 +182,8 @@ View detailed logs:
 # Application logs
 npm run dev
 
-# Database logs
-npm run db:logs
+# Test database connection
+npm run test:postgres
 ```
 
 ## Production Deployment
@@ -204,9 +192,10 @@ For production, consider:
 
 1. **Environment Variables**: Use secure, production-specific values
 2. **SSL/TLS**: Enable SSL for database connections
-3. **Monitoring**: Set up monitoring for PgBouncer metrics
+3. **Monitoring**: Set up monitoring for PostgreSQL metrics
 4. **Backup**: Regular database backups
 5. **Scaling**: Consider read replicas for high traffic
+6. **Connection Pooling**: Use connection pooling at the application level
 
 ## License
 

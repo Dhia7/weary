@@ -19,15 +19,12 @@ import {
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().trim().min(1, 'Current password is required'),
-  newPassword: z.string().trim().min(6, 'New password must be at least 6 characters'),
-  confirmPassword: z.string().trim().min(1, 'Please confirm your new password')
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+  confirmPassword: z.string().min(1, 'Please confirm your new password')
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
-}).refine((data) => data.currentPassword !== data.newPassword, {
-  message: "New password cannot be the same as your current password",
-  path: ["newPassword"],
 });
 
 const twoFactorSchema = z.object({
@@ -43,7 +40,7 @@ export default function SecuritySettings() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showTwoFactorPassword, setShowTwoFactorPassword] = useState(false);
+  // removed unused showTwoFactorPassword state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isToggling2FA, setIsToggling2FA] = useState(false);
   const [isVerifying2FA, setIsVerifying2FA] = useState(false);
@@ -56,12 +53,10 @@ export default function SecuritySettings() {
   const {
     register: registerPassword,
     handleSubmit: handlePasswordSubmit,
-    formState: { errors: passwordErrors, isValid: isPasswordFormValid },
-    reset: resetPasswordForm,
-    watch: watchPassword
+    formState: { errors: passwordErrors },
+    reset: resetPasswordForm
   } = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(changePasswordSchema),
-    mode: 'onChange'
+    resolver: zodResolver(changePasswordSchema)
   });
 
   const {
@@ -74,27 +69,6 @@ export default function SecuritySettings() {
   });
 
   const onPasswordSubmit = async (data: ChangePasswordFormData) => {
-    // Additional validation check
-    if (!data.currentPassword?.trim() || !data.newPassword?.trim() || !data.confirmPassword?.trim()) {
-      setError('❌ All fields are required. Please fill in all password fields.');
-      return;
-    }
-
-    if (data.newPassword.length < 6) {
-      setError('❌ New password must be at least 6 characters long.');
-      return;
-    }
-
-    if (data.newPassword !== data.confirmPassword) {
-      setError('❌ New passwords do not match. Please make sure both passwords are identical.');
-      return;
-    }
-
-    if (data.currentPassword === data.newPassword) {
-      setError('❌ New password cannot be the same as your current password. Please choose a different password.');
-      return;
-    }
-
     setIsChangingPassword(true);
     setError('');
     setSuccess('');
@@ -103,31 +77,13 @@ export default function SecuritySettings() {
       const result = await changePassword(data.currentPassword, data.newPassword);
       
       if (result.success) {
-        setSuccess(`✅ ${result.message}`);
-        // Clear all password fields
+        setSuccess(result.message);
         resetPasswordForm();
-        // Reset password visibility states
-        setShowCurrentPassword(false);
-        setShowNewPassword(false);
-        setShowConfirmPassword(false);
       } else {
-        // Enhanced error handling for specific cases
-        if (result.message.includes('Current password is incorrect')) {
-          setError('❌ Current password is incorrect. Please enter your current password correctly.');
-        } else if (result.message.includes('New password cannot be the same as your current password')) {
-          setError('❌ New password cannot be the same as your current password. Please choose a different password.');
-        } else if (result.message.includes('Password must be at least 6 characters')) {
-          setError('❌ New password must be at least 6 characters long.');
-        } else if (result.message.includes('Password must contain at least one number')) {
-          setError('❌ New password must contain at least one number.');
-        } else if (result.message.includes('Current password is required')) {
-          setError('❌ Please enter your current password.');
-        } else {
-          setError(`❌ ${result.message}`);
-        }
+        setError(result.message);
       }
     } catch (err) {
-      setError('❌ Network error. Please check your connection and try again.');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsChangingPassword(false);
     }
@@ -143,24 +99,17 @@ export default function SecuritySettings() {
       
       if (result.success) {
         if (enable && result.data) {
-          setTwoFactorSecret(result.data.secret);
-          setBackupCodes(result.data.backupCodes);
+          setTwoFactorSecret(result.data.secret ?? '');
+          setBackupCodes(result.data.backupCodes ?? []);
           setShowTwoFactorSetup(true);
         } else {
-          setSuccess(`✅ ${result.message}`);
+          setSuccess(result.message);
         }
       } else {
-        // Enhanced error handling for 2FA
-        if (result.message.includes('Password is incorrect')) {
-          setError('❌ Password is incorrect. Please enter your current password to enable/disable 2FA.');
-        } else if (result.message.includes('Password is required')) {
-          setError('❌ Password is required to enable/disable two-factor authentication.');
-        } else {
-          setError(`❌ ${result.message}`);
-        }
+        setError(result.message);
       }
     } catch (err) {
-      setError('❌ Network error. Please check your connection and try again.');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsToggling2FA(false);
     }
@@ -175,23 +124,14 @@ export default function SecuritySettings() {
       const result = await verifyTwoFactorCode(data.code);
       
       if (result.success) {
-        setSuccess('✅ Two-factor authentication verified successfully!');
+        setSuccess('Two-factor authentication verified successfully!');
         setShowTwoFactorSetup(false);
         reset2FAForm();
       } else {
-        // Enhanced error handling for 2FA verification
-        if (result.message.includes('Invalid two-factor authentication code')) {
-          setError('❌ Invalid verification code. Please enter the 6-digit code from your authenticator app.');
-        } else if (result.message.includes('Two-factor authentication is not enabled')) {
-          setError('❌ Two-factor authentication is not enabled. Please enable it first.');
-        } else if (result.message.includes('Code must be 6 digits')) {
-          setError('❌ Verification code must be exactly 6 digits.');
-        } else {
-          setError(`❌ ${result.message}`);
-        }
+        setError(result.message);
       }
     } catch (err) {
-      setError('❌ Network error. Please check your connection and try again.');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsVerifying2FA(false);
     }
@@ -230,7 +170,7 @@ export default function SecuritySettings() {
             </h2>
           </div>
 
-                     <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
+          <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Current Password
@@ -239,7 +179,6 @@ export default function SecuritySettings() {
                 <input
                   {...registerPassword('currentPassword')}
                   type={showCurrentPassword ? 'text' : 'password'}
-                  required
                   className="block w-full pr-10 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
@@ -270,7 +209,6 @@ export default function SecuritySettings() {
                 <input
                   {...registerPassword('newPassword')}
                   type={showNewPassword ? 'text' : 'password'}
-                  required
                   className="block w-full pr-10 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
@@ -301,7 +239,6 @@ export default function SecuritySettings() {
                 <input
                   {...registerPassword('confirmPassword')}
                   type={showConfirmPassword ? 'text' : 'password'}
-                  required
                   className="block w-full pr-10 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
@@ -326,7 +263,7 @@ export default function SecuritySettings() {
 
             <button
               type="submit"
-              disabled={isChangingPassword || !isPasswordFormValid}
+              disabled={isChangingPassword}
               className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors"
             >
               {isChangingPassword ? (
@@ -422,10 +359,12 @@ export default function SecuritySettings() {
                             type="text"
                             value={twoFactorSecret}
                             readOnly
+                            aria-label="Two-factor secret"
                             className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-800 text-blue-900 dark:text-blue-100 font-mono text-sm"
                           />
                           <button
                             onClick={() => copyToClipboard(twoFactorSecret)}
+                            aria-label="Copy secret"
                             className="px-3 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
                           >
                             <Copy className="w-4 h-4" />
@@ -467,6 +406,7 @@ export default function SecuritySettings() {
                             type="text"
                             maxLength={6}
                             placeholder="000000"
+                            aria-label="Verification code"
                             className="block w-full px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-800 text-blue-900 dark:text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                           {twoFactorErrors.code && (
@@ -512,14 +452,11 @@ export default function SecuritySettings() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4 shadow-sm"
+          className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
         >
-          <div className="flex items-start space-x-3">
-            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Security Error</p>
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-            </div>
+          <div className="flex items-center space-x-2">
+            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         </motion.div>
       )}
@@ -528,14 +465,11 @@ export default function SecuritySettings() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-4 shadow-sm"
+          className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
         >
-          <div className="flex items-start space-x-3">
-            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">Success</p>
-              <p className="text-sm text-green-700 dark:text-green-300">{success}</p>
-            </div>
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
           </div>
         </motion.div>
       )}

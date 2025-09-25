@@ -10,8 +10,8 @@ interface User {
   fullName: string;
   phone?: string;
   isEmailVerified: boolean;
-  twoFactorEnabled?: boolean;
   isAdmin?: boolean;
+  twoFactorEnabled?: boolean;
   preferences?: {
     newsletter: boolean;
     marketingEmails: boolean;
@@ -24,19 +24,33 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  signup: (userData: SignupData) => Promise<{ success: boolean; message: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  signup: (userData: SignupData) => Promise<{ success: boolean; message: string; user?: User }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean; message: string }>;
   updateProfileComprehensive: (data: {
     firstName?: string;
     lastName?: string;
     phone?: string;
-    preferences?: any;
-    addresses?: any[];
+    preferences?: {
+      newsletter?: boolean;
+      marketingEmails?: boolean;
+      sizePreference?: string;
+      favoriteCategories?: string[];
+    };
+    addresses?: Array<{
+      type: 'home' | 'work' | 'other';
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+      isDefault: boolean;
+    }>;
   }) => Promise<{ success: boolean; message: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  toggleTwoFactorAuth: (enable: boolean, password: string) => Promise<{ success: boolean; message: string; data?: any }>;
+  toggleTwoFactorAuth: (enable: boolean, password: string) => Promise<{ success: boolean; message: string; data?: { secret?: string; backupCodes?: string[] } }>; 
   verifyTwoFactorCode: (code: string) => Promise<{ success: boolean; message: string }>;
 }
 
@@ -58,7 +72,7 @@ export const useAuth = () => {
   return context;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -78,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (authToken: string) => {
     try {
+      console.log('fetchUserProfile: Fetching user profile from:', `${API_BASE_URL}/auth/me`);
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -85,10 +100,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
+      console.log('fetchUserProfile: Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('fetchUserProfile: Received user data:', data.data.user);
         setUser(data.data.user);
       } else {
+        console.log('fetchUserProfile: Response not ok, removing token');
         // Token is invalid, remove it
         localStorage.removeItem('token');
         setToken(null);
@@ -115,11 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (response.ok) {
+        setUser(data.data.user);
         setToken(data.data.token);
         localStorage.setItem('token', data.data.token);
-        // Fetch full profile to ensure we have isAdmin and other fields
-        await fetchUserProfile(data.data.token);
-        return { success: true, message: data.message };
+        return { success: true, message: data.message, user: data.data.user };
       } else {
         return { success: false, message: data.message || 'Login failed' };
       }
@@ -145,7 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.data.user);
         setToken(data.data.token);
         localStorage.setItem('token', data.data.token);
-        return { success: true, message: data.message };
+        return { success: true, message: data.message, user: data.data.user };
       } else {
         return { success: false, message: data.message || 'Registration failed' };
       }
@@ -159,6 +176,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+  };
+
+  const refreshUser = async () => {
+    if (!token) {
+      console.log('refreshUser: No token available');
+      return;
+    }
+    
+    console.log('refreshUser: Starting user profile refresh...');
+    try {
+      await fetchUserProfile(token);
+      console.log('refreshUser: User profile refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing user profile:', error);
+    }
   };
 
   const updateProfile = async (data: Partial<User>) => {
@@ -194,8 +226,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     firstName?: string;
     lastName?: string;
     phone?: string;
-    preferences?: any;
-    addresses?: any[];
+    preferences?: {
+      newsletter?: boolean;
+      marketingEmails?: boolean;
+      sizePreference?: string;
+      favoriteCategories?: string[];
+    };
+    addresses?: Array<{
+      type: 'home' | 'work' | 'other';
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+      isDefault: boolean;
+    }>;
   }) => {
     if (!token) {
       return { success: false, message: 'Not authenticated' };
@@ -332,6 +377,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     signup,
     logout,
+    refreshUser,
     updateProfile,
     updateProfileComprehensive,
     changePassword,

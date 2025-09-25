@@ -1,14 +1,43 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const User = require('./User');
 
 const Order = sequelize.define('Order', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+    allowNull: false
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
+  },
   status: {
-    type: DataTypes.ENUM('pending', 'paid', 'shipped', 'delivered', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'paid', 'shipped', 'delivered', 'cancelled'),
     allowNull: false,
     defaultValue: 'pending'
   },
+  customerType: {
+    type: DataTypes.ENUM('registered', 'guest'),
+    allowNull: false,
+    defaultValue: 'guest'
+  },
+  customerInfo: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    comment: 'Customer information for both registered and guest users'
+  },
   totalAmountCents: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    validate: { min: 0 }
+  },
+  shippingCostCents: {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 0,
@@ -27,6 +56,10 @@ const Order = sequelize.define('Order', {
     type: DataTypes.JSONB,
     allowNull: true
   },
+  billingInfo: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
   notes: {
     type: DataTypes.STRING(500),
     allowNull: true
@@ -35,13 +68,14 @@ const Order = sequelize.define('Order', {
   timestamps: true,
   indexes: [
     { fields: ['status'] },
+    { fields: ['customerType'] },
     { fields: ['createdAt'] },
   ]
 });
 
-User.hasMany(Order, { as: 'orders', foreignKey: 'userId' });
-Order.belongsTo(User, { foreignKey: 'userId' });
-
 module.exports = Order;
+
+
+
 
 

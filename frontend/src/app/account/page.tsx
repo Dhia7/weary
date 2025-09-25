@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { 
   User, 
   Mail, 
   Phone, 
-  MapPin, 
   Settings, 
   LogOut, 
   Edit,
@@ -22,19 +22,45 @@ import {
 } from 'lucide-react';
 import ProfileEditForm from '@/components/ProfileEditForm';
 import SecuritySettings from '@/components/SecuritySettings';
+import WishlistTab from '@/components/WishlistTab';
 
-export default function AccountPage() {
+function AccountPageContent() {
   const { user, logout, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { showOrderSuccess } = useOrderNotification();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
-  const [isTogglingAdmin, setIsTogglingAdmin] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    // Check for tab parameter in URL
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['profile', 'orders', 'wishlist', 'security', 'settings'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Check if user came from a successful checkout
+    const orderSuccess = searchParams.get('orderSuccess');
+    const orderId = searchParams.get('orderId');
+    
+    if (orderSuccess === 'true') {
+      showOrderSuccess(orderId || undefined);
+      
+      // Clean up URL parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete('orderSuccess');
+      url.searchParams.delete('orderId');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams, showOrderSuccess]);
 
   const handleLogout = async () => {
     await logout();
@@ -45,60 +71,6 @@ export default function AccountPage() {
     setIsEditing(false);
   };
 
-  const toggleAdmin = async () => {
-    if (!user) return;
-    
-    setIsTogglingAdmin(true);
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!user.isAdmin) {
-        // User is requesting admin privileges - use the request endpoint
-        const response = await fetch(`http://localhost:5000/api/admin/users/${user.id}/request-admin`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-          alert('Admin privileges granted! You are now an administrator.');
-          // Force a refresh of the user data
-          window.location.reload();
-        } else {
-          alert(`Error: ${data.message}`);
-        }
-      } else {
-        // User is removing admin privileges - use the regular admin endpoint
-        const response = await fetch(`http://localhost:5000/api/admin/users/${user.id}/admin`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ isAdmin: false })
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-          alert('Admin privileges removed.');
-          // Force a refresh of the user data
-          window.location.reload();
-        } else {
-          alert(`Error: ${data.message}`);
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling admin status:', error);
-      alert('Failed to update admin status. Please try again.');
-    } finally {
-      setIsTogglingAdmin(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -112,7 +84,7 @@ export default function AccountPage() {
     return null;
   }
 
-  const tabs = [
+  const tabs: Array<{ id: 'profile'|'orders'|'wishlist'|'security'|'settings'; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'orders', label: 'Orders', icon: ShoppingBag },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
@@ -139,6 +111,15 @@ export default function AccountPage() {
               </p>
             </div>
             <div className="flex items-center space-x-3">
+              {user.isAdmin && (
+                <Link
+                  href="/admin"
+                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Admin Dashboard</span>
+                </Link>
+              )}
               <Link
                 href="/"
                 className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -288,43 +269,17 @@ export default function AccountPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Admin Status
+                          Account Type
                         </label>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <Crown className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-900 dark:text-white">
-                              {user.isAdmin ? 'Administrator' : 'Regular User'}
-                            </span>
-                            {user.isAdmin && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                                Admin
-                              </span>
-                            )}
-                          </div>
+                        <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <Crown className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-900 dark:text-white">
+                            {user.isAdmin ? 'Administrator' : 'Regular User'}
+                          </span>
                           {user.isAdmin && (
-                            <button
-                              onClick={toggleAdmin}
-                              disabled={isTogglingAdmin}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                user.isAdmin 
-                                  ? 'bg-blue-600' 
-                                  : 'bg-gray-200 dark:bg-gray-600'
-                              }`}
-                              title="Toggle admin status"
-                            >
-                              <span className="sr-only">Toggle admin status</span>
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  user.isAdmin ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                              />
-                              {isTogglingAdmin && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                                </div>
-                              )}
-                            </button>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                              Admin
+                            </span>
                           )}
                         </div>
                       </div>
@@ -351,7 +306,10 @@ export default function AccountPage() {
                         </label>
                         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <span className="text-gray-900 dark:text-white">
-                            {new Date(user.createdAt).toLocaleDateString()}
+                            {(() => {
+                              const createdAt = (user as unknown as Record<string, unknown>).createdAt;
+                              return typeof createdAt === 'string' ? new Date(createdAt).toLocaleDateString() : '';
+                            })()}
                           </span>
                         </div>
                       </div>
@@ -404,19 +362,7 @@ export default function AccountPage() {
               )}
 
               {/* Wishlist Tab */}
-              {activeTab === 'wishlist' && (
-                <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                    My Wishlist
-                  </h2>
-                  <div className="text-center py-12">
-                    <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Your wishlist is empty. Save items you love for later.
-                    </p>
-                  </div>
-                </div>
-              )}
+              {activeTab === 'wishlist' && <WishlistTab />}
 
               {/* Security Tab */}
               {activeTab === 'security' && (
@@ -467,5 +413,13 @@ export default function AccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" />}> 
+      <AccountPageContent />
+    </Suspense>
   );
 }

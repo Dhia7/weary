@@ -14,10 +14,15 @@ const protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure_for_development_only');
 
-      // Get user from token
-      const user = await User.findByPk(decoded.userId, {
-        attributes: { exclude: ['password'] }
-      });
+      // Get user from token with timeout
+      const user = await Promise.race([
+        User.findByPk(decoded.userId, {
+          attributes: { exclude: ['password'] }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database query timeout')), 5000)
+        )
+      ]);
       
       if (!user) {
         return res.status(401).json({
@@ -63,9 +68,14 @@ const optionalAuth = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure_for_development_only');
       
-      const user = await User.findByPk(decoded.userId, {
-        attributes: { exclude: ['password'] }
-      });
+      const user = await Promise.race([
+        User.findByPk(decoded.userId, {
+          attributes: { exclude: ['password'] }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database query timeout')), 5000)
+        )
+      ]);
       
       if (user && user.isActive) {
         req.user = decoded;

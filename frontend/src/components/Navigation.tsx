@@ -4,12 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { MagnifyingGlassIcon, ShoppingBagIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ThemeToggle from './ThemeToggle';
+import CartPanel from './CartPanel';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useCart } from '@/lib/contexts/CartContext';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCartPanelOpen, setIsCartPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, logout } = useAuth();
+  const { totalQuantity } = useCart();
 
   const categories = [
     { name: 'Women', href: '/category/women' },
@@ -67,12 +71,17 @@ const Navigation = () => {
             <ThemeToggle />
 
             {/* Cart */}
-            <Link href="/cart" className="relative p-2 text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">
+            <button 
+              onClick={() => setIsCartPanelOpen(true)}
+              className="relative p-2 text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+            >
               <ShoppingBagIcon className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                0
-              </span>
-            </Link>
+              {totalQuantity > 0 && (
+                <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalQuantity}
+                </span>
+              )}
+            </button>
 
             {/* User Menu */}
             {user ? (
@@ -209,6 +218,12 @@ const Navigation = () => {
           </div>
         </div>
       )}
+
+      {/* Cart Panel */}
+      <CartPanel 
+        isOpen={isCartPanelOpen} 
+        onClose={() => setIsCartPanelOpen(false)} 
+      />
     </nav>
   );
 };

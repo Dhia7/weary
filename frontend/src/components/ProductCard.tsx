@@ -2,19 +2,38 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { HeartIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
-import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import Image from 'next/image';
+import { ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { useCart } from '@/lib/contexts/CartContext';
+import { getImageUrl } from '@/lib/utils';
+import WishlistButton from './WishlistButton';
+import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 
 interface Product {
-  id: string;
+  id: number;
   name: string;
+  slug: string;
+  description: string;
+  SKU: string;
+  weightGrams?: number;
+  isActive: boolean;
+  imageUrl?: string;
   price: number;
-  originalPrice?: number;
-  image: string;
-  designer: string;
-  category: string;
-  rating: number;
-  reviewCount: number;
+  compareAtPrice?: number;
+  quantity: number;
+  stockInfo?: {
+    quantity?: number;
+    status: string;
+    isInStock: boolean;
+    isLowStock?: boolean;
+  };
+  categories?: Array<{
+    id: number;
+    name: string;
+    slug: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ProductCardProps {
@@ -22,63 +41,51 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const { addItem } = useCart();
+  const { showAddToCart } = useOrderNotification();
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    // TODO: Implement add to cart functionality
-    console.log('Added to cart:', product.id);
+    addItem({ 
+      id: product.id.toString(), 
+      name: product.name, 
+      price: product.price,
+      image: product.imageUrl || '/placeholder-product.jpg' 
+    }, 1);
+    showAddToCart(product.name);
   };
 
-  const handleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsWishlisted(!isWishlisted);
-    // TODO: Implement wishlist functionality
-    console.log('Wishlist toggled:', product.id);
-  };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(price);
+    }).format(Number(price));
   };
 
-  const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 0; i < 5; i++) {
-      stars.push(
-        <svg
-          key={i}
-          className={`w-4 h-4 ${
-            i < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
-          }`}
-          viewBox="0 0 20 20"
-        >
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      );
-    }
-    return stars;
-  };
+  // removed unused renderStars
 
   // Get appropriate emoji based on category
-  const getCategoryEmoji = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'women':
+  const getCategoryEmoji = (categories?: Array<{name: string}>) => {
+    if (!categories || categories.length === 0) return '👕';
+    
+    const categoryName = categories[0].name.toLowerCase();
+    switch (categoryName) {
+      case 'clothing':
         return '👗';
-      case 'men':
-        return '👔';
       case 'accessories':
         return '👜';
-      case 'footwear':
+      case 'shoes':
         return '👠';
-      case 'jewelry':
-        return '💍';
       default:
         return '👕';
     }
+  };
+
+  const getCategoryName = (categories?: Array<{name: string}>) => {
+    if (!categories || categories.length === 0) return 'General';
+    return categories[0].name;
   };
 
   return (
@@ -87,24 +94,31 @@ const ProductCard = ({ product }: ProductCardProps) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link href={`/product/${product.id}`} className="block">
+      <Link href={`/product/${product.slug}`} className="block">
         {/* Product Image */}
         <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
-          <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
-            <span className="text-6xl">{getCategoryEmoji(product.category)}</span>
-          </div>
+          {product.imageUrl ? (
+            <Image
+              src={getImageUrl(product.imageUrl) || ''}
+              alt={product.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
+              <span className="text-6xl">{getCategoryEmoji(product.categories)}</span>
+            </div>
+          )}
           
           {/* Wishlist Button */}
-          <button
-            onClick={handleWishlist}
-            className="absolute top-3 right-3 p-2 bg-white dark:bg-gray-800 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
-          >
-            {isWishlisted ? (
-              <HeartIconSolid className="w-5 h-5 text-red-500" />
-            ) : (
-              <HeartIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            )}
-          </button>
+          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+            <WishlistButton 
+              productId={product.id.toString()} 
+              size="md" 
+              variant="default"
+            />
+          </div>
 
           {/* Quick Add to Cart */}
           <div className={`absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform transition-transform duration-300 ${
@@ -112,23 +126,27 @@ const ProductCard = ({ product }: ProductCardProps) => {
           }`}>
             <button
               onClick={handleAddToCart}
-              className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"
+              disabled={product.quantity === 0}
+              className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingBagIcon className="w-4 h-4 mr-2" />
-              Quick Add
+              {product.quantity === 0 ? 'Out of Stock' : 'Quick Add'}
             </button>
           </div>
         </div>
 
         {/* Product Info */}
         <div className="p-4">
-          {/* Designer */}
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{product.designer}</p>
+          {/* Category */}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{getCategoryName(product.categories)}</p>
           
           {/* Product Name */}
           <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2">
             {product.name}
           </h3>
+
+          {/* SKU */}
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">SKU: {product.SKU}</p>
 
           {/* Price */}
           <div className="flex items-center justify-between mb-2">
@@ -136,23 +154,35 @@ const ProductCard = ({ product }: ProductCardProps) => {
               <span className="text-lg font-semibold text-gray-900 dark:text-white">
                 {formatPrice(product.price)}
               </span>
-              {product.originalPrice && (
+              {product.compareAtPrice && product.compareAtPrice > product.price && (
                 <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                  {formatPrice(product.originalPrice)}
+                  {formatPrice(product.compareAtPrice)}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Rating */}
-          <div className="flex items-center space-x-1">
-            <div className="flex">
-              {renderStars(product.rating)}
+          {/* Stock Status */}
+          {product.stockInfo && (
+            <div className="mb-2">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                product.stockInfo.isLowStock
+                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                  : product.stockInfo.isInStock 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              }`}>
+                {product.stockInfo.status}
+              </span>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              ({product.reviewCount})
-            </span>
-          </div>
+          )}
+
+          {/* Description preview */}
+          {product.description && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+              {product.description}
+            </p>
+          )}
         </div>
       </Link>
     </div>

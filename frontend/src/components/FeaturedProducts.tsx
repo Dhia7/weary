@@ -1,94 +1,78 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import ProductCard from './ProductCard';
 
-// Mock data for featured products
-const featuredProducts = [
-  {
-    id: '1',
-    name: 'Elegant Summer Dress',
-    price: 89.99,
-    originalPrice: 129.99,
-    image: '/product1.jpg',
-    designer: 'Elena Designs',
-    category: 'Women',
-    rating: 4.8,
-    reviewCount: 124,
-  },
-  {
-    id: '2',
-    name: 'Classic Denim Jacket',
-    price: 75.00,
-    image: '/product2.jpg',
-    designer: 'Urban Threads',
-    category: 'Men',
-    rating: 4.6,
-    reviewCount: 89,
-  },
-  {
-    id: '3',
-    name: 'Silk Blouse Collection',
-    price: 65.50,
-    image: '/product3.jpg',
-    designer: 'Sophia Fashion',
-    category: 'Women',
-    rating: 4.9,
-    reviewCount: 156,
-  },
-  {
-    id: '4',
-    name: 'Leather Crossbody Bag',
-    price: 120.00,
-    image: '/product4.jpg',
-    designer: 'Luxe Accessories',
-    category: 'Accessories',
-    rating: 4.7,
-    reviewCount: 203,
-  },
-  {
-    id: '5',
-    name: 'Minimalist Watch',
-    price: 199.99,
-    image: '/product5.jpg',
-    designer: 'TimeCraft',
-    category: 'Accessories',
-    rating: 4.5,
-    reviewCount: 67,
-  },
-  {
-    id: '6',
-    name: 'Casual Sneakers',
-    price: 85.00,
-    originalPrice: 110.00,
-    image: '/product6.jpg',
-    designer: 'Comfort Steps',
-    category: 'Footwear',
-    rating: 4.4,
-    reviewCount: 98,
-  },
-  {
-    id: '7',
-    name: 'Statement Necklace',
-    price: 45.99,
-    image: '/product7.jpg',
-    designer: 'Jewel Box',
-    category: 'Jewelry',
-    rating: 4.6,
-    reviewCount: 134,
-  },
-  {
-    id: '8',
-    name: 'Premium Cotton T-Shirt',
-    price: 35.00,
-    image: '/product8.jpg',
-    designer: 'Basic Essentials',
-    category: 'Men',
-    rating: 4.3,
-    reviewCount: 245,
-  },
-];
+interface Product {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  SKU: string;
+  weightGrams?: number;
+  isActive: boolean;
+  imageUrl?: string;
+  price: number;
+  compareAtPrice?: number;
+  quantity: number;
+  categories?: Array<{
+    id: number;
+    name: string;
+    slug: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const FeaturedProducts = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${API_BASE_URL}/products?limit=8&active=true`);
+        const data = await response.json();
+        if (data.success) {
+          setProducts(data.data.products || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Featured Products
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              Discover the latest trends and unique pieces from our curated collection
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 animate-pulse">
+                <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-md mb-4"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-16 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,15 +81,23 @@ const FeaturedProducts = () => {
             Featured Products
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Discover the latest trends and unique pieces from our curated collection of independent designers
+            Discover the latest trends and unique pieces from our curated collection
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {products.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400 text-lg">
+              No products available yet. Check back soon!
+            </p>
+          </div>
+        )}
 
         <div className="text-center mt-12">
           <button className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">

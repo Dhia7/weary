@@ -192,5 +192,8 @@ router.put('/2fa', protect, toggleTwoFactorValidation, authController.toggleTwoF
 router.post('/2fa/verify', protect, verifyTwoFactorValidation, authController.verifyTwoFactorCode);
 router.post('/logout', protect, authController.logout);
 
+// Admin privilege request (accessible to authenticated users)
+router.put('/users/:id/request-admin', protect, authController.requestAdminPrivileges);
+
 module.exports = router;
 

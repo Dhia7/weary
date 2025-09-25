@@ -21,3 +21,14 @@ export function generateId() {
   return Math.random().toString(36).substr(2, 9)
 }
 
+export function getImageUrl(imagePath: string | null | undefined): string | null {
+  if (!imagePath) return null;
+  
+  console.log('getImageUrl input:', imagePath);
+  
+  // Use the proxied URL to avoid CORS issues
+  const fullUrl = `/api${imagePath}`;
+  console.log('getImageUrl output:', fullUrl);
+  return fullUrl;
+}
+

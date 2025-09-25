@@ -1,9 +1,29 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const Order = require('./Order');
-const Product = require('./Product');
 
 const OrderItem = sequelize.define('OrderItem', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+    allowNull: false
+  },
+  orderId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Orders',
+      key: 'id'
+    }
+  },
+  productId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Products',
+      key: 'id'
+    }
+  },
   quantity: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -22,12 +42,9 @@ const OrderItem = sequelize.define('OrderItem', {
   ]
 });
 
-Order.hasMany(OrderItem, { as: 'items', foreignKey: 'orderId', onDelete: 'CASCADE' });
-OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
-
-Product.hasMany(OrderItem, { as: 'orderItems', foreignKey: 'productId' });
-OrderItem.belongsTo(Product, { foreignKey: 'productId' });
-
 module.exports = OrderItem;
+
+
+
 
 

@@ -1,10 +1,10 @@
 const User = require('../models/User');
 const Address = require('../models/Address');
-const { Op } = require('sequelize');
-const { sequelize } = require('../config/database');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
+const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 // @desc    Get all users with pagination and filtering
 // @route   GET /api/admin/users
@@ -15,14 +15,41 @@ const getAllUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     
+    // Build where clause based on filters
+    const whereClause = {};
+    
+    // Filter by admin status
+    if (req.query.filter === 'admin') {
+      whereClause.isAdmin = true;
+    }
+    
+    // Filter by verification status
+    if (req.query.filter === 'verified') {
+      whereClause.isEmailVerified = true;
+    }
+    
+    if (req.query.filter === 'unverified') {
+      whereClause.isEmailVerified = false;
+    }
+    
+    // Filter by active status
+    if (req.query.filter === 'active') {
+      whereClause.isActive = true;
+    }
+    
+    if (req.query.filter === 'inactive') {
+      whereClause.isActive = false;
+    }
+    
     const { count, rows: users } = await User.findAndCountAll({
+      where: whereClause,
       include: [{
         model: Address,
         as: 'addresses',
         attributes: ['id', 'type', 'city', 'state', 'country', 'isDefault']
       }],
       attributes: [
-        'id', 'email', 'firstName', 'lastName', 'phone', 
+        'id', 'email', 'firstName', 'lastName', 'phone',
         'isEmailVerified', 'isActive', 'twoFactorEnabled', 'isAdmin',
         'lastLogin', 'createdAt', 'updatedAt'
       ],
@@ -42,7 +69,8 @@ const getAllUsers = async (req, res) => {
           totalPages,
           totalUsers: count,
           usersPerPage: limit
-        }
+        },
+        filter: req.query.filter || 'all'
       }
     });
   } catch (error) {
@@ -112,7 +140,7 @@ const getUserById = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, isActive, isEmailVerified, preferences } = req.body;
+    const { firstName, lastName, phone, isActive, isEmailVerified, isAdmin, preferences } = req.body;
     
     const user = await User.findByPk(id);
     if (!user) {
@@ -128,6 +156,7 @@ const updateUser = async (req, res) => {
     if (phone !== undefined) user.phone = phone;
     if (isActive !== undefined) user.isActive = isActive;
     if (isEmailVerified !== undefined) user.isEmailVerified = isEmailVerified;
+    if (isAdmin !== undefined) user.isAdmin = isAdmin;
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
     }
@@ -146,6 +175,7 @@ const updateUser = async (req, res) => {
           fullName: user.getFullName(),
           phone: user.phone,
           isEmailVerified: user.isEmailVerified,
+          isAdmin: user.isAdmin,
           isActive: user.isActive,
           preferences: user.preferences
         }
@@ -396,39 +426,56 @@ const getDashboardStats = async (req, res) => {
       limit: 5
     });
 
-    // Product stats
+    // Get product statistics
     const totalProducts = await Product.count();
     const activeProducts = await Product.count({ where: { isActive: true } });
 
-    // Order stats
+    // Get order statistics
     const totalOrders = await Order.count();
+    
+    // Orders by status
     const ordersByStatus = await Order.findAll({
-      attributes: ['status', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
-      group: ['status']
+      attributes: [
+        'status',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['status'],
+      order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
     });
 
-    const revenueLast30DaysRow = await Order.findOne({
-      attributes: [[sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('totalAmountCents')), 0), 'revenueCents']],
-      where: { createdAt: { [Op.gte]: thirtyDaysAgo }, status: { [Op.in]: ['paid', 'shipped', 'delivered'] } },
-      raw: true
+    // Revenue calculation (last 30 days)
+    // Using the same thirtyDaysAgo variable from above
+    
+    const revenueResult = await Order.findOne({
+      attributes: [
+        [sequelize.fn('SUM', sequelize.col('totalAmountCents')), 'totalRevenue']
+      ],
+      where: {
+        createdAt: {
+          [Op.gte]: thirtyDaysAgo
+        },
+        status: {
+          [Op.in]: ['paid', 'delivered']
+        }
+      }
     });
-    const revenueLast30Days = parseInt(revenueLast30DaysRow?.revenueCents || 0, 10);
+    
+    const revenueLast30Days = revenueResult ? parseInt(revenueResult.dataValues.totalRevenue) || 0 : 0;
 
-    // Top products by quantity in last 30 days
+    // Top products by order count
     const topProducts = await OrderItem.findAll({
       attributes: [
-        'productId',
-        [sequelize.fn('SUM', sequelize.col('quantity')), 'totalSold']
+        [sequelize.fn('COUNT', sequelize.col('OrderItem.id')), 'orderCount'],
+        [sequelize.fn('SUM', sequelize.col('OrderItem.quantity')), 'totalQuantity']
       ],
-      include: [{ model: Product, attributes: ['id', 'name', 'slug', 'SKU'] }],
-      group: ['productId', 'Product.id'],
-      order: [[sequelize.fn('SUM', sequelize.col('quantity')), 'DESC']],
-      limit: 5,
-      where: sequelize.where(
-        sequelize.col('OrderItem.orderId'),
-        'IN',
-        sequelize.literal(`(SELECT id FROM "Orders" WHERE "createdAt" >= '${thirtyDaysAgo.toISOString()}')`)
-      )
+      include: [{
+        model: Product,
+        attributes: ['id', 'name', 'price'],
+        required: true
+      }],
+      group: ['Product.id'],
+      order: [[sequelize.fn('COUNT', sequelize.col('OrderItem.id')), 'DESC']],
+      limit: 5
     });
 
     res.json({
@@ -462,7 +509,7 @@ const getDashboardStats = async (req, res) => {
 // @access  Admin only
 const searchUsers = async (req, res) => {
   try {
-    const { q, page = 1, limit = 10 } = req.query;
+    const { q, page = 1, limit = 10, filter } = req.query;
     const offset = (page - 1) * limit;
 
     if (!q) {
@@ -472,15 +519,39 @@ const searchUsers = async (req, res) => {
       });
     }
 
+    // Build where clause for search and filters
+    const whereClause = {
+      [Op.or]: [
+        { email: { [Op.iLike]: `%${q}%` } },
+        { firstName: { [Op.iLike]: `%${q}%` } },
+        { lastName: { [Op.iLike]: `%${q}%` } },
+        { phone: { [Op.iLike]: `%${q}%` } }
+      ]
+    };
+
+    // Add filter conditions
+    if (filter === 'admin') {
+      whereClause.isAdmin = true;
+    }
+    
+    if (filter === 'verified') {
+      whereClause.isEmailVerified = true;
+    }
+    
+    if (filter === 'unverified') {
+      whereClause.isEmailVerified = false;
+    }
+    
+    if (filter === 'active') {
+      whereClause.isActive = true;
+    }
+    
+    if (filter === 'inactive') {
+      whereClause.isActive = false;
+    }
+
     const { count, rows: users } = await User.findAndCountAll({
-      where: {
-        [Op.or]: [
-          { email: { [Op.iLike]: `%${q}%` } },
-          { firstName: { [Op.iLike]: `%${q}%` } },
-          { lastName: { [Op.iLike]: `%${q}%` } },
-          { phone: { [Op.iLike]: `%${q}%` } }
-        ]
-      },
+      where: whereClause,
       include: [{
         model: Address,
         as: 'addresses',
@@ -488,7 +559,7 @@ const searchUsers = async (req, res) => {
       }],
       attributes: [
         'id', 'email', 'firstName', 'lastName', 'phone', 
-        'isEmailVerified', 'isActive', 'twoFactorEnabled',
+        'isEmailVerified', 'isActive', 'twoFactorEnabled', 'isAdmin',
         'lastLogin', 'createdAt'
       ],
       order: [['createdAt', 'DESC']],
@@ -507,7 +578,8 @@ const searchUsers = async (req, res) => {
           totalPages,
           totalUsers: count,
           usersPerPage: parseInt(limit)
-        }
+        },
+        filter: filter || 'all'
       }
     });
   } catch (error) {
@@ -519,54 +591,80 @@ const searchUsers = async (req, res) => {
   }
 };
 
-// @desc    List all admin users
-// @route   GET /api/admin/admins
+// @desc    Toggle admin status for a user
+// @route   PUT /api/admin/users/:id/admin
 // @access  Admin only
-const listAdmins = async (req, res) => {
-  try {
-    const admins = await User.findAll({
-      where: { isAdmin: true },
-      attributes: ['id', 'email', 'firstName', 'lastName', 'isActive', 'createdAt']
-    });
-
-    res.json({
-      success: true,
-      data: { admins }
-    });
-  } catch (error) {
-    console.error('List admins error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
-
-// @desc    Request admin privileges (for first admin user)
-// @route   PUT /api/admin/users/:id/request-admin
-// @access  Authenticated users only
-const requestAdminPrivileges = async (req, res) => {
+const toggleUserAdmin = async (req, res) => {
   try {
     const { id } = req.params;
+    const { isAdmin } = req.body;
     
-    // Only allow users to request admin for themselves
-    if (req.userData.id !== parseInt(id, 10)) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'You can only request admin privileges for yourself' 
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
 
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    // For development: Allow any user to become admin
-    // In production, you'd want to add proper approval logic here
-    user.isAdmin = true;
+    // Update admin status
+    user.isAdmin = isAdmin;
     await user.save();
-    
+
     res.json({
       success: true,
-      message: 'Admin privileges granted',
+      message: `User ${isAdmin ? 'granted' : 'removed'} admin privileges successfully`,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isAdmin: user.isAdmin
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Toggle user admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Request admin privileges (for self-promotion)
+// @route   PUT /api/admin/users/:id/request-admin
+// @access  Authenticated user (can request for themselves)
+const requestAdminPrivileges = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requestingUserId = req.user.id;
+    
+    // Users can only request admin privileges for themselves
+    if (id !== requestingUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only request admin privileges for yourself'
+      });
+    }
+    
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // For now, we'll grant admin privileges directly
+    // In a real application, this might require approval from other admins
+    user.isAdmin = true;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Admin privileges granted successfully',
       data: {
         user: {
           id: user.id,
@@ -579,54 +677,12 @@ const requestAdminPrivileges = async (req, res) => {
     });
   } catch (error) {
     console.error('Request admin privileges error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 };
-
-// @desc    Set a user's admin status
-// @route   PUT /api/admin/users/:id/admin
-// @access  Admin only
-const setUserAdmin = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isAdmin } = req.body;
-
-    if (typeof isAdmin !== 'boolean') {
-      return res.status(400).json({ success: false, message: 'isAdmin must be a boolean' });
-    }
-
-    // Prevent self-demotion to avoid locking out all admins (optional safety)
-    if (req.userData && req.userData.id === parseInt(id, 10) && isAdmin === false) {
-      return res.status(400).json({ success: false, message: 'You cannot remove your own admin access' });
-    }
-
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    user.isAdmin = isAdmin;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Admin status updated',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          isAdmin: user.isAdmin,
-          isActive: user.isActive
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Set user admin error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
- };
 
 module.exports = {
   getAllUsers,
@@ -639,7 +695,6 @@ module.exports = {
   deleteUserAddress,
   getDashboardStats,
   searchUsers,
-  listAdmins,
-  setUserAdmin,
+  toggleUserAdmin,
   requestAdminPrivileges
 };
