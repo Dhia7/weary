@@ -1,69 +1,76 @@
 const { Sequelize } = require('sequelize');
 
-// Connect directly to PostgreSQL with optimized timeout settings
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'wear_db',
-  process.env.DB_USER || 'postgres',
-  process.env.DB_PASSWORD || 'dhianaija123',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    dialect: 'postgres',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
-    pool: {
-      max: 10, // Increased for better concurrency
-      min: 2, // Increased minimum connections
-      acquire: 30000, // Reduced acquire timeout to fail faster
-      idle: 10000, // Reduced idle timeout
-      evict: 1000, // Check for idle connections every second
-      handleDisconnects: true
-    },
-    // Connection configurations
-    dialectOptions: {
-      // Connection timeout
-      connectTimeout: 10000, // Reduced connection timeout to fail faster
-      // Statement timeout
-      statement_timeout: 30000, // Reduced statement timeout
-      // Idle timeout
-      idle_in_transaction_session_timeout: 30000,
-      // Additional options for better connection handling
-      keepAlive: true,
-      keepAliveInitialDelayMillis: 0,
-      // Connection validation
-      application_name: 'wear-backend'
-    },
-    // Disable query logging for better performance
-    benchmark: false,
-    // Retry configuration with exponential backoff
-    retry: {
-      max: 3, // Reduced retry attempts
-      timeout: 5000, // Increased retry timeout
-      match: [
-        /ETIMEDOUT/,
-        /EHOSTUNREACH/,
-        /ECONNRESET/,
-        /ECONNREFUSED/,
-        /ETIMEDOUT/,
-        /SequelizeConnectionError/,
-        /SequelizeConnectionRefusedError/,
-        /SequelizeHostNotFoundError/,
-        /SequelizeHostNotReachableError/,
-        /SequelizeInvalidConnectionError/,
-        /SequelizeConnectionTimedOutError/
-      ]
-    },
-    // Additional options
-    define: {
-      timestamps: true,
-      underscored: false,
-      freezeTableName: true
-    },
-    // Query timeout
-    queryTimeout: 30000,
-    // Transaction timeout
-    transactionTimeout: 30000
-  }
-);
+// Build common Sequelize options
+const commonOptions = {
+  dialect: 'postgres',
+  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  pool: {
+    max: 10,
+    min: 2,
+    acquire: 30000,
+    idle: 10000,
+    evict: 1000,
+    handleDisconnects: true
+  },
+  dialectOptions: {
+    connectTimeout: 10000,
+    statement_timeout: 30000,
+    idle_in_transaction_session_timeout: 30000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 0,
+    application_name: 'wear-backend'
+  },
+  benchmark: false,
+  retry: {
+    max: 3,
+    timeout: 5000,
+    match: [
+      /ETIMEDOUT/,
+      /EHOSTUNREACH/,
+      /ECONNRESET/,
+      /ECONNREFUSED/,
+      /ETIMEDOUT/,
+      /SequelizeConnectionError/,
+      /SequelizeConnectionRefusedError/,
+      /SequelizeHostNotFoundError/,
+      /SequelizeHostNotReachableError/,
+      /SequelizeInvalidConnectionError/,
+      /SequelizeConnectionTimedOutError/
+    ]
+  },
+  define: {
+    timestamps: true,
+    underscored: false,
+    freezeTableName: true
+  },
+  queryTimeout: 30000,
+  transactionTimeout: 30000
+};
+
+// Optional SSL for managed Postgres providers
+if (process.env.DB_SSL === 'true') {
+  commonOptions.dialectOptions.ssl = { require: true, rejectUnauthorized: false };
+}
+
+// Prefer single DATABASE_URL if provided
+let sequelize;
+if (process.env.DATABASE_URL) {
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    ...commonOptions,
+    protocol: 'postgres'
+  });
+} else {
+  sequelize = new Sequelize(
+    process.env.DB_NAME || 'wear_db',
+    process.env.DB_USER || 'postgres',
+    process.env.DB_PASSWORD || 'dhianaija123',
+    {
+      ...commonOptions,
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432
+    }
+  );
+}
 
 const connectDB = async () => {
   const maxRetries = 5;

@@ -1,12 +1,24 @@
 const express = require('express');
-const https = require('https');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+
+// NOTE: This application only creates HTTP servers
+// SSL/HTTPS is handled by the deployment platform (Render) at the load balancer level
 require('dotenv').config();
+
+// Explicitly prevent HTTPS server creation in production
+if (process.env.NODE_ENV === 'production') {
+  // Override any SSL-related environment variables that might trigger HTTPS
+  delete process.env.SSL_CERT;
+  delete process.env.SSL_KEY;
+  delete process.env.SSL_CA;
+  delete process.env.HTTPS_PORT;
+  delete process.env.SSL_PORT;
+}
 
 const { connectDB, sequelize } = require('./config/database');
 const dbMonitor = require('./utils/dbMonitor');
@@ -81,6 +93,8 @@ app.use(compression());
 const corsOptions = {
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'https://localhost:3000',
     'http://localhost:3001',
     'https://localhost:3001'
@@ -121,7 +135,9 @@ app.use('/uploads', express.static(uploadsDir, {
       const contentType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+      const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+      res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     }
@@ -202,43 +218,34 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001; // Backend runs on port 3001
 
-// SSL certificate paths
-const sslDir = path.join(__dirname, '..', '..', 'ssl');
-const sslKeyPath = path.join(sslDir, 'server.key');
-const sslCertPath = path.join(sslDir, 'server.crt');
-
-// Check if SSL certificates exist
-const useHTTPS = fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath);
-
-if (useHTTPS) {
-  // HTTPS Server
-  const httpsOptions = {
-    key: fs.readFileSync(sslKeyPath),
-    cert: fs.readFileSync(sslCertPath)
-  };
-
-  const httpsServer = https.createServer(httpsOptions, app);
-  
-  httpsServer.listen(PORT, () => {
-    console.log(`🔒 HTTPS Server running on port ${PORT}`);
-    console.log(`🌐 Access your API at: https://localhost:${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`⚠️  Note: Self-signed certificate - browser will show security warning`);
-    
-    // Start database monitoring
-    dbMonitor.startMonitoring(30000); // Check every 30 seconds
-  });
-} else {
-  // HTTP Server (fallback)
-  console.log('⚠️  SSL certificates not found, running HTTP server');
-  console.log('💡 Run "node scripts/generate-ssl.js" to generate SSL certificates');
-  
-  app.listen(PORT, () => {
-    console.log(`🌐 HTTP Server running on port ${PORT}`);
-    console.log(`🌐 Access your API at: http://localhost:${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    
-    // Start database monitoring
-    dbMonitor.startMonitoring(30000); // Check every 30 seconds
-  });
+// Ensure we only run HTTP server (Render handles SSL termination)
+// Never attempt to create HTTPS server in production
+if (process.env.NODE_ENV === 'production') {
+  console.log('🚀 Starting in production mode - HTTP only (SSL handled by Render)');
 }
+
+// HTTP Server only
+const server = app.listen(PORT, () => {
+  console.log(`🌐 HTTP Server running on port ${PORT}`);
+  console.log(`🌐 Access your API at: http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Server type: HTTP only (no SSL/TLS)`);
+  
+  // Start database monitoring
+  dbMonitor.startMonitoring(30000); // Check every 30 seconds
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});

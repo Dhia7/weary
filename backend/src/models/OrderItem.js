@@ -12,7 +12,7 @@ const OrderItem = sequelize.define('OrderItem', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Orders',
+      model: 'Order',
       key: 'id'
     }
   },
@@ -20,7 +20,7 @@ const OrderItem = sequelize.define('OrderItem', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Products',
+      model: 'Product',
       key: 'id'
     }
   },
