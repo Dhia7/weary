@@ -24,7 +24,7 @@ export function generateId() {
 export function getImageUrl(imagePath: string | null | undefined): string | null {
   if (!imagePath) return null;
   
-  console.log('getImageUrl input:', imagePath);
+  console.log('getImageUrl v2.0 input:', imagePath);
   console.log('NODE_ENV:', process.env.NODE_ENV);
   console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
   console.log('window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
@@ -41,12 +41,12 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
     
     if (imagePath.startsWith('/uploads/')) {
       const fullUrl = `${PRODUCTION_BACKEND_URL}${imagePath}`;
-      console.log('getImageUrl output (production):', fullUrl);
+      console.log('getImageUrl v2.0 output (production):', fullUrl);
       return fullUrl;
     }
     
     const fullUrl = `${PRODUCTION_BACKEND_URL}/uploads/${imagePath}`;
-    console.log('getImageUrl output (production):', fullUrl);
+    console.log('getImageUrl v2.0 output (production):', fullUrl);
     return fullUrl;
   }
   
@@ -58,12 +58,12 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   
   if (imagePath.startsWith('/uploads/')) {
     const fullUrl = `${BACKEND_URL}${imagePath}`;
-    console.log('getImageUrl output (development):', fullUrl);
+    console.log('getImageUrl v2.0 output (development):', fullUrl);
     return fullUrl;
   }
   
   const fullUrl = `${BACKEND_URL}/uploads/${imagePath}`;
-  console.log('getImageUrl output (development):', fullUrl);
+  console.log('getImageUrl v2.0 output (development):', fullUrl);
   return fullUrl;
 }
 
