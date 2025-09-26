@@ -16,18 +16,29 @@ const nextConfig: NextConfig = {
         port: '3001',
         pathname: '/uploads/**',
       },
+      // Add production backend patterns
+      {
+        protocol: 'https',
+        hostname: '*.onrender.com',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '*.onrender.com',
+        pathname: '/uploads/**',
+      },
     ],
   },
   async rewrites() {
-    // Use HTTPS for backend if available, fallback to HTTP
-    const backendProtocol = process.env.BACKEND_PROTOCOL || 'https';
-    const backendUrl = `${backendProtocol}://localhost:3001`;
+    // Get backend URL from environment or use localhost for development
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL 
+      ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '')
+      : 'http://localhost:3001';
+    
+    console.log('Next.js rewrite config - Backend URL:', backendUrl);
+    console.log('Next.js rewrite config - API URL:', process.env.NEXT_PUBLIC_API_URL);
     
     return [
-      {
-        source: '/api/uploads/:path*',
-        destination: `${backendUrl}/uploads/:path*`,
-      },
       {
         source: '/uploads/:path*',
         destination: `${backendUrl}/uploads/:path*`,
