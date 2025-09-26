@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
         hostname: '*.onrender.com',
         pathname: '/uploads/**',
       },
+      // Add specific backend domain
+      {
+        protocol: 'https',
+        hostname: 'weary-backend.onrender.com',
+        pathname: '/uploads/**',
+      },
     ],
   },
   async rewrites() {

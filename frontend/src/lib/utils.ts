@@ -27,37 +27,23 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   console.log('getImageUrl input:', imagePath);
   console.log('NODE_ENV:', process.env.NODE_ENV);
   console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+  console.log('window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
   
-  // Check if we're in production by looking at the API URL
-  // If API URL contains 'onrender.com' or 'vercel.app', we're in production
+  // Get the API base URL
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-  const isProduction = API_BASE_URL.includes('onrender.com') || API_BASE_URL.includes('vercel.app') || process.env.NODE_ENV === 'production';
+  const BACKEND_URL = API_BASE_URL.replace('/api', '');
   
-  console.log('isProduction:', isProduction);
+  console.log('Backend URL:', BACKEND_URL);
   
-  if (isProduction) {
-    // Use relative URLs for production - Next.js rewrites will handle them
-    if (imagePath.startsWith('/uploads/')) {
-      console.log('getImageUrl output (production):', imagePath);
-      return imagePath;
-    }
-    
-    const relativeUrl = `/uploads/${imagePath}`;
-    console.log('getImageUrl output (production):', relativeUrl);
-    return relativeUrl;
-  } else {
-    // Use full URLs for development
-    const BACKEND_URL = API_BASE_URL.replace('/api', ''); // Remove /api to get base backend URL
-    
-    if (imagePath.startsWith('/uploads/')) {
-      const fullUrl = `${BACKEND_URL}${imagePath}`;
-      console.log('getImageUrl output (development):', fullUrl);
-      return fullUrl;
-    }
-    
-    const fullUrl = `${BACKEND_URL}/uploads/${imagePath}`;
-    console.log('getImageUrl output (development):', fullUrl);
+  // Always use full backend URLs for now to bypass rewrite issues
+  if (imagePath.startsWith('/uploads/')) {
+    const fullUrl = `${BACKEND_URL}${imagePath}`;
+    console.log('getImageUrl output (full URL):', fullUrl);
     return fullUrl;
   }
+  
+  const fullUrl = `${BACKEND_URL}/uploads/${imagePath}`;
+  console.log('getImageUrl output (full URL):', fullUrl);
+  return fullUrl;
 }
 
