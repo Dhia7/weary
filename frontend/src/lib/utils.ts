@@ -29,21 +29,41 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
   console.log('window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
   
-  // Get the API base URL
+  // Determine if we're in production
+  const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+  
+  console.log('isProduction (client-side):', isProduction);
+  
+  // Use hardcoded production backend URL if in production
+  if (isProduction) {
+    const PRODUCTION_BACKEND_URL = 'https://weary-backend.onrender.com';
+    console.log('Using production backend URL:', PRODUCTION_BACKEND_URL);
+    
+    if (imagePath.startsWith('/uploads/')) {
+      const fullUrl = `${PRODUCTION_BACKEND_URL}${imagePath}`;
+      console.log('getImageUrl output (production):', fullUrl);
+      return fullUrl;
+    }
+    
+    const fullUrl = `${PRODUCTION_BACKEND_URL}/uploads/${imagePath}`;
+    console.log('getImageUrl output (production):', fullUrl);
+    return fullUrl;
+  }
+  
+  // Development fallback
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
   const BACKEND_URL = API_BASE_URL.replace('/api', '');
   
-  console.log('Backend URL:', BACKEND_URL);
+  console.log('Backend URL (development):', BACKEND_URL);
   
-  // Always use full backend URLs for now to bypass rewrite issues
   if (imagePath.startsWith('/uploads/')) {
     const fullUrl = `${BACKEND_URL}${imagePath}`;
-    console.log('getImageUrl output (full URL):', fullUrl);
+    console.log('getImageUrl output (development):', fullUrl);
     return fullUrl;
   }
   
   const fullUrl = `${BACKEND_URL}/uploads/${imagePath}`;
-  console.log('getImageUrl output (full URL):', fullUrl);
+  console.log('getImageUrl output (development):', fullUrl);
   return fullUrl;
 }
 
