@@ -43,6 +43,11 @@ const nextConfig: NextConfig = {
         source: '/uploads/:path*',
         destination: `${backendUrl}/uploads/:path*`,
       },
+      // Handle legacy /api/uploads/ paths
+      {
+        source: '/api/uploads/:path*',
+        destination: `${backendUrl}/uploads/:path*`,
+      },
     ];
   },
 };
