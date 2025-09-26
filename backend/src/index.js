@@ -58,11 +58,40 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "http://localhost:3000", "https://localhost:3000", "http://localhost:5000", "https://localhost:5000", "http://localhost:3001", "https://localhost:3001", "https://weary-iota.vercel.app", "https://weary-git-main-dhia7s-projects.vercel.app", "https://weary-kndtv5wjk-dhia7s-projects.vercel.app"],
+      imgSrc: [
+        "'self'", 
+        "data:", 
+        "http://localhost:3000", 
+        "https://localhost:3000", 
+        "http://localhost:5000", 
+        "https://localhost:5000", 
+        "http://localhost:3001", 
+        "https://localhost:3001", 
+        "https://weary-iota.vercel.app", 
+        "https://weary-git-main-dhia7s-projects.vercel.app", 
+        "https://weary-kndtv5wjk-dhia7s-projects.vercel.app",
+        // Allow images from any Vercel subdomain
+        "https://*.vercel.app",
+        // Allow images from the backend domain itself
+        process.env.BACKEND_URL || "http://localhost:3001"
+      ],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "https:", "data:"],
-      connectSrc: ["'self'", "http://localhost:3000", "https://localhost:3000", "http://localhost:5000", "https://localhost:5000", "http://localhost:3001", "https://localhost:3001", "https://weary-iota.vercel.app", "https://weary-git-main-dhia7s-projects.vercel.app", "https://weary-kndtv5wjk-dhia7s-projects.vercel.app"],
+      connectSrc: [
+        "'self'", 
+        "http://localhost:3000", 
+        "https://localhost:3000", 
+        "http://localhost:5000", 
+        "https://localhost:5000", 
+        "http://localhost:3001", 
+        "https://localhost:3001", 
+        "https://weary-iota.vercel.app", 
+        "https://weary-git-main-dhia7s-projects.vercel.app", 
+        "https://weary-kndtv5wjk-dhia7s-projects.vercel.app",
+        // Allow connections to any Vercel subdomain
+        "https://*.vercel.app"
+      ],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -101,7 +130,10 @@ const corsOptions = {
     // Vercel deployment domains
     'https://weary-iota.vercel.app',
     'https://weary-git-main-dhia7s-projects.vercel.app',
-    'https://weary-kndtv5wjk-dhia7s-projects.vercel.app'
+    'https://weary-kndtv5wjk-dhia7s-projects.vercel.app',
+    // Allow any Vercel subdomain for your project
+    /^https:\/\/weary-.*\.vercel\.app$/,
+    /^https:\/\/.*\.vercel\.app$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

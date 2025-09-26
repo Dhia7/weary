@@ -35,3 +35,4 @@ If you see SSL/PEM errors:
 - Use Render's managed PostgreSQL service
 - Set the DATABASE_URL environment variable
 - No additional SSL configuration needed for database connections
+
