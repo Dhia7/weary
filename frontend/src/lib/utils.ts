@@ -26,8 +26,19 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   
   console.log('getImageUrl input:', imagePath);
   
-  // Use the proxied URL to avoid CORS issues
-  const fullUrl = `/api${imagePath}`;
+  // Get the backend URL from environment variables
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  const BACKEND_URL = API_BASE_URL.replace('/api', ''); // Remove /api to get base backend URL
+  
+  // If imagePath already starts with /uploads/, use it directly
+  if (imagePath.startsWith('/uploads/')) {
+    const fullUrl = `${BACKEND_URL}${imagePath}`;
+    console.log('getImageUrl output:', fullUrl);
+    return fullUrl;
+  }
+  
+  // If imagePath doesn't start with /uploads/, assume it's a filename and add the path
+  const fullUrl = `${BACKEND_URL}/uploads/${imagePath}`;
   console.log('getImageUrl output:', fullUrl);
   return fullUrl;
 }

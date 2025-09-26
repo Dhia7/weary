@@ -4,10 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:https": "node server.js",
     "build": "next build",
     "start": "next start",
-    "start:https": "NODE_ENV=production node server.js",
     "lint": "eslint"
   },
   "dependencies": {
