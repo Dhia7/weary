@@ -23,47 +23,30 @@ export function generateId() {
 
 export function getImageUrl(imagePath: string | null | undefined): string | null {
   if (!imagePath) return null;
-  
-  console.log('getImageUrl v2.0 input:', imagePath);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
-  console.log('window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
-  
-  // Determine if we're in production
-  const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
-  
-  console.log('isProduction (client-side):', isProduction);
-  
-  // Use hardcoded production backend URL if in production
+
+  // Absolute URL passed-through
+  if (/^https?:\/\//i.test(imagePath)) return imagePath;
+
+  // Normalize incoming path (strip leading slashes for join)
+  const normalized = imagePath.replace(/^\/+/, '');
+
+  // In production (Vercel), always use the public backend origin directly
+  const isBrowser = typeof window !== 'undefined';
+  const isProduction = isBrowser && /vercel\.app$/i.test(window.location.hostname);
+
   if (isProduction) {
-    const PRODUCTION_BACKEND_URL = 'https://weary-backend.onrender.com';
-    console.log('Using production backend URL:', PRODUCTION_BACKEND_URL);
-    
-    if (imagePath.startsWith('/uploads/')) {
-      const fullUrl = `${PRODUCTION_BACKEND_URL}${imagePath}`;
-      console.log('getImageUrl v2.0 output (production):', fullUrl);
-      return fullUrl;
-    }
-    
-    const fullUrl = `${PRODUCTION_BACKEND_URL}/uploads/${imagePath}`;
-    console.log('getImageUrl v2.0 output (production):', fullUrl);
-    return fullUrl;
+    const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://weary-backend.onrender.com';
+    return imagePath.startsWith('/uploads/')
+      ? `${backendOrigin}${imagePath}`
+      : `${backendOrigin}/uploads/${normalized}`;
   }
-  
-  // Development fallback
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-  const BACKEND_URL = API_BASE_URL.replace('/api', '');
-  
-  console.log('Backend URL (development):', BACKEND_URL);
-  
-  if (imagePath.startsWith('/uploads/')) {
-    const fullUrl = `${BACKEND_URL}${imagePath}`;
-    console.log('getImageUrl v2.0 output (development):', fullUrl);
-    return fullUrl;
-  }
-  
-  const fullUrl = `${BACKEND_URL}/uploads/${imagePath}`;
-  console.log('getImageUrl v2.0 output (development):', fullUrl);
-  return fullUrl;
+
+  // Development: derive backend origin from NEXT_PUBLIC_API_URL or default
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  const backendOrigin = apiBaseUrl.replace(/\/?api\/?$/, '');
+
+  return imagePath.startsWith('/uploads/')
+    ? `${backendOrigin}${imagePath}`
+    : `${backendOrigin}/uploads/${normalized}`;
 }
 
