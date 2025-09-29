@@ -152,11 +152,49 @@ const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.get('/uploads/:filename', (req, res, next) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
-    const filePath = path.join(uploadsDir, filename);
+    let filePath = path.join(uploadsDir, filename);
+
+    // If the exact file doesn't exist, try common alternate extensions
+    if (!fs.existsSync(filePath)) {
+      const requestedExt = path.extname(filename).toLowerCase();
+      const baseName = filename.slice(0, -requestedExt.length);
+      // Priority order of extensions to try
+      const alternateExtensions = requestedExt === '.jpg' || requestedExt === '.jpeg'
+        ? ['.jpg', '.jpeg', '.jfif', '.png', '.webp']
+        : requestedExt === '.jfif'
+          ? ['.jfif', '.jpg', '.jpeg', '.png', '.webp']
+          : requestedExt === '.png'
+            ? ['.png', '.jpg', '.jpeg', '.jfif', '.webp']
+            : requestedExt === '.webp'
+              ? ['.webp', '.jpg', '.jpeg', '.jfif', '.png']
+              : ['.jpg', '.jpeg', '.jfif', '.png', '.webp'];
+
+      for (const ext of alternateExtensions) {
+        const candidatePath = path.join(uploadsDir, `${baseName}${ext}`);
+        if (fs.existsSync(candidatePath)) {
+          filePath = candidatePath;
+          break;
+        }
+      }
+    }
+
     if (!fs.existsSync(filePath)) {
       return next();
     }
-    res.type(path.extname(filePath) || 'application/octet-stream');
+
+    const ext = path.extname(filePath).toLowerCase();
+    // Treat .jfif as image/jpeg for widest compatibility
+    const contentType = (ext === '.jpg' || ext === '.jpeg' || ext === '.jfif')
+      ? 'image/jpeg'
+      : ext === '.png'
+        ? 'image/png'
+        : ext === '.gif'
+          ? 'image/gif'
+          : ext === '.webp'
+            ? 'image/webp'
+            : 'application/octet-stream';
+
+    res.type(contentType);
     return res.sendFile(filePath);
   } catch (e) {
     return next();
@@ -164,11 +202,20 @@ app.get('/uploads/:filename', (req, res, next) => {
 });
 
 app.use('/uploads', express.static(uploadsDir, {
-  setHeaders: (res, path) => {
-    // Set proper headers for images
-    if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.webp')) {
-      const ext = path.split('.').pop();
-      const contentType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
+  setHeaders: (res, filePath) => {
+    // Set proper headers for images (treat .jfif as JPEG)
+    const lower = filePath.toLowerCase();
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp') || lower.endsWith('.jfif')) {
+      const ext = lower.split('.').pop();
+      const contentType = (ext === 'jpg' || ext === 'jpeg' || ext === 'jfif')
+        ? 'image/jpeg'
+        : ext === 'png'
+          ? 'image/png'
+          : ext === 'gif'
+            ? 'image/gif'
+            : ext === 'webp'
+              ? 'image/webp'
+              : 'application/octet-stream';
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
       const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';

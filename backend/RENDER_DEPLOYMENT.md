@@ -36,3 +36,5 @@ If you see SSL/PEM errors:
 - Set the DATABASE_URL environment variable
 - No additional SSL configuration needed for database connections
 
+
+
