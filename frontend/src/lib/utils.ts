@@ -30,12 +30,20 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   // Normalize incoming path (strip leading slashes for join)
   const normalized = imagePath.replace(/^\/+/, '');
 
-  // In production (Vercel), always use the public backend origin directly
+  // Production (SSR or Browser): use backend origin directly
   const isBrowser = typeof window !== 'undefined';
-  const isProduction = isBrowser && /vercel\.app$/i.test(window.location.hostname);
+  const hostname = isBrowser ? window.location.hostname : '';
+  const isProduction =
+    process.env.VERCEL === '1' ||
+    process.env.NODE_ENV === 'production' ||
+    /vercel\.app$/i.test(hostname);
 
   if (isProduction) {
-    const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://weary-backend.onrender.com';
+    const backendOrigin =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.BACKEND_URL ||
+      'https://weary-backend.onrender.com';
+
     return imagePath.startsWith('/uploads/')
       ? `${backendOrigin}${imagePath}`
       : `${backendOrigin}/uploads/${normalized}`;
