@@ -38,23 +38,38 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
     process.env.NODE_ENV === 'production' ||
     /vercel\.app$/i.test(hostname);
 
+  console.log('getImageUrl debug:', {
+    imagePath,
+    isBrowser,
+    hostname,
+    isProduction,
+    VERCEL: process.env.VERCEL,
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL
+  });
+
   if (isProduction) {
     const backendOrigin =
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       process.env.BACKEND_URL ||
       'https://weary-backend.onrender.com';
 
-    return imagePath.startsWith('/uploads/')
+    const result = imagePath.startsWith('/uploads/')
       ? `${backendOrigin}${imagePath}`
       : `${backendOrigin}/uploads/${normalized}`;
+    
+    console.log('getImageUrl production result:', result);
+    return result;
   }
 
   // Development: derive backend origin from NEXT_PUBLIC_API_URL or default
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
   const backendOrigin = apiBaseUrl.replace(/\/?api\/?$/, '');
 
-  return imagePath.startsWith('/uploads/')
+  const result = imagePath.startsWith('/uploads/')
     ? `${backendOrigin}${imagePath}`
     : `${backendOrigin}/uploads/${normalized}`;
+  
+  console.log('getImageUrl development result:', result);
+  return result;
 }
-
