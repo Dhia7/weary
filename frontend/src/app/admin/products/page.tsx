@@ -105,6 +105,7 @@ export default function AdminProductsPage() {
                                 src={getImageUrl(product.imageUrl) || ''} 
                                 alt={product.name}
                                 fill
+                                unoptimized
                                 className="object-cover rounded-lg border border-gray-200 dark:border-gray-600"
                                 sizes="48px"
                               />
