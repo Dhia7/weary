@@ -27,11 +27,13 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   // Absolute URL passed-through
   if (/^https?:\/\//i.test(imagePath)) return imagePath;
 
-  // Normalize to site-relative path so Next.js rewrites handle proxying to backend
-  // Ensures we never return `/api/uploads/...` and avoids Vercel image optimizer issues
+  // Force site-relative path to use Next.js rewrites (bypasses Vercel image optimizer)
+  // This ensures images load via /uploads/... not /api/uploads/...
   const normalized = imagePath.replace(/^\/+/, '');
   const result = imagePath.startsWith('/uploads/')
     ? imagePath
     : `/uploads/${normalized}`;
+  
+  console.log('getImageUrl fixed:', { input: imagePath, output: result });
   return result;
 }
