@@ -295,8 +295,8 @@ export default function EditProductPage() {
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
       // Include currently kept existing image paths (server-relative) so backend can remove others
       const remainingExisting = imagePreviews
-        .filter((url) => typeof url === 'string' && url.startsWith('/api/'))
-        .map((url) => url.replace('/api', ''));
+        .filter((url) => typeof url === 'string' && (url.startsWith('/uploads/') || url.startsWith('/api/uploads/')))
+        .map((url) => url.startsWith('/api/') ? url.replace('/api', '') : url);
       formData.append('existingImages', JSON.stringify(remainingExisting));
       
       // Add multiple images (either original files or edited images)
