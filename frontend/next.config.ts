@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
         pathname: '/uploads/**',
       },
     ],
+    // Disable image optimization to avoid Vercel optimization issues with external images
+    unoptimized: true,
   },
   async rewrites() {
     // Get backend URL from environment or use localhost for development
