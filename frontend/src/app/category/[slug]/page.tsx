@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { SortAsc, Grid, List } from 'lucide-react';
+import { buildApiUrl } from '@/lib/api';
 
 interface Product {
   id: number;
@@ -58,7 +59,10 @@ export default function CategoryPage() {
         setLoading(true);
         setError('');
         
-        const apiUrl = `http://localhost:3001/api/categories/${slug}/products?sort=${sortBy}&order=${sortOrder}`;
+        const apiUrl = buildApiUrl(`/categories/${slug}/products`, {
+          sort: sortBy,
+          order: sortOrder
+        });
         console.log('🔍 Fetching category data from:', apiUrl);
         
         const response = await fetch(apiUrl);
