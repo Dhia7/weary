@@ -44,6 +44,7 @@ const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const productRoutes = require('./routes/products');
 const collectionRoutes = require('./routes/collections');
+const categoryRoutes = require('./routes/categories');
 const cartRoutes = require('./routes/cart');
 const wishlistRoutes = require('./routes/wishlist');
 const healthRoutes = require('./routes/health');
@@ -235,6 +236,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/collections', collectionRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 
