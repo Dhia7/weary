@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { Grid, List, Search } from 'lucide-react';
+import { buildApiUrl } from '@/lib/api';
 
 interface Product {
   id: number;
@@ -52,7 +53,14 @@ function SearchPageContent() {
       setLoading(true);
       setError('');
       
-      const apiUrl = `http://localhost:3001/api/products?q=${encodeURIComponent(query)}&sort=${sortBy}&order=${sortOrder}&page=${currentPage}&limit=${productsPerPage}&active=true`;
+      const apiUrl = buildApiUrl('/products', {
+        q: query,
+        sort: sortBy,
+        order: sortOrder,
+        page: currentPage,
+        limit: productsPerPage,
+        active: true
+      });
       console.log('🔍 Searching products from:', apiUrl);
       
       const response = await fetch(apiUrl);

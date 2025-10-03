@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { Grid, List } from 'lucide-react';
+import { buildApiUrl } from '@/lib/api';
 
 interface Product {
   id: number;
@@ -49,7 +50,13 @@ export default function ProductsPage() {
         setLoading(true);
         setError('');
         
-        const apiUrl = `http://localhost:3001/api/products?sort=${sortBy}&order=${sortOrder}&page=${currentPage}&limit=${productsPerPage}&active=true`;
+        const apiUrl = buildApiUrl('/products', {
+          sort: sortBy,
+          order: sortOrder,
+          page: currentPage,
+          limit: productsPerPage,
+          active: true
+        });
         console.log('🔍 Fetching products from:', apiUrl);
         
         const response = await fetch(apiUrl);
