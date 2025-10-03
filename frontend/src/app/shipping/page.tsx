@@ -169,7 +169,7 @@ export default function ShippingPage() {
             International Shipping
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            We currently ship to the United States only. We're working on expanding 
+            We currently ship to the United States only. We&apos;re working on expanding 
             our shipping options to other countries. Sign up for our newsletter to 
             be notified when international shipping becomes available.
           </p>
@@ -179,7 +179,7 @@ export default function ShippingPage() {
               Coming Soon: International Shipping
             </h4>
             <p className="text-gray-600 dark:text-gray-400 text-sm">
-              We're planning to offer shipping to Canada, UK, and EU countries in 2024. 
+              We&apos;re planning to offer shipping to Canada, UK, and EU countries in 2024. 
               Stay tuned for updates!
             </p>
           </div>
@@ -221,7 +221,7 @@ export default function ShippingPage() {
                 Can I track my order?
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Absolutely! You'll receive a tracking number via email once your order ships. 
+                Absolutely! You&apos;ll receive a tracking number via email once your order ships. 
                 You can also track your order in your account dashboard.
               </p>
             </div>
@@ -231,8 +231,8 @@ export default function ShippingPage() {
                 What if my package is lost or damaged?
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                We're sorry to hear that! Please contact our customer service immediately. 
-                We'll work with the shipping carrier to resolve the issue and ensure you receive 
+                We&apos;re sorry to hear that! Please contact our customer service immediately. 
+                We&apos;ll work with the shipping carrier to resolve the issue and ensure you receive 
                 your items or a full refund.
               </p>
             </div>
@@ -244,4 +244,5 @@ export default function ShippingPage() {
     </div>
   );
 }
+
 

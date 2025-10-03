@@ -157,7 +157,7 @@ export default function HelpPage() {
             {filteredFaqs.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-600 dark:text-gray-400">
-                  No results found for "{searchQuery}". Try a different search term.
+                  No results found for &ldquo;{searchQuery}&rdquo;. Try a different search term.
                 </p>
               </div>
             ) : (

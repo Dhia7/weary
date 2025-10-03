@@ -15,3 +15,4 @@ router.delete('/:id', protect, admin, categoryController.deleteCategory);
 
 module.exports = router;
 
+

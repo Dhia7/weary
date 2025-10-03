@@ -241,8 +241,8 @@ export default function DesignersPage() {
             Are You a Designer?
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto">
-            We're always looking for talented designers to join our platform. 
-            If you're interested in showcasing your work, we'd love to hear from you.
+            We&apos;re always looking for talented designers to join our platform. 
+            If you&apos;re interested in showcasing your work, we&apos;d love to hear from you.
           </p>
           <a
             href="/contact"

@@ -109,6 +109,17 @@ const getCategoryProducts = async (req, res) => {
 		const count = parseInt(countResult[0].count);
 		console.log('Product count:', count);
 		
+		// Handle sorting
+		let orderClause = 'p."createdAt" DESC'; // Default sort
+		if (sort && order) {
+			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt'];
+			const validOrders = ['ASC', 'DESC'];
+			
+			if (validSortFields.includes(sort) && validOrders.includes(order.toUpperCase())) {
+				orderClause = `p."${sort}" ${order.toUpperCase()}`;
+			}
+		}
+
 		// Then get the products with their categories
 		const products = await sequelize.query(`
 			SELECT p.*, 
@@ -124,7 +135,7 @@ const getCategoryProducts = async (req, res) => {
 			INNER JOIN "Category" c ON pc."categoryId" = c.id
 			WHERE pc."categoryId" = :categoryId AND p."isActive" = true
 			GROUP BY p.id
-			ORDER BY p."createdAt" DESC
+			ORDER BY ${orderClause}
 			LIMIT :limit OFFSET :offset
 		`, {
 			replacements: { 

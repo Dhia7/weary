@@ -105,12 +105,12 @@ const createProduct = async (req, res) => {
 };
 
 // List products with pagination and filters
-const listProducts = async (req, res) => {
+	const listProducts = async (req, res) => {
 	try {
 		const page = parseInt(req.query.page) || 1;
 		const limit = parseInt(req.query.limit) || 12;
 		const offset = (page - 1) * limit;
-		const { q, active, categoryId } = req.query;
+		const { q, active, categoryId, sort, order } = req.query;
 
 		const where = {};
 		if (q) {
@@ -129,11 +129,22 @@ const listProducts = async (req, res) => {
 			include[0].where = { id: categoryId };
 		}
 
+		// Handle sorting
+		let orderClause = [['createdAt', 'DESC']]; // Default sort
+		if (sort && order) {
+			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt'];
+			const validOrders = ['ASC', 'DESC'];
+			
+			if (validSortFields.includes(sort) && validOrders.includes(order.toUpperCase())) {
+				orderClause = [[sort, order.toUpperCase()]];
+			}
+		}
+
 		const { count, rows } = await withTimeout(
 			Product.findAndCountAll({
 				where,
 				include,
-				order: [['createdAt', 'DESC']],
+				order: orderClause,
 				limit,
 				offset,
 				distinct: true

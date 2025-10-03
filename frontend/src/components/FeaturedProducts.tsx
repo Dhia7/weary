@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import ProductCard from './ProductCard';
 
 interface Product {
@@ -100,9 +101,12 @@ const FeaturedProducts = () => {
         )}
 
         <div className="text-center mt-12">
-          <button className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+          <Link 
+            href="/products"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+          >
             View All Products
-          </button>
+          </Link>
         </div>
       </div>
     </section>

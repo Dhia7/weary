@@ -105,7 +105,7 @@ export default function ReturnsPage() {
             Returns & Exchanges
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-            We want you to love what you buy. If you're not completely satisfied, 
+            We want you to love what you buy. If you&apos;re not completely satisfied, 
             we make returns easy and hassle-free.
           </p>
         </motion.div>
@@ -229,7 +229,7 @@ export default function ReturnsPage() {
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             We offer easy exchanges for different sizes or colors. Simply follow the return process 
-            and specify that you'd like an exchange instead of a refund.
+            and specify that you&apos;d like an exchange instead of a refund.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -239,7 +239,7 @@ export default function ReturnsPage() {
               </div>
               <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Start Exchange</h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Initiate return and select "Exchange" option
+                Initiate return and select &ldquo;Exchange&rdquo; option
               </p>
             </div>
             
@@ -249,7 +249,7 @@ export default function ReturnsPage() {
               </div>
               <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Choose New Item</h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Select the size or color you'd prefer
+                Select the size or color you&apos;d prefer
               </p>
             </div>
             
@@ -259,7 +259,7 @@ export default function ReturnsPage() {
               </div>
               <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Receive New Item</h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                We'll ship your new item once we receive the return
+                We&apos;ll ship your new item once we receive the return
               </p>
             </div>
           </div>
@@ -293,4 +293,5 @@ export default function ReturnsPage() {
     </div>
   );
 }
+
 

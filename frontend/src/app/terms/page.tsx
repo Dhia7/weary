@@ -37,7 +37,7 @@ export default function TermsPage() {
               2. Use License
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Permission is granted to temporarily download one copy of the materials on Wear's 
+              Permission is granted to temporarily download one copy of the materials on Wear&apos;s 
               website for personal, non-commercial transitory viewing only. This is the grant of 
               a license, not a transfer of title, and under this license you may not:
             </p>
@@ -93,7 +93,7 @@ export default function TermsPage() {
               7. Disclaimer
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              The information on this website is provided on an "as is" basis. To the fullest 
+              The information on this website is provided on an &ldquo;as is&rdquo; basis. To the fullest 
               extent permitted by law, this Company excludes all representations, warranties, 
               conditions and terms relating to our website and the use of this website.
             </p>
@@ -133,4 +133,5 @@ export default function TermsPage() {
     </div>
   );
 }
+
 

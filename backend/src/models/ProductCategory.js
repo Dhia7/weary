@@ -8,6 +8,7 @@ const ProductCategory = sequelize.define('ProductCategory', {
 	productId: {
 		type: DataTypes.INTEGER,
 		allowNull: false,
+		primaryKey: true,
 		references: {
 			model: Product,
 			key: 'id'
@@ -17,6 +18,7 @@ const ProductCategory = sequelize.define('ProductCategory', {
 	categoryId: {
 		type: DataTypes.INTEGER,
 		allowNull: false,
+		primaryKey: true,
 		references: {
 			model: Category,
 			key: 'id'
@@ -32,8 +34,3 @@ const ProductCategory = sequelize.define('ProductCategory', {
 });
 
 module.exports = ProductCategory;
-
-
-
-
-

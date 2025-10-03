@@ -112,7 +112,7 @@ export default function PrivacyPage() {
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               We may update this privacy policy from time to time. We will notify you of any 
-              changes by posting the new policy on this page and updating the "Last updated" date.
+              changes by posting the new policy on this page and updating the &ldquo;Last updated&rdquo; date.
             </p>
             
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
