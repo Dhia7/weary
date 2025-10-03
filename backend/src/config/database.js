@@ -7,15 +7,15 @@ const commonOptions = {
   pool: {
     max: 10,
     min: 2,
-    acquire: 30000,
+    acquire: 20000, // Reduced from 30000
     idle: 10000,
     evict: 1000,
     handleDisconnects: true
   },
   dialectOptions: {
-    connectTimeout: 10000,
-    statement_timeout: 30000,
-    idle_in_transaction_session_timeout: 30000,
+    connectTimeout: 8000, // Reduced from 10000
+    statement_timeout: 20000, // Reduced from 30000 for faster failure
+    idle_in_transaction_session_timeout: 20000, // Reduced from 30000
     keepAlive: true,
     keepAliveInitialDelayMillis: 0,
     application_name: 'wear-backend'
@@ -23,7 +23,7 @@ const commonOptions = {
   benchmark: false,
   retry: {
     max: 3,
-    timeout: 5000,
+    timeout: 3000, // Reduced from 5000 for faster retry
     match: [
       /ETIMEDOUT/,
       /EHOSTUNREACH/,
@@ -43,8 +43,8 @@ const commonOptions = {
     underscored: false,
     freezeTableName: true
   },
-  queryTimeout: 30000,
-  transactionTimeout: 30000
+  queryTimeout: 20000, // Reduced from 30000
+  transactionTimeout: 20000 // Reduced from 30000
 };
 
 // Optional SSL for managed Postgres providers
@@ -97,6 +97,18 @@ const connectDB = async () => {
         )
       ]);
       console.log('Database synchronized.');
+      
+      // Apply database optimizations in development
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const { createIndexes, optimizeSettings } = require('../utils/dbOptimization');
+          await createIndexes();
+          await optimizeSettings();
+        } catch (error) {
+          console.warn('Database optimization failed (non-critical):', error.message);
+        }
+      }
+      
       return; // Success, exit the function
     } catch (error) {
       console.error(`Database connection attempt ${attempt} failed:`, error.message);

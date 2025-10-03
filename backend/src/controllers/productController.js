@@ -3,6 +3,10 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const User = require('../models/User');
 const path = require('path');
+const { withTimeout, TIMEOUTS, handleTimeoutError } = require('../utils/queryTimeout');
+
+// Ensure associations are loaded
+require('../models/associations');
 
 // Helper function to format product data based on user role
 const formatProductForUser = (product, isAdmin = false) => {
@@ -125,7 +129,7 @@ const listProducts = async (req, res) => {
 			include[0].where = { id: categoryId };
 		}
 
-		const { count, rows } = await Promise.race([
+		const { count, rows } = await withTimeout(
 			Product.findAndCountAll({
 				where,
 				include,
@@ -134,10 +138,9 @@ const listProducts = async (req, res) => {
 				offset,
 				distinct: true
 			}),
-			new Promise((_, reject) => 
-				setTimeout(() => reject(new Error('Product query timeout')), 10000)
-			)
-		]);
+			TIMEOUTS.COMPLEX_QUERY,
+			'Product listing query'
+		);
 
 		// Check if user is admin (from auth middleware)
 		let isAdmin = false;
@@ -158,8 +161,7 @@ const listProducts = async (req, res) => {
 		const totalPages = Math.ceil(count / limit);
 		res.json({ success: true, data: { products: formattedProducts, pagination: { currentPage: page, totalPages, totalProducts: count, perPage: limit } } });
 	} catch (error) {
-		console.error('List products error:', error);
-		res.status(500).json({ success: false, message: 'Internal server error' });
+		return handleTimeoutError(error, res, 'List products');
 	}
 };
 

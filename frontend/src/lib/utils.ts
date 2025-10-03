@@ -34,6 +34,6 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
     ? imagePath
     : `/uploads/${normalized}`;
   
-  console.log('getImageUrl fixed:', { input: imagePath, output: result });
+  console.log('getImageUrl v2 FIXED:', { input: imagePath, output: result });
   return result;
 }

@@ -1,5 +1,6 @@
 const { sequelize } = require('../config/database');
 const dbMonitor = require('../utils/dbMonitor');
+const { withTimeout, TIMEOUTS } = require('../utils/queryTimeout');
 
 // Health check endpoint
 const healthCheck = async (req, res) => {
@@ -66,13 +67,12 @@ const dbStatus = async (req, res) => {
   try {
     const startTime = Date.now();
     
-    // Test database connection
-    await Promise.race([
+    // Test database connection with timeout
+    await withTimeout(
       sequelize.authenticate(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database connection timeout')), 5000)
-      )
-    ]);
+      TIMEOUTS.SIMPLE_QUERY,
+      'Database health check'
+    );
     
     const responseTime = Date.now() - startTime;
     

@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { Collection, Product, ProductCollection } = require('../models/associations');
+const { withTimeout, TIMEOUTS, handleTimeoutError } = require('../utils/queryTimeout');
 
 // List collections
 const listCollections = async (req, res) => {
@@ -12,47 +13,73 @@ const listCollections = async (req, res) => {
 			where.isActive = active === 'true';
 		}
 
-    const pageInt = parseInt(page);
-        const limitInt = parseInt(limit);
+		const pageInt = parseInt(page);
+		const limitInt = parseInt(limit);
 
-        const { count, rows: collections } = await Collection.findAndCountAll({
-            where,
-            limit: limitInt,
-            offset: (pageInt - 1) * limitInt,
-            order: [['sortOrder', 'ASC'], ['name', 'ASC']],
-            distinct: true,
-            include: [{
-                model: Product,
-                as: 'products',
-                attributes: [
-                    'id',
-                    'name',
-                    'slug',
-                    'price',
-                    'compareAtPrice',
-                    'imageUrl',
-                    'isActive'
-                ],
-                through: { attributes: ['position'] },
-                order: [[ProductCollection, 'position', 'ASC']]
-            }]
-        });
+		// Add timeout protection to prevent hanging queries
+		// First get collections without products to avoid association issues
+		const { count, rows: collections } = await withTimeout(
+			Collection.findAndCountAll({
+				where,
+				limit: limitInt,
+				offset: (pageInt - 1) * limitInt,
+				order: [['sortOrder', 'ASC'], ['name', 'ASC']]
+			}),
+			TIMEOUTS.SIMPLE_QUERY,
+			'Collection listing query'
+		);
+
+		// Then get products for each collection separately to avoid association issues
+		const collectionsWithProducts = await Promise.all(
+			collections.map(async (collection) => {
+				try {
+					const products = await withTimeout(
+						collection.getProducts({
+							attributes: [
+								'id',
+								'name',
+								'slug',
+								'price',
+								'compareAtPrice',
+								'imageUrl',
+								'isActive'
+							],
+							through: { attributes: ['position'] },
+							order: [[ProductCollection, 'position', 'ASC']],
+							limit: 50 // Limit products per collection
+						}),
+						TIMEOUTS.SIMPLE_QUERY,
+						'Collection products query'
+					);
+					
+					// Add products to collection data
+					const collectionData = collection.toJSON();
+					collectionData.products = products;
+					return collectionData;
+				} catch (error) {
+					console.warn(`Failed to load products for collection ${collection.id}:`, error.message);
+					// Return collection without products if product loading fails
+					const collectionData = collection.toJSON();
+					collectionData.products = [];
+					return collectionData;
+				}
+			})
+		);
 
 		res.json({
 			success: true,
 			data: {
-				collections,
-                pagination: {
-                    total: count,
-                    page: pageInt,
-                    limit: limitInt,
-                    pages: Math.ceil(count / limitInt)
-                }
+				collections: collectionsWithProducts,
+				pagination: {
+					total: count,
+					page: pageInt,
+					limit: limitInt,
+					pages: Math.ceil(count / limitInt)
+				}
 			}
 		});
 	} catch (error) {
-		console.error('List collections error:', error);
-		res.status(500).json({ success: false, message: 'Internal server error' });
+		return handleTimeoutError(error, res, 'List collections');
 	}
 };
 
@@ -62,24 +89,36 @@ const getCollection = async (req, res) => {
 		const { idOrSlug } = req.params;
 		const where = /^(\d+)$/.test(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug };
 		
-		const collection = await Collection.findOne({
-			where,
-			include: [{
-				model: Product,
-				as: 'products',
-				through: { attributes: ['position'] },
-				order: [[ProductCollection, 'position', 'ASC']]
-			}]
-		});
+		const collection = await withTimeout(
+			Collection.findOne({
+				where
+			}),
+			TIMEOUTS.SIMPLE_QUERY,
+			'Collection retrieval query'
+		);
 
 		if (!collection) {
 			return res.status(404).json({ success: false, message: 'Collection not found' });
 		}
 
-		res.json({ success: true, data: { collection } });
+		// Get products for the collection separately
+		const products = await withTimeout(
+			collection.getProducts({
+				through: { attributes: ['position'] },
+				order: [[ProductCollection, 'position', 'ASC']],
+				limit: 100 // Limit products to prevent huge queries
+			}),
+			TIMEOUTS.SIMPLE_QUERY,
+			'Collection products query'
+		);
+
+		// Add products to collection data
+		const collectionData = collection.toJSON();
+		collectionData.products = products;
+
+		res.json({ success: true, data: { collection: collectionData } });
 	} catch (error) {
-		console.error('Get collection error:', error);
-		res.status(500).json({ success: false, message: 'Internal server error' });
+		return handleTimeoutError(error, res, 'Get collection');
 	}
 };
 
