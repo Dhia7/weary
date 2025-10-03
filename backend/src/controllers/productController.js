@@ -114,11 +114,83 @@ const createProduct = async (req, res) => {
 
 		const where = {};
 		if (q) {
-			where[Op.or] = [
-				{ name: { [Op.iLike]: `%${q}%` } },
-				{ description: { [Op.iLike]: `%${q}%` } },
-				{ SKU: { [Op.iLike]: `%${q}%` } }
+			const searchTerm = q.trim().toLowerCase();
+			
+			// Create multiple search patterns for better matching
+			const searchPatterns = [
+				// Exact word boundary matches
+				`% ${searchTerm} %`,  // Word in middle
+				`${searchTerm} %`,    // Word at start
+				`% ${searchTerm}`,    // Word at end
+				searchTerm,           // Exact match
+				
+				// Handle plural/singular variations
+				searchTerm.endsWith('s') ? searchTerm.slice(0, -1) : `${searchTerm}s`,
+				searchTerm.endsWith('es') ? searchTerm.slice(0, -2) : `${searchTerm}es`,
+				searchTerm.endsWith('ies') ? searchTerm.slice(0, -3) + 'y' : `${searchTerm}ies`,
+				
+				// Handle common variations
+				searchTerm.replace(/men/g, 'man'),
+				searchTerm.replace(/man/g, 'men'),
+				searchTerm.replace(/women/g, 'woman'),
+				searchTerm.replace(/woman/g, 'women'),
+				searchTerm.replace(/shirt/g, 'shirts'),
+				searchTerm.replace(/shirts/g, 'shirt'),
+				searchTerm.replace(/pant/g, 'pants'),
+				searchTerm.replace(/pants/g, 'pant'),
+				searchTerm.replace(/shoe/g, 'shoes'),
+				searchTerm.replace(/shoes/g, 'shoe'),
+				searchTerm.replace(/dress/g, 'dresses'),
+				searchTerm.replace(/dresses/g, 'dress'),
+				searchTerm.replace(/jacket/g, 'jackets'),
+				searchTerm.replace(/jackets/g, 'jacket'),
+				searchTerm.replace(/jean/g, 'jeans'),
+				searchTerm.replace(/jeans/g, 'jean'),
+				searchTerm.replace(/sock/g, 'socks'),
+				searchTerm.replace(/socks/g, 'sock'),
+				searchTerm.replace(/hat/g, 'hats'),
+				searchTerm.replace(/hats/g, 'hat'),
+				searchTerm.replace(/bag/g, 'bags'),
+				searchTerm.replace(/bags/g, 'bag'),
+				searchTerm.replace(/watch/g, 'watches'),
+				searchTerm.replace(/watches/g, 'watch'),
+				searchTerm.replace(/ring/g, 'rings'),
+				searchTerm.replace(/rings/g, 'ring'),
+				searchTerm.replace(/necklace/g, 'necklaces'),
+				searchTerm.replace(/necklaces/g, 'necklace'),
+				searchTerm.replace(/bracelet/g, 'bracelets'),
+				searchTerm.replace(/bracelets/g, 'bracelet'),
+				searchTerm.replace(/earring/g, 'earrings'),
+				searchTerm.replace(/earrings/g, 'earring')
 			];
+			
+			// Remove duplicates and empty strings
+			const uniquePatterns = [...new Set(searchPatterns.filter(pattern => pattern && pattern.length > 0))];
+			
+			// Build search conditions for name and description
+			const searchConditions = [];
+			
+			uniquePatterns.forEach(pattern => {
+				// Name conditions
+				searchConditions.push(
+					{ name: { [Op.iLike]: '% ' + pattern + ' %' } },
+					{ name: { [Op.iLike]: pattern + ' %' } },
+					{ name: { [Op.iLike]: '% ' + pattern } },
+					{ name: { [Op.iLike]: pattern } }
+				);
+				// Description conditions
+				searchConditions.push(
+					{ description: { [Op.iLike]: '% ' + pattern + ' %' } },
+					{ description: { [Op.iLike]: pattern + ' %' } },
+					{ description: { [Op.iLike]: '% ' + pattern } },
+					{ description: { [Op.iLike]: pattern } }
+				);
+			});
+			
+			// Add SKU search
+			searchConditions.push({ SKU: { [Op.iLike]: '%' + searchTerm + '%' } });
+			
+			where[Op.or] = searchConditions;
 		}
 		if (active !== undefined) {
 			where.isActive = String(active) === 'true';
