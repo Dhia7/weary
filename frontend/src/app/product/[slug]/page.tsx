@@ -6,7 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ShoppingBagIcon, ArrowLeftIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import { useCart } from '@/lib/contexts/CartContext';
-import { useWishlist } from '@/lib/contexts/WishlistContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import CartPanel from '@/components/CartPanel';
 import Navigation from '@/components/Navigation';
@@ -55,7 +54,17 @@ export default function ProductDetailPage() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLDivElement>(null);
   const { addItem, buyNow } = useCart();
-  const { isInWishlist } = useWishlist();
+
+  // Ensure main thumbnail is always first
+  const getOrderedImages = useCallback((p?: Product | null) => {
+    if (!p || !p.images || p.images.length === 0) return [] as string[];
+    const images = p.images;
+    const mainIndex = typeof p.mainThumbnailIndex === 'number' ? p.mainThumbnailIndex : 0;
+    const clampedIndex = Math.max(0, Math.min(mainIndex, images.length - 1));
+    if (clampedIndex === 0) return images;
+    const main = images[clampedIndex];
+    return [main, ...images.filter((_, i) => i !== clampedIndex)];
+  }, []);
 
   const fetchProduct = useCallback(async () => {
     try {
@@ -85,7 +94,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (product) {
-      const images = product.images || [];
+      const images = getOrderedImages(product);
       const selectedImage = images.length > 0 ? images[selectedImageIndex] : product.imageUrl;
       
       const cartItem = {
@@ -105,7 +114,7 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = () => {
     if (product) {
-      const images = product.images || [];
+      const images = getOrderedImages(product);
       const selectedImage = images.length > 0 ? images[selectedImageIndex] : product.imageUrl;
       
       // Clear existing cart and add only this item
@@ -283,7 +292,7 @@ export default function ProductDetailPage() {
                 onWheel={handleWheel}
               >
                 {(() => {
-                  const images = product.images || [];
+                  const images = getOrderedImages(product);
                   const displayImage = images.length > 0 ? images[selectedImageIndex] : product.imageUrl;
                   
                   return displayImage ? (
@@ -333,9 +342,9 @@ export default function ProductDetailPage() {
             </div>
             
             {/* Image Thumbnails */}
-            {product.images && product.images.length > 1 && (
+            {getOrderedImages(product).length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
-                {product.images.map((image, index) => (
+                {getOrderedImages(product).map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
@@ -392,13 +401,17 @@ export default function ProductDetailPage() {
 
             {/* Stock Status */}
             <div className="flex items-center space-x-2">
-              {product.quantity > 0 ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                  In Stock ({product.quantity} available)
-                </span>
-              ) : (
+              {product.quantity === 0 ? (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                   Out of Stock
+                </span>
+              ) : product.quantity <= 5 ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                  Low Stock
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  In Stock
                 </span>
               )}
             </div>
@@ -419,20 +432,49 @@ export default function ProductDetailPage() {
 
             {/* Quantity Selector */}
             <div className="flex items-center space-x-4">
-              <label htmlFor="quantity" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span id="quantity-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Quantity:
-              </label>
-              <select
-                id="quantity"
-                value={selectedQuantity}
-                onChange={(e) => setSelectedQuantity(parseInt(e.target.value))}
-                className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                disabled={product.quantity === 0}
-              >
-                {Array.from({ length: Math.min(10, product.quantity) }, (_, i) => i + 1).map(num => (
-                  <option key={num} value={num}>{num}</option>
-                ))}
-              </select>
+              </span>
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  onClick={() => setSelectedQuantity(q => Math.max(1, q - 1))}
+                  disabled={product.quantity === 0 || selectedQuantity <= 1}
+                  className={`px-3 py-2 rounded-l-md border border-r-0 ${
+                    product.quantity === 0 || selectedQuantity <= 1
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600'
+                  }`}
+                >
+                  −
+                </button>
+                <input
+                  id="quantity"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={selectedQuantity}
+                  onChange={() => { /* prevent manual edits to avoid exposing limits */ }}
+                  readOnly
+                  className="w-12 text-center border border-gray-300 dark:border-gray-600 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  disabled={product.quantity === 0}
+                  aria-labelledby="quantity-label"
+                  aria-live="polite"
+                />
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  onClick={() => setSelectedQuantity(q => Math.min(q + 1, Math.min(10, product.quantity)))}
+                  disabled={product.quantity === 0 || selectedQuantity >= Math.min(10, product.quantity)}
+                  className={`px-3 py-2 rounded-r-md border border-l-0 ${
+                    product.quantity === 0 || selectedQuantity >= Math.min(10, product.quantity)
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600'
+                  }`}
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {/* Action Buttons */}

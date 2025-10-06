@@ -63,13 +63,7 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // Check if product is out of stock
-    if (product.quantity <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: `${product.name} is currently out of stock`
-      });
-    }
+    // Allow adding items regardless of stock quantity
 
     // Check if item already exists in cart
     const existingCartItem = await Cart.findOne({
@@ -77,27 +71,10 @@ const addToCart = async (req, res) => {
     });
 
     if (existingCartItem) {
-      // Update quantity
+      // Update quantity - automatically sum with existing quantity
       const newQuantity = existingCartItem.quantity + quantity;
-      
-      // Check stock availability
-      if (newQuantity > product.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Only ${product.quantity} items available in stock for ${product.name}. You already have ${existingCartItem.quantity} in your cart.`
-        });
-      }
-
       await existingCartItem.update({ quantity: newQuantity });
     } else {
-      // Check stock availability for new item
-      if (quantity > product.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Only ${product.quantity} items available in stock for ${product.name}`
-        });
-      }
-
       // Create new cart item
       await Cart.create({
         userId,
@@ -177,22 +154,7 @@ const updateCartItem = async (req, res) => {
       // Remove item from cart
       await cartItem.destroy();
     } else {
-      // Check if product is out of stock
-      if (cartItem.Product.quantity <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: `${cartItem.Product.name} is currently out of stock`
-        });
-      }
-
-      // Check stock availability
-      if (quantity > cartItem.Product.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Only ${cartItem.Product.quantity} items available in stock for ${cartItem.Product.name}`
-        });
-      }
-
+      // Update quantity without stock restrictions
       await cartItem.update({ quantity });
     }
 
@@ -329,31 +291,22 @@ const syncCart = async (req, res) => {
       const product = await Product.findByPk(guestItem.id);
       if (!product) continue;
 
-      // Skip out of stock items
-      if (product.quantity <= 0) continue;
-
       // Check if item already exists in user's cart
       const existingCartItem = await Cart.findOne({
         where: { userId, productId: guestItem.id }
       });
 
       if (existingCartItem) {
-        // Merge quantities, respecting stock limits
-        const newQuantity = Math.min(
-          existingCartItem.quantity + guestItem.quantity,
-          product.quantity
-        );
+        // Merge quantities without stock restrictions
+        const newQuantity = existingCartItem.quantity + guestItem.quantity;
         await existingCartItem.update({ quantity: newQuantity });
       } else {
-        // Add new item, respecting stock limits
-        const quantity = Math.min(guestItem.quantity, product.quantity);
-        if (quantity > 0) {
-          await Cart.create({
-            userId,
-            productId: guestItem.id,
-            quantity
-          });
-        }
+        // Add new item without stock restrictions
+        await Cart.create({
+          userId,
+          productId: guestItem.id,
+          quantity: guestItem.quantity
+        });
       }
     }
 

@@ -47,3 +47,4 @@ Open DevTools Console and look for:
 ```
 
 This confirms the API call is working correctly.
+

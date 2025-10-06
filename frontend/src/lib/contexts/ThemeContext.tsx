@@ -17,6 +17,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Check if we're in the browser environment
+    if (typeof window === 'undefined') return;
+    
     setMounted(true);
     // Check for saved theme preference or default to system preference
     const savedTheme = localStorage.getItem('theme') as Theme;
@@ -31,7 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && typeof window !== 'undefined') {
       // Only update localStorage and class when theme changes (not on initial load)
       if (theme === 'dark') {
         document.documentElement.classList.add('dark');

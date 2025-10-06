@@ -136,18 +136,21 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       <div className="flex items-center space-x-2 mt-2">
                         <button
                           onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                          className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                          disabled={item.quantity <= 1}
+                          className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Decrease quantity"
+                          aria-label="Decrease quantity"
                         >
                           -
                         </button>
-                        <span className="text-sm font-medium w-8 text-center">
+                        <span className="text-sm font-medium w-8 text-center" aria-live="polite">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                           className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
                           title="Increase quantity"
+                          aria-label="Increase quantity"
                         >
                           +
                         </button>

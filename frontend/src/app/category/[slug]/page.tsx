@@ -40,6 +40,17 @@ interface Category {
   description?: string;
 }
 
+// Product shape as returned by API may include strings for numeric fields
+type ApiProduct = Omit<Product, 'price' | 'compareAtPrice' | 'images' | 'imageUrl' | 'quantity' | 'categories'> & {
+  price: number | string;
+  compareAtPrice?: number | string;
+  images?: unknown;
+  imageUrl?: string | null;
+  quantity?: number;
+  stockInfo?: { quantity?: number };
+  categories?: unknown;
+};
+
 
 export default function CategoryPage() {
   const params = useParams();
@@ -77,7 +88,17 @@ export default function CategoryPage() {
           console.log('❌ Response not ok, status:', response.status);
           const errorText = await response.text();
           console.log('❌ Error response body:', errorText);
-          throw new Error('Category not found');
+          // Gracefully handle 404 by showing an empty state for unknown categories
+          if (response.status === 404) {
+            const nameFromSlug = slug
+              .replace(/-/g, ' ')
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+            setCategory({ id: 0, name: nameFromSlug, slug });
+            setProducts([]);
+            setError('');
+            return;
+          }
+          throw new Error('Failed to load category');
         }
 
         const data = await response.json();
@@ -87,9 +108,23 @@ export default function CategoryPage() {
           console.log('✅ Setting category and products from API');
           console.log('✅ Category:', data.data.category);
           console.log('✅ Products count:', data.data.products?.length || 0);
-          console.log('✅ Products:', data.data.products);
+          console.log('✅ Raw Products:', data.data.products);
+
+          // Normalize product data for UI safety
+          const normalizedProducts = (data.data.products || []).map((p: ApiProduct) => ({
+            ...p,
+            price: typeof p.price === 'string' ? Number(p.price) : p.price,
+            compareAtPrice: typeof p.compareAtPrice === 'string' ? Number(p.compareAtPrice) : p.compareAtPrice,
+            images: Array.isArray(p.images) ? (p.images as string[]) : (p.imageUrl ? [p.imageUrl] : []),
+            imageUrl: p.imageUrl || (Array.isArray(p.images) && (p.images as string[])[0]) || undefined,
+            quantity: typeof p.quantity === 'number' ? p.quantity : (p.stockInfo?.quantity ?? 0),
+            categories: Array.isArray(p.categories) ? (p.categories as Product['categories']) : [],
+          }));
+
+          console.log('✅ Normalized Products:', normalizedProducts);
+
           setCategory(data.data.category);
-          setProducts(data.data.products || []);
+          setProducts(normalizedProducts);
         } else {
           console.log('❌ Invalid response format');
           console.log('❌ Data received:', data);

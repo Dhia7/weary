@@ -187,7 +187,7 @@ const createOrder = async (req, res) => {
       if (item.quantity > product.quantity) {
         return res.status(400).json({ 
           success: false, 
-          message: `Insufficient stock for ${product.name}. Only ${product.quantity} items available, but ${item.quantity} requested.` 
+          message: `Sorry, we don't have enough ${product.name} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
         });
       }
       
@@ -264,7 +264,7 @@ const createUserOrder = async (req, res) => {
       if (item.quantity > product.quantity) {
         return res.status(400).json({ 
           success: false, 
-          message: `Insufficient stock for ${product.name}. Only ${product.quantity} items available, but ${item.quantity} requested.` 
+          message: `Sorry, we don't have enough ${product.name} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
         });
       }
       
@@ -344,7 +344,7 @@ const createGuestOrder = async (req, res) => {
       if (item.quantity > product.quantity) {
         return res.status(400).json({ 
           success: false, 
-          message: `Insufficient stock for ${product.name}. Only ${product.quantity} items available, but ${item.quantity} requested.` 
+          message: `Sorry, we don't have enough ${product.name} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
         });
       }
       

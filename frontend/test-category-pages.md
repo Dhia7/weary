@@ -67,3 +67,4 @@ Toggle dark mode and verify:
 - Icons are visible
 - Buttons work properly
 - Links are accessible
+

@@ -81,6 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for existing token on mount
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      return;
+    }
+    
     const storedToken = localStorage.getItem('token');
     if (storedToken) {
       setToken(storedToken);
@@ -108,7 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         console.log('fetchUserProfile: Response not ok, removing token');
         // Token is invalid, remove it
-        localStorage.removeItem('token');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
         setToken(null);
       }
     } catch (error) {
@@ -135,7 +142,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.ok) {
         setUser(data.data.user);
         setToken(data.data.token);
-        localStorage.setItem('token', data.data.token);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', data.data.token);
+        }
         return { success: true, message: data.message, user: data.data.user };
       } else {
         return { success: false, message: data.message || 'Login failed' };
@@ -161,7 +170,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.ok) {
         setUser(data.data.user);
         setToken(data.data.token);
-        localStorage.setItem('token', data.data.token);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', data.data.token);
+        }
         return { success: true, message: data.message, user: data.data.user };
       } else {
         return { success: false, message: data.message || 'Registration failed' };
@@ -175,7 +186,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
   };
 
   const refreshUser = async () => {

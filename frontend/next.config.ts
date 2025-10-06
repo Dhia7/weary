@@ -2,6 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       {
@@ -47,6 +58,11 @@ const nextConfig: NextConfig = {
     console.log('Next.js rewrite config - API URL:', process.env.NEXT_PUBLIC_API_URL);
     
     return [
+      // Proxy API through Next (port 3000) to backend (port 3001)
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
       {
         source: '/uploads/:path*',
         destination: `${backendUrl}/uploads/:path*`,
