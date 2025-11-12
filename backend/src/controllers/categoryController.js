@@ -148,11 +148,38 @@ const getCategoryProducts = async (req, res) => {
 
 		console.log('Found products:', products.length);
 
+		// Format products to ensure imageUrl is set from images array if missing
+		const formattedProducts = products.map(product => {
+			// Parse images if it's a string (from JSON column)
+			let images = product.images;
+			if (typeof images === 'string') {
+				try {
+					images = JSON.parse(images);
+				} catch (e) {
+					images = [];
+				}
+			}
+			if (!Array.isArray(images)) {
+				images = [];
+			}
+
+			// Ensure imageUrl is set from images array if missing
+			if (!product.imageUrl && images.length > 0) {
+				const mainIndex = product.mainThumbnailIndex || 0;
+				product.imageUrl = images[mainIndex] || images[0];
+			}
+
+			// Ensure images is always an array
+			product.images = images;
+
+			return product;
+		});
+
 		res.json({
 			success: true,
 			data: {
 				category,
-				products,
+				products: formattedProducts,
 				pagination: {
 					currentPage: parseInt(page),
 					totalPages: Math.ceil(count / limit),

@@ -12,6 +12,17 @@ require('../models/associations');
 const formatProductForUser = (product, isAdmin = false) => {
 	const productData = product.toJSON ? product.toJSON() : product;
 	
+	// Ensure imageUrl is set from images array if missing
+	if (!productData.imageUrl && Array.isArray(productData.images) && productData.images.length > 0) {
+		const mainIndex = productData.mainThumbnailIndex || 0;
+		productData.imageUrl = productData.images[mainIndex] || productData.images[0];
+	}
+	
+	// Ensure images is always an array
+	if (!Array.isArray(productData.images)) {
+		productData.images = productData.imageUrl ? [productData.imageUrl] : [];
+	}
+	
 	if (isAdmin) {
 		// Admin sees exact stock numbers
 		return {

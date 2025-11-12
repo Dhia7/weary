@@ -47,19 +47,35 @@ const commonOptions = {
   transactionTimeout: 20000 // Reduced from 30000
 };
 
-// Optional SSL for managed Postgres providers
-if (process.env.DB_SSL === 'true') {
-  commonOptions.dialectOptions.ssl = { require: true, rejectUnauthorized: false };
+// Optional SSL for managed Postgres providers (Render, Railway, etc.)
+// Enable SSL if DB_SSL is 'true' OR if DATABASE_URL is from a remote provider
+const isRemoteDatabase = process.env.DATABASE_URL && 
+  (process.env.DATABASE_URL.includes('render.com') || 
+   process.env.DATABASE_URL.includes('railway.app') ||
+   process.env.DATABASE_URL.includes('supabase.co') ||
+   process.env.DB_SSL === 'true');
+
+if (isRemoteDatabase) {
+  // Render PostgreSQL requires SSL with specific configuration
+  commonOptions.dialectOptions.ssl = { 
+    require: true, 
+    rejectUnauthorized: false 
+  };
+  console.log('🔒 SSL enabled for remote database connection');
 }
 
-// Prefer single DATABASE_URL if provided
+// Prefer single DATABASE_URL if provided (for production/Render)
 let sequelize;
 if (process.env.DATABASE_URL) {
+  console.log('📊 Using DATABASE_URL for connection');
+  console.log('🔍 Database host:', process.env.DATABASE_URL.match(/@([^:]+):/)?.[1] || 'unknown');
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     ...commonOptions,
-    protocol: 'postgres'
+    protocol: 'postgres',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false
   });
 } else {
+  // Use discrete fields for local development
   sequelize = new Sequelize(
     process.env.DB_NAME || 'wear_db',
     process.env.DB_USER || 'postgres',
@@ -112,9 +128,27 @@ const connectDB = async () => {
       return; // Success, exit the function
     } catch (error) {
       console.error(`Database connection attempt ${attempt} failed:`, error.message);
+      console.error('Error details:', {
+        name: error.name,
+        code: error.code,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n')
+      });
+      
+      // Log connection details (without password)
+      if (process.env.DATABASE_URL) {
+        const dbUrl = process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@');
+        console.error('Connection URL:', dbUrl);
+        console.error('SSL enabled:', isRemoteDatabase);
+      }
       
       if (attempt === maxRetries) {
         console.error('All connection attempts failed. Exiting...');
+        console.error('Troubleshooting tips:');
+        console.error('1. Verify DATABASE_URL is correct in Render environment variables');
+        console.error('2. Check PostgreSQL service is running (not suspended)');
+        console.error('3. Ensure DB_SSL=true is set (or auto-detected from render.com URL)');
+        console.error('4. Verify database credentials are correct');
         process.exit(1);
       }
       
