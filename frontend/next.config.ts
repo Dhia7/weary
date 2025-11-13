@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: __dirname,
+  // Removed outputFileTracingRoot as it can cause 404 errors on Vercel
+  // outputFileTracingRoot: __dirname,
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
