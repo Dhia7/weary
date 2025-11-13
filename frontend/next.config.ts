@@ -50,16 +50,24 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   async rewrites() {
-    // Get backend URL from environment or use localhost for development
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL 
-      ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '')
-      : 'http://localhost:3001';
+    // Get backend URL from environment
+    // In production (Vercel), NEXT_PUBLIC_API_URL must be set
+    // In development, fallback to localhost
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    const backendUrl = apiUrl.replace('/api', '').replace(/\/$/, '');
+    
+    // Only add rewrites if we have a valid backend URL
+    // In production, NEXT_PUBLIC_API_URL must be set (not localhost)
+    if (process.env.NODE_ENV === 'production' && (!backendUrl || backendUrl.includes('localhost'))) {
+      console.warn('⚠️ NEXT_PUBLIC_API_URL not set in production. API rewrites disabled.');
+      return [];
+    }
     
     console.log('Next.js rewrite config - Backend URL:', backendUrl);
-    console.log('Next.js rewrite config - API URL:', process.env.NEXT_PUBLIC_API_URL);
+    console.log('Next.js rewrite config - API URL:', apiUrl);
     
     return [
-      // Proxy API through Next (port 3000) to backend (port 3001)
+      // Proxy API through Next to backend
       {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
