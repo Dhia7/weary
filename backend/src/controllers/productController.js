@@ -56,13 +56,20 @@ const createProduct = async (req, res) => {
 		
 		// Parse categoryIds if it's a string (from FormData)
 		let parsedCategoryIds = categoryIds;
+		console.log('Received categoryIds:', categoryIds, 'Type:', typeof categoryIds);
 		if (typeof categoryIds === 'string') {
 			try {
 				parsedCategoryIds = JSON.parse(categoryIds);
 			} catch (e) {
+				console.error('Failed to parse categoryIds:', e);
 				parsedCategoryIds = [];
 			}
 		}
+		// Ensure parsedCategoryIds is always an array (default to empty array if undefined)
+		if (!Array.isArray(parsedCategoryIds)) {
+			parsedCategoryIds = [];
+		}
+		console.log('Parsed categoryIds:', parsedCategoryIds);
 
 		const existing = await Product.findOne({ where: { [Op.or]: [{ slug }, { SKU }, ...(barcode ? [{ barcode }] : [])] } });
 		if (existing) {
@@ -300,13 +307,20 @@ const updateProduct = async (req, res) => {
 
 		// Parse categoryIds if it's a string (from FormData)
 		let parsedCategoryIds = categoryIds;
+		console.log('Received categoryIds:', categoryIds, 'Type:', typeof categoryIds);
 		if (typeof categoryIds === 'string') {
 			try {
 				parsedCategoryIds = JSON.parse(categoryIds);
 			} catch (e) {
+				console.error('Failed to parse categoryIds:', e);
 				parsedCategoryIds = [];
 			}
 		}
+		// Ensure parsedCategoryIds is always an array (default to empty array if undefined)
+		if (!Array.isArray(parsedCategoryIds)) {
+			parsedCategoryIds = [];
+		}
+		console.log('Parsed categoryIds:', parsedCategoryIds);
 
 		if (slug && slug !== product.slug) {
 			const slugExists = await Product.count({ where: { slug } });
@@ -372,10 +386,12 @@ const updateProduct = async (req, res) => {
 
 		await product.save();
 
-		if (Array.isArray(parsedCategoryIds)) {
-			const categories = await Category.findAll({ where: { id: parsedCategoryIds } });
-			await product.setCategories(categories);
-		}
+		// Always update categories (even if empty array) to ensure state is synced
+		const categories = parsedCategoryIds.length > 0 
+			? await Category.findAll({ where: { id: parsedCategoryIds } })
+			: [];
+		console.log('Setting product categories:', categories.map(c => ({ id: c.id, name: c.name })));
+		await product.setCategories(categories);
 
 		const updated = await Product.findByPk(product.id, { include: [{ model: Category, as: 'categories', through: { attributes: [] } }] });
 		res.json({ success: true, message: 'Product updated', data: { product: updated } });

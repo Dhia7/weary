@@ -6,18 +6,18 @@ const commonOptions = {
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   pool: {
     max: 10,
-    min: 2,
-    acquire: 20000, // Reduced from 30000
+    min: 0, // Set to 0 for Render compatibility - prevents idle connection issues
+    acquire: 30000, // Increased for Render's slower connections
     idle: 10000,
     evict: 1000,
     handleDisconnects: true
   },
   dialectOptions: {
-    connectTimeout: 8000, // Reduced from 10000
-    statement_timeout: 20000, // Reduced from 30000 for faster failure
-    idle_in_transaction_session_timeout: 20000, // Reduced from 30000
+    connectTimeout: 10000, // Increased for Render
+    statement_timeout: 30000,
+    idle_in_transaction_session_timeout: 30000,
     keepAlive: true,
-    keepAliveInitialDelayMillis: 0,
+    keepAliveInitialDelayMillis: 10000, // Keep connections alive
     application_name: 'wear-backend'
   },
   benchmark: false,
@@ -57,22 +57,40 @@ const isRemoteDatabase = process.env.DATABASE_URL &&
 
 if (isRemoteDatabase) {
   // Render PostgreSQL requires SSL with specific configuration
+  // Use more permissive SSL settings for Render compatibility
   commonOptions.dialectOptions.ssl = { 
-    require: true, 
-    rejectUnauthorized: false 
+    require: true,
+    rejectUnauthorized: false
   };
+  // Additional connection options for Render
+  commonOptions.dialectOptions.keepAlive = true;
+  commonOptions.dialectOptions.keepAliveInitialDelayMillis = 10000;
   console.log('🔒 SSL enabled for remote database connection');
+  console.log('🔒 SSL config:', JSON.stringify(commonOptions.dialectOptions.ssl));
 }
 
 // Prefer single DATABASE_URL if provided (for production/Render)
 let sequelize;
 if (process.env.DATABASE_URL) {
   console.log('📊 Using DATABASE_URL for connection');
-  console.log('🔍 Database host:', process.env.DATABASE_URL.match(/@([^:]+):/)?.[1] || 'unknown');
-  sequelize = new Sequelize(process.env.DATABASE_URL, {
+  const dbHost = process.env.DATABASE_URL.match(/@([^:]+):/)?.[1] || 'unknown';
+  console.log('🔍 Database host:', dbHost);
+  
+  // For Render, ensure we're using the correct connection string format
+  let connectionString = process.env.DATABASE_URL;
+  
+  // If it's a postgres:// URL, convert to postgresql:// for better compatibility
+  if (connectionString.startsWith('postgres://')) {
+    connectionString = connectionString.replace('postgres://', 'postgresql://');
+    console.log('🔄 Converted postgres:// to postgresql:// for compatibility');
+  }
+  
+  sequelize = new Sequelize(connectionString, {
     ...commonOptions,
     protocol: 'postgres',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    // Ensure dialect is explicitly set
+    dialect: 'postgres'
   });
 } else {
   // Use discrete fields for local development

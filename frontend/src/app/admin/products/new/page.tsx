@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import ImageEditor from '@/components/ImageEditor';
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface Category {
   id: number;
@@ -50,6 +51,18 @@ export default function NewProductPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add category modal state
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategorySlug, setNewCategorySlug] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
+  // Delete category modal state
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
+
   // Load categories on component mount
   useEffect(() => {
     const loadCategories = async () => {
@@ -61,32 +74,17 @@ export default function NewProductPage() {
           res = await fetch('/api/categories');
         }
         const json = await res.json();
-        if (res.ok && json.data.categories && json.data.categories.length > 3) {
-          // Only use API if it returns more than 3 categories
+        if (res.ok && json.data && json.data.categories && Array.isArray(json.data.categories)) {
+          // Use API response if successful
           setCategories(json.data.categories);
+          console.log('Loaded categories from API:', json.data.categories.length);
         } else {
-          console.log('API returned limited categories, using hardcoded list');
-                        // Use hardcoded categories with correct IDs from database
-                        setCategories([
-                            { id: 11, name: 'Women', slug: 'women', isActive: true },
-                            { id: 12, name: 'Men', slug: 'men', isActive: true },
-                            { id: 2, name: 'Accessories', slug: 'accessories', isActive: true },
-                            { id: 13, name: 'Footwear', slug: 'footwear', isActive: true },
-                            { id: 14, name: 'Jewelry', slug: 'jewelry', isActive: true },
-                            { id: 9, name: 'Activewear', slug: 'activewear', isActive: true }
-                        ]);
+          console.error('Invalid API response:', json);
+          setCategories([]);
         }
       } catch (err) {
         console.error('Failed to load categories:', err);
-        // Fallback to hardcoded categories if API fails
-        setCategories([
-            { id: 11, name: 'Women', slug: 'women', isActive: true },
-            { id: 12, name: 'Men', slug: 'men', isActive: true },
-            { id: 2, name: 'Accessories', slug: 'accessories', isActive: true },
-            { id: 13, name: 'Footwear', slug: 'footwear', isActive: true },
-            { id: 14, name: 'Jewelry', slug: 'jewelry', isActive: true },
-            { id: 9, name: 'Activewear', slug: 'activewear', isActive: true }
-        ]);
+        setCategories([]);
       } finally {
         setLoadingCategories(false);
       }
@@ -190,6 +188,110 @@ export default function NewProductPage() {
         ? prev.filter(id => id !== categoryId)
         : [...prev, categoryId]
     );
+  };
+
+  // Generate slug from name
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+  };
+
+  // Handle name change and auto-generate slug
+  const handleCategoryNameChange = (name: string) => {
+    setNewCategoryName(name);
+    if (!newCategorySlug || newCategorySlug === generateSlug(newCategoryName)) {
+      setNewCategorySlug(generateSlug(name));
+    }
+  };
+
+  // Create new category
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim() || !newCategorySlug.trim()) {
+      setError('Category name and slug are required');
+      return;
+    }
+
+    setCreatingCategory(true);
+    setError(null);
+
+    try {
+      const res = await fetcher('/admin/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          slug: newCategorySlug.trim(),
+          description: newCategoryDescription.trim() || null,
+          isActive: true,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.data?.category) {
+        // Add new category to the list
+        setCategories(prev => [...prev, json.data.category]);
+        // Automatically select the new category
+        setSelectedCategories(prev => [...prev, json.data.category.id]);
+        // Reset form and close modal
+        setNewCategoryName('');
+        setNewCategorySlug('');
+        setNewCategoryDescription('');
+        setShowAddCategoryModal(false);
+      } else {
+        setError(json.message || 'Failed to create category');
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+      setError('Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  // Handle delete category
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    setDeletingCategory(true);
+    setError(null);
+
+    try {
+      const res = await fetcher(`/admin/categories/${categoryToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const json = await res.json();
+
+      if (res.ok) {
+        // Remove category from the list
+        setCategories(prev => prev.filter(cat => cat.id !== categoryToDelete.id));
+        // Remove from selected categories if it was selected
+        setSelectedCategories(prev => prev.filter(id => id !== categoryToDelete.id));
+        // Close modal and reset
+        setShowDeleteCategoryModal(false);
+        setCategoryToDelete(null);
+      } else {
+        setError(json.message || 'Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      setError('Failed to delete category');
+    } finally {
+      setDeletingCategory(false);
+    }
+  };
+
+  // Open delete category modal
+  const openDeleteCategoryModal = (category: Category) => {
+    setCategoryToDelete(category);
+    setShowDeleteCategoryModal(true);
   };
 
   const onSave = async () => {
@@ -588,7 +690,18 @@ export default function NewProductPage() {
 
           {/* Categories */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Categories</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Categories</h2>
+              <button
+                onClick={() => setShowAddCategoryModal(true)}
+                className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Category
+              </button>
+            </div>
             {loadingCategories ? (
               <div className="text-sm text-gray-500">Loading categories...</div>
             ) : (
@@ -597,15 +710,30 @@ export default function NewProductPage() {
                   <p className="text-sm text-gray-500 col-span-full">No categories available</p>
                 ) : (
                   categories.map((category) => (
-                    <label key={category.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded border border-gray-200 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(category.id)}
-                        onChange={() => handleCategoryChange(category.id)}
-                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">{category.name}</span>
-                    </label>
+                    <div key={category.id} className="flex items-center justify-between p-2 rounded border border-gray-200 hover:bg-gray-50 group">
+                      <label className="flex items-center space-x-2 cursor-pointer flex-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(category.id)}
+                          onChange={() => handleCategoryChange(category.id)}
+                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">{category.name}</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openDeleteCategoryModal(category);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600 rounded"
+                        title="Delete category"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -647,6 +775,173 @@ export default function NewProductPage() {
             setEditingImageIndex(null);
           }}
         />
+      )}
+
+      {/* Add Category Modal */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Add New Category
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAddCategoryModal(false);
+                    setNewCategoryName('');
+                    setNewCategorySlug('');
+                    setNewCategoryDescription('');
+                    setError(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {error && (
+                <div className="mb-4 text-sm text-red-600 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="categoryName" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Category Name *
+                  </label>
+                  <input
+                    id="categoryName"
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => handleCategoryNameChange(e.target.value)}
+                    placeholder="e.g., Kids, Bags, Watches"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="categorySlug" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Slug *
+                  </label>
+                  <input
+                    id="categorySlug"
+                    type="text"
+                    value={newCategorySlug}
+                    onChange={(e) => setNewCategorySlug(e.target.value)}
+                    placeholder="e.g., kids, bags, watches"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    URL-friendly version (auto-generated from name)
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="categoryDescription" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    id="categoryDescription"
+                    value={newCategoryDescription}
+                    onChange={(e) => setNewCategoryDescription(e.target.value)}
+                    placeholder="Brief description of this category..."
+                    rows={3}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowAddCategoryModal(false);
+                    setNewCategoryName('');
+                    setNewCategorySlug('');
+                    setNewCategoryDescription('');
+                    setError(null);
+                  }}
+                  disabled={creatingCategory}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCategory}
+                  disabled={creatingCategory || !newCategoryName.trim() || !newCategorySlug.trim()}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center justify-center"
+                >
+                  {creatingCategory ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Category'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Confirmation Modal */}
+      {showDeleteCategoryModal && categoryToDelete && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900">
+                <TrashIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mt-4">
+                Delete Category
+              </h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Are you sure you want to delete <strong>{categoryToDelete.name}</strong>? 
+                  This action cannot be undone.
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                  Note: This will remove the category from all products that use it.
+                </p>
+              </div>
+              <div className="items-center px-4 py-3">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteCategoryModal(false);
+                      setCategoryToDelete(null);
+                    }}
+                    disabled={deletingCategory}
+                    className="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteCategory}
+                    disabled={deletingCategory}
+                    className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 flex items-center"
+                  >
+                    {deletingCategory ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </AdminGuard>
   );
