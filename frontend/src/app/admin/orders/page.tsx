@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
+import { getImageUrl } from '@/lib/utils';
 
 interface OrderItem { 
   Product: { 
@@ -49,6 +50,37 @@ interface Order {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// Helper function to extract personalized t-shirt design image URL from notes
+function extractDesignImageUrl(notes: string | undefined): string | null {
+  if (!notes) return null;
+  
+  // Look for "Design Image: /uploads/..." pattern
+  const designImageMatch = notes.match(/Design Image:\s*(\/uploads\/[^\n]+)/);
+  if (designImageMatch && designImageMatch[1]) {
+    return designImageMatch[1];
+  }
+  
+  return null;
+}
+
+// Helper function to check if order is a personalized t-shirt order
+function isPersonalizedTShirtOrder(notes: string | undefined): boolean {
+  if (!notes) return false;
+  return notes.includes('Personalized T-Shirt Order');
+}
+
+// Helper function to extract t-shirt color from notes
+function extractTShirtColor(notes: string | undefined): string | null {
+  if (!notes) return null;
+  
+  const colorMatch = notes.match(/T-Shirt Color:\s*([^\n]+)/);
+  if (colorMatch && colorMatch[1]) {
+    return colorMatch[1].trim();
+  }
+  
+  return null;
 }
 
 export default function AdminOrdersPage() {
@@ -248,6 +280,12 @@ export default function AdminOrdersPage() {
     });
   };
 
+  // Helper function to calculate total from items
+  const calculateItemsTotal = (items: OrderItem[]): number => {
+    if (!items || items.length === 0) return 0;
+    return items.reduce((sum, item) => sum + (item.unitPriceCents * item.quantity), 0);
+  };
+
   return (
     <AdminGuard>
       <div className="max-w-6xl mx-auto p-6">
@@ -343,7 +381,19 @@ export default function AdminOrdersPage() {
                   <React.Fragment key={o.id}>
                     <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-800">
                       {/* Order ID */}
-                      <td className="p-2 font-medium">{o.id}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{o.id}</span>
+                          {isPersonalizedTShirtOrder(o.notes) && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" title="Personalized T-Shirt Order">
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              Custom Design
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       
                       {/* Customer Place */}
                       <td className="p-2">
@@ -386,7 +436,9 @@ export default function AdminOrdersPage() {
                       </td>
                       
                       {/* Total Value */}
-                      <td className="p-2 font-medium">${(o.totalAmountCents/100).toFixed(2)} {o.currency}</td>
+                      <td className="p-2 font-medium">
+                        {'$' + (calculateItemsTotal(o.items || [])/100).toFixed(2) + ' ' + (o.currency || 'USD')}
+                      </td>
                       
                       {/* Status */}
                       <td className="p-2">
@@ -483,6 +535,29 @@ export default function AdminOrdersPage() {
                                   </div>
                                 </div>
                               ))}
+                            </div>
+                            {/* Items Total Summary */}
+                            <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">Items Total:</span>
+                                <span className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                                  ${(calculateItemsTotal(o.items || [])/100).toFixed(2)} {o.currency}
+                                </span>
+                              </div>
+                              {o.totalAmountCents !== calculateItemsTotal(o.items || []) && (
+                                <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">Order Total (includes shipping):</span>
+                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                      ${(o.totalAmountCents/100).toFixed(2)} {o.currency}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs mt-1 text-gray-500 dark:text-gray-400">
+                                    <span>Shipping:</span>
+                                    <span>${((o.totalAmountCents - calculateItemsTotal(o.items || []))/100).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -682,7 +757,13 @@ export default function AdminOrdersPage() {
                         <span className="text-xs text-gray-500 mt-1 block">Updating status...</span>
                       )}
                     </div>
-                    <p><strong>Total:</strong> ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}</p>
+                    <p><strong>Items Total:</strong> ${(calculateItemsTotal(selectedOrder.items || [])/100).toFixed(2)} {selectedOrder.currency}</p>
+                    {selectedOrder.totalAmountCents !== calculateItemsTotal(selectedOrder.items || []) && (
+                      <>
+                        <p><strong>Order Total (includes shipping):</strong> ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400"><strong>Shipping:</strong> ${((selectedOrder.totalAmountCents - calculateItemsTotal(selectedOrder.items || []))/100).toFixed(2)}</p>
+                      </>
+                    )}
                     <p><strong>Items:</strong> {selectedOrder.items?.length || 0}</p>
                     <hr className="my-3 border-gray-300 dark:border-gray-600" />
                     <div className="space-y-2">
@@ -719,6 +800,99 @@ export default function AdminOrdersPage() {
                   </div>
                 )}
               </div>
+
+              {/* Personalized T-Shirt Design Section */}
+              {isPersonalizedTShirtOrder(selectedOrder.notes) && (
+                <div className="mt-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border-2 border-indigo-200 dark:border-indigo-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-indigo-900 dark:text-indigo-100">
+                      Personalized T-Shirt Design
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Design Image */}
+                    {extractDesignImageUrl(selectedOrder.notes) && (() => {
+                      const imageUrl = getImageUrl(extractDesignImageUrl(selectedOrder.notes) || '');
+                      const fullImageUrl = imageUrl 
+                        ? (imageUrl.startsWith('http') ? imageUrl : `${typeof window !== 'undefined' ? window.location.origin : ''}${imageUrl}`)
+                        : null;
+                      
+                      return fullImageUrl ? (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Customer Design:
+                          </label>
+                          <div className="relative bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <img
+                              src={fullImageUrl}
+                              alt="Personalized T-Shirt Design"
+                              className="w-full h-auto rounded-lg shadow-md"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/placeholder-image.png';
+                                target.alt = 'Image not found';
+                              }}
+                            />
+                            <a
+                              href={fullImageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute top-6 right-6 bg-indigo-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-indigo-700 transition-colors shadow-lg"
+                            >
+                              View Full Size
+                            </a>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {/* Design Details */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Design Specifications:
+                        </label>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 space-y-2">
+                          {extractTShirtColor(selectedOrder.notes) && (
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">T-Shirt Color:</span>
+                              <div 
+                                className="w-8 h-8 rounded border-2 border-gray-300 dark:border-gray-600"
+                                style={{ backgroundColor: extractTShirtColor(selectedOrder.notes) || '#FFFFFF' }}
+                                title={extractTShirtColor(selectedOrder.notes) || ''}
+                              />
+                              <span className="text-sm text-gray-900 dark:text-gray-100 font-mono">
+                                {extractTShirtColor(selectedOrder.notes)}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {selectedOrder.notes && selectedOrder.notes.includes('Additional Notes:') && (
+                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                                Additional Notes:
+                              </span>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {selectedOrder.notes.split('Additional Notes:')[1]?.trim() || 'None'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          <strong>Note:</strong> This is a personalized t-shirt order. Please review the design image above before processing.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Stock Impact Summary */}
               <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -763,7 +937,7 @@ export default function AdminOrdersPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Order Items ({selectedOrder.items.length})</h3>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Total: ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}
+                      Items Total: ${(calculateItemsTotal(selectedOrder.items || [])/100).toFixed(2)} {selectedOrder.currency}
                     </div>
                   </div>
                   
@@ -935,11 +1109,29 @@ export default function AdminOrdersPage() {
                   
                   {/* Order Summary */}
                   <div className="mt-6 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Order Total:</span>
-                      <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}
-                      </span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Items Total:</span>
+                        <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                          ${(calculateItemsTotal(selectedOrder.items || [])/100).toFixed(2)} {selectedOrder.currency}
+                        </span>
+                      </div>
+                      {selectedOrder.totalAmountCents !== calculateItemsTotal(selectedOrder.items || []) && (
+                        <>
+                          <div className="flex justify-between items-center pt-2 border-t border-gray-300 dark:border-gray-600">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Shipping:</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              ${((selectedOrder.totalAmountCents - calculateItemsTotal(selectedOrder.items || []))/100).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t border-gray-300 dark:border-gray-600">
+                            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Order Total:</span>
+                            <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                              ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

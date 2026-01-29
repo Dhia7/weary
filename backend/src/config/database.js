@@ -23,7 +23,7 @@ const commonOptions = {
   benchmark: false,
   retry: {
     max: 3,
-    timeout: 3000, // Reduced from 5000 for faster retry
+    timeout: 10000, // Increased for Render's slower connections
     match: [
       /ETIMEDOUT/,
       /EHOSTUNREACH/,
@@ -43,8 +43,8 @@ const commonOptions = {
     underscored: false,
     freezeTableName: true
   },
-  queryTimeout: 20000, // Reduced from 30000
-  transactionTimeout: 20000 // Reduced from 30000
+  queryTimeout: 30000, // Increased for Render - allows time for retries
+  transactionTimeout: 30000 // Increased for Render - allows time for retries
 };
 
 // Optional SSL for managed Postgres providers (Render, Railway, etc.)
@@ -73,8 +73,18 @@ if (isRemoteDatabase) {
 let sequelize;
 if (process.env.DATABASE_URL) {
   console.log('📊 Using DATABASE_URL for connection');
-  const dbHost = process.env.DATABASE_URL.match(/@([^:]+):/)?.[1] || 'unknown';
+  // Extract hostname - handle URLs with or without port
+  const hostMatch = process.env.DATABASE_URL.match(/@([^:/]+)(?::(\d+))?/);
+  const dbHost = hostMatch?.[1] || 'unknown';
+  const dbPort = hostMatch?.[2] || '5432';
   console.log('🔍 Database host:', dbHost);
+  console.log('🔍 Database port:', dbPort);
+  
+  // Warn if hostname looks incomplete (missing domain suffix)
+  if (dbHost && !dbHost.includes('.') && dbHost.startsWith('dpg-')) {
+    console.warn('⚠️  Warning: Hostname appears incomplete. Render PostgreSQL URLs should include domain (e.g., dpg-xxxxx-a.frankfurt-postgres.render.com)');
+    console.warn('⚠️  Please verify DATABASE_URL in Render dashboard includes the full hostname');
+  }
   
   // For Render, ensure we're using the correct connection string format
   let connectionString = process.env.DATABASE_URL;
@@ -83,6 +93,13 @@ if (process.env.DATABASE_URL) {
   if (connectionString.startsWith('postgres://')) {
     connectionString = connectionString.replace('postgres://', 'postgresql://');
     console.log('🔄 Converted postgres:// to postgresql:// for compatibility');
+  }
+  
+  // If URL is missing port, add default PostgreSQL port (5432)
+  // Format: postgresql://user:pass@host/dbname -> postgresql://user:pass@host:5432/dbname
+  if (connectionString.match(/@[^:/]+(\/|$)/) && !connectionString.match(/@[^:]+:\d+/)) {
+    connectionString = connectionString.replace(/@([^/]+)\//, '@$1:5432/');
+    console.log('🔄 Added default port 5432 to connection string');
   }
   
   sequelize = new Sequelize(connectionString, {
@@ -145,13 +162,35 @@ const connectDB = async () => {
       
       return; // Success, exit the function
     } catch (error) {
-      console.error(`Database connection attempt ${attempt} failed:`, error.message);
-      console.error('Error details:', {
-        name: error.name,
-        code: error.code,
-        message: error.message,
-        stack: error.stack?.split('\n').slice(0, 3).join('\n')
-      });
+      // Extract more meaningful error message
+      let errorMessage = error.message;
+      if (error.name === 'TimeoutError' || error.message.includes('timeout') || error.message.includes('timed out')) {
+        errorMessage = `Connection timeout after 15 seconds - this is common with remote databases. Retrying...`;
+      } else if (error.message.includes('ECONNREFUSED')) {
+        errorMessage = `Connection refused - database may be down or unreachable`;
+      } else if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+        // Extract hostname from DATABASE_URL for better diagnostics (handle URLs with or without port)
+        let hostname = 'unknown';
+        if (process.env.DATABASE_URL) {
+          const match = process.env.DATABASE_URL.match(/@([^:/]+)/);
+          if (match) hostname = match[1];
+        }
+        errorMessage = `DNS resolution failed - cannot resolve hostname "${hostname}". The database may have been deleted or suspended. Please create a new database and update DATABASE_URL.`;
+      } else if (error.message.includes('authentication')) {
+        errorMessage = `Authentication failed - check database credentials`;
+      } else if (error.message.includes('Connection terminated') || error.message.includes('terminated unexpectedly') || error.message.includes('ECONNRESET')) {
+        errorMessage = `Connection terminated unexpectedly - database may have closed the connection. This is common with Render PostgreSQL. Retrying...`;
+      }
+      
+      console.error(`Database connection attempt ${attempt} failed: ${errorMessage}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Full error details:', {
+          name: error.name,
+          code: error.code,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 3).join('\n')
+        });
+      }
       
       // Log connection details (without password)
       if (process.env.DATABASE_URL) {
@@ -165,8 +204,11 @@ const connectDB = async () => {
         console.error('Troubleshooting tips:');
         console.error('1. Verify DATABASE_URL is correct in Render environment variables');
         console.error('2. Check PostgreSQL service is running (not suspended)');
-        console.error('3. Ensure DB_SSL=true is set (or auto-detected from render.com URL)');
-        console.error('4. Verify database credentials are correct');
+        console.error('3. If DNS resolution failed, the database may have been deleted - create a new PostgreSQL database');
+        console.error('4. Ensure DB_SSL=true is set (or auto-detected from render.com URL)');
+        console.error('5. Verify database credentials are correct');
+        console.error('');
+        console.error('💡 Quick Fix: Create a new PostgreSQL database on Render and update DATABASE_URL');
         process.exit(1);
       }
       

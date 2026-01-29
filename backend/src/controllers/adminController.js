@@ -416,15 +416,20 @@ const getDashboardStats = async (req, res) => {
     });
 
     // Users by country (top 5)
-    const usersByCountry = await Address.findAll({
+    const usersByCountryRaw = await Address.findAll({
       attributes: [
         'country',
         [sequelize.fn('COUNT', sequelize.col('userId')), 'userCount']
       ],
       group: ['country'],
       order: [[sequelize.fn('COUNT', sequelize.col('userId')), 'DESC']],
-      limit: 5
+      limit: 5,
+      raw: true
     });
+    const usersByCountry = usersByCountryRaw.map(item => ({
+      country: item.country,
+      count: parseInt(item.userCount) || 0
+    }));
 
     // Get product statistics
     const totalProducts = await Product.count();
@@ -434,14 +439,19 @@ const getDashboardStats = async (req, res) => {
     const totalOrders = await Order.count();
     
     // Orders by status
-    const ordersByStatus = await Order.findAll({
+    const ordersByStatusRaw = await Order.findAll({
       attributes: [
         'status',
         [sequelize.fn('COUNT', sequelize.col('id')), 'count']
       ],
       group: ['status'],
-      order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
+      order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']],
+      raw: true
     });
+    const ordersByStatus = ordersByStatusRaw.map(item => ({
+      status: item.status,
+      count: parseInt(item.count) || 0
+    }));
 
     // Revenue calculation (last 30 days)
     // Using the same thirtyDaysAgo variable from above
@@ -462,11 +472,13 @@ const getDashboardStats = async (req, res) => {
     
     const revenueLast30Days = revenueResult ? parseInt(revenueResult.dataValues.totalRevenue) || 0 : 0;
 
-    // Top products by order count
-    const topProducts = await OrderItem.findAll({
+    // Top products by order count with actual revenue calculation
+    const topProductsRaw = await OrderItem.findAll({
       attributes: [
         [sequelize.fn('COUNT', sequelize.col('OrderItem.id')), 'orderCount'],
-        [sequelize.fn('SUM', sequelize.col('OrderItem.quantity')), 'totalQuantity']
+        [sequelize.fn('SUM', sequelize.col('OrderItem.quantity')), 'totalQuantity'],
+        [sequelize.fn('AVG', sequelize.col('OrderItem.unitPriceCents')), 'avgUnitPriceCents'],
+        [sequelize.literal('SUM("OrderItem"."quantity" * "OrderItem"."unitPriceCents")'), 'totalRevenueCents']
       ],
       include: [{
         model: Product,
@@ -475,8 +487,181 @@ const getDashboardStats = async (req, res) => {
       }],
       group: ['Product.id'],
       order: [[sequelize.fn('COUNT', sequelize.col('OrderItem.id')), 'DESC']],
-      limit: 5
+      limit: 10,
+      raw: false
     });
+    const topProducts = topProductsRaw.map(item => {
+      const avgPriceCents = item.dataValues.avgUnitPriceCents ? parseInt(item.dataValues.avgUnitPriceCents) : (item.Product?.price || 0);
+      const totalRevenueCents = item.dataValues.totalRevenueCents ? parseInt(item.dataValues.totalRevenueCents) : 0;
+      return {
+        Product: item.Product ? {
+          id: item.Product.id,
+          name: item.Product.name,
+          price: item.Product.price, // Current product price
+          avgPriceCents: avgPriceCents // Average price actually paid
+        } : null,
+        orderCount: parseInt(item.dataValues.orderCount) || 0,
+        totalQuantity: parseInt(item.dataValues.totalQuantity) || 0,
+        totalRevenueCents: totalRevenueCents
+      };
+    });
+
+    // Time-series data: Revenue by day (last 30 days)
+    const revenueByDay = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const dayRevenue = await Order.findOne({
+        attributes: [
+          [sequelize.fn('SUM', sequelize.col('totalAmountCents')), 'revenue'],
+          [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount']
+        ],
+        where: {
+          createdAt: {
+            [Op.gte]: date,
+            [Op.lt]: nextDate
+          },
+          status: {
+            [Op.in]: ['paid', 'delivered']
+          }
+        }
+      });
+
+      revenueByDay.push({
+        date: date.toISOString().split('T')[0],
+        revenue: dayRevenue && dayRevenue.dataValues.revenue ? parseInt(dayRevenue.dataValues.revenue) : 0,
+        orders: dayRevenue && dayRevenue.dataValues.orderCount ? parseInt(dayRevenue.dataValues.orderCount) : 0
+      });
+    }
+
+    // Time-series data: Users by day (last 30 days)
+    const usersByDay = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const dayUsers = await User.count({
+        where: {
+          createdAt: {
+            [Op.gte]: date,
+            [Op.lt]: nextDate
+          }
+        }
+      });
+
+      usersByDay.push({
+        date: date.toISOString().split('T')[0],
+        users: dayUsers
+      });
+    }
+
+    // Revenue comparison: Last 30 days vs Previous 30 days
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    
+    const previousRevenueResult = await Order.findOne({
+      attributes: [
+        [sequelize.fn('SUM', sequelize.col('totalAmountCents')), 'totalRevenue']
+      ],
+      where: {
+        createdAt: {
+          [Op.gte]: sixtyDaysAgo,
+          [Op.lt]: thirtyDaysAgo
+        },
+        status: {
+          [Op.in]: ['paid', 'delivered']
+        }
+      }
+    });
+    
+    const revenuePrevious30Days = previousRevenueResult ? parseInt(previousRevenueResult.dataValues.totalRevenue) || 0 : 0;
+    const revenueGrowth = revenuePrevious30Days > 0 
+      ? ((revenueLast30Days - revenuePrevious30Days) / revenuePrevious30Days * 100).toFixed(1)
+      : 0;
+
+    // Orders comparison
+    const previousOrders = await Order.count({
+      where: {
+        createdAt: {
+          [Op.gte]: sixtyDaysAgo,
+          [Op.lt]: thirtyDaysAgo
+        }
+      }
+    });
+
+    const ordersGrowth = previousOrders > 0 
+      ? (((totalOrders - previousOrders) / previousOrders) * 100).toFixed(1)
+      : 0;
+
+    // Revenue by month (last 6 months)
+    const revenueByMonth = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      date.setDate(1);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setMonth(nextDate.getMonth() + 1);
+
+      const monthRevenue = await Order.findOne({
+        attributes: [
+          [sequelize.fn('SUM', sequelize.col('totalAmountCents')), 'revenue'],
+          [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount']
+        ],
+        where: {
+          createdAt: {
+            [Op.gte]: date,
+            [Op.lt]: nextDate
+          },
+          status: {
+            [Op.in]: ['paid', 'delivered']
+          }
+        }
+      });
+
+      revenueByMonth.push({
+        month: date.toLocaleString('default', { month: 'short', year: 'numeric' }),
+        revenue: monthRevenue && monthRevenue.dataValues.revenue ? parseInt(monthRevenue.dataValues.revenue) : 0,
+        orders: monthRevenue && monthRevenue.dataValues.orderCount ? parseInt(monthRevenue.dataValues.orderCount) : 0
+      });
+    }
+
+    // Orders by day of week (PostgreSQL compatible)
+    // EXTRACT(DOW FROM timestamp) returns 0 (Sunday) to 6 (Saturday)
+    let ordersByDayFormatted = [];
+    try {
+      const ordersByDayOfWeek = await Order.findAll({
+        attributes: [
+          [sequelize.literal("EXTRACT(DOW FROM \"Order\".\"createdAt\")"), 'dayOfWeek'],
+          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+        ],
+        where: {
+          createdAt: {
+            [Op.gte]: thirtyDaysAgo
+          }
+        },
+        group: [sequelize.literal("EXTRACT(DOW FROM \"Order\".\"createdAt\")")],
+        order: [[sequelize.literal("EXTRACT(DOW FROM \"Order\".\"createdAt\")"), 'ASC']],
+        raw: true
+      });
+
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      ordersByDayFormatted = ordersByDayOfWeek.map(item => ({
+        day: dayNames[parseInt(item.dayOfWeek)] || 'Unknown',
+        count: parseInt(item.count) || 0
+      }));
+    } catch (dayOfWeekError) {
+      console.error('Error fetching orders by day of week:', dayOfWeekError);
+      // Continue without this data if it fails
+      ordersByDayFormatted = [];
+    }
 
     res.json({
       success: true,
@@ -492,14 +677,23 @@ const getDashboardStats = async (req, res) => {
         totalOrders,
         ordersByStatus,
         revenueLast30Days,
-        topProducts
+        revenuePrevious30Days,
+        revenueGrowth,
+        ordersGrowth,
+        topProducts,
+        revenueByDay,
+        usersByDay,
+        revenueByMonth,
+        ordersByDayOfWeek: ordersByDayFormatted
       }
     });
   } catch (error) {
     console.error('Get dashboard stats error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: error.message || 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

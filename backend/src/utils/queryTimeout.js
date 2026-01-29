@@ -7,21 +7,32 @@
  */
 const withTimeout = (queryPromise, timeoutMs = 15000, operationName = 'Database query') => {
   return Promise.race([
-    queryPromise,
+    queryPromise.catch(error => {
+      // Re-throw with more context if it's a timeout
+      if (error.message && error.message.includes('timeout')) {
+        throw new Error(`${operationName} timeout: ${error.message}`);
+      }
+      throw error;
+    }),
     new Promise((_, reject) => 
-      setTimeout(() => reject(new Error(`${operationName} timeout`)), timeoutMs)
+      setTimeout(() => {
+        const timeoutError = new Error(`${operationName} timeout after ${timeoutMs}ms`);
+        timeoutError.name = 'TimeoutError';
+        reject(timeoutError);
+      }, timeoutMs)
     )
   ]);
 };
 
 /**
  * Standard timeout configurations for different operations
+ * Increased for Render's slower database connections
  */
 const TIMEOUTS = {
-  AUTH: 5000,           // Authentication queries (fast)
-  SIMPLE_QUERY: 8000,   // Simple single table queries
-  COMPLEX_QUERY: 15000, // Complex queries with joins
-  BULK_OPERATION: 30000 // Bulk operations like sync
+  AUTH: 15000,          // Authentication queries (increased for Render)
+  SIMPLE_QUERY: 20000,  // Simple single table queries (increased for Render)
+  COMPLEX_QUERY: 30000, // Complex queries with joins (increased for Render)
+  BULK_OPERATION: 60000 // Bulk operations like sync (increased for Render)
 };
 
 /**
@@ -51,6 +62,7 @@ module.exports = {
   TIMEOUTS,
   handleTimeoutError
 };
+
 
 
 

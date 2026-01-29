@@ -44,6 +44,16 @@ const protect = async (req, res, next) => {
       next();
     } catch (error) {
       console.error('Token verification error:', error);
+      
+      // Provide more specific error messages
+      if (error.message && error.message.includes('timeout')) {
+        console.error('Database query timeout during token verification');
+        return res.status(408).json({
+          success: false,
+          message: 'Authentication timeout - please try again'
+        });
+      }
+      
       return res.status(401).json({
         success: false,
         message: 'Not authorized, token failed'

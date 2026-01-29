@@ -472,6 +472,129 @@ const deleteOrder = async (req, res) => {
   }
 };
 
+// Create personalized t-shirt order (sends design image to admin)
+const createPersonalizedTShirtOrder = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    // Get user info if authenticated, otherwise use guest info
+    const userId = req.user?.userId || null;
+    const { tshirtColor, notes } = req.body;
+    
+    // Parse JSON strings from FormData
+    let shippingAddress = null;
+    let billingInfo = null;
+    
+    try {
+      if (req.body.shippingAddress) {
+        shippingAddress = typeof req.body.shippingAddress === 'string' 
+          ? JSON.parse(req.body.shippingAddress) 
+          : req.body.shippingAddress;
+      }
+      if (req.body.billingInfo) {
+        billingInfo = typeof req.body.billingInfo === 'string' 
+          ? JSON.parse(req.body.billingInfo) 
+          : req.body.billingInfo;
+      }
+    } catch (parseError) {
+      console.error('Error parsing JSON from FormData:', parseError);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid shipping address or billing information format' 
+      });
+    }
+    
+    // Validate required fields
+    if (!billingInfo || !billingInfo.firstName || !billingInfo.lastName || !billingInfo.email || !billingInfo.phone) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Billing information (firstName, lastName, email, phone) is required' 
+      });
+    }
+    
+    if (!shippingAddress || !shippingAddress.street || !shippingAddress.city || !shippingAddress.state || !shippingAddress.zipCode || !shippingAddress.country) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Complete shipping address (street, city, state, zipCode, country) is required' 
+      });
+    }
+    
+    // Get the uploaded design image
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Design image is required' });
+    }
+    
+    const designImage = req.files[0];
+    const designImageUrl = `/uploads/${designImage.filename}`;
+    
+    // Prepare customer information
+    let customerInfo;
+    let customerType;
+    
+    if (userId) {
+      const user = await User.findByPk(userId, { transaction: t });
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+      
+      customerType = 'registered';
+      // Use billing info provided, but fallback to user info if missing
+      customerInfo = {
+        email: billingInfo.email || user.email,
+        firstName: billingInfo.firstName || user.firstName,
+        lastName: billingInfo.lastName || user.lastName,
+        phone: billingInfo.phone || user.phone || null
+      };
+    } else {
+      // Guest order - use billing info
+      customerType = 'guest';
+      customerInfo = {
+        email: billingInfo.email,
+        firstName: billingInfo.firstName,
+        lastName: billingInfo.lastName,
+        phone: billingInfo.phone || null
+      };
+    }
+    
+    // Create order with personalized design info in notes
+    const orderNotes = `Personalized T-Shirt Order\n` +
+      `T-Shirt Color: ${tshirtColor || 'Not specified'}\n` +
+      `Design Image: ${designImageUrl}\n` +
+      (notes ? `Additional Notes: ${notes}` : '');
+    
+    const order = await Order.create({
+      userId,
+      customerType,
+      customerInfo,
+      status: 'pending',
+      totalAmountCents: 0, // Will be set by admin
+      shippingCostCents: 0,
+      currency: 'USD',
+      paymentMethod: 'cash_on_delivery',
+      shippingAddress: shippingAddress,
+      billingInfo: billingInfo,
+      notes: orderNotes
+    }, { transaction: t });
+    
+    await t.commit();
+    
+    const created = await Order.findByPk(order.id, {
+      include: [
+        { model: User, as: 'User', attributes: ['id', 'email', 'firstName', 'lastName'], required: false }
+      ]
+    });
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Personalized t-shirt order submitted successfully. Admin will review your design.',
+      data: { order: created, designImageUrl } 
+    });
+  } catch (error) {
+    if (!t.finished) {
+      await t.rollback();
+    }
+    console.error('Create personalized t-shirt order error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   listOrders,
   getOrderById,
@@ -479,7 +602,8 @@ module.exports = {
   createUserOrder,
   createGuestOrder,
   updateOrderStatus,
-  deleteOrder
+  deleteOrder,
+  createPersonalizedTShirtOrder
 };
 
 

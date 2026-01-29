@@ -5,6 +5,8 @@ import OrderSuccessNotification from './OrderSuccessNotification';
 import LoginSuccessNotification from './LoginSuccessNotification';
 import AddToCartNotification from './AddToCartNotification';
 import AddToWishlistNotification from './AddToWishlistNotification';
+import ErrorNotification from './ErrorNotification';
+import PersonalizedTShirtOrderSuccessNotification from './PersonalizedTShirtOrderSuccessNotification';
 
 export default function OrderNotificationWrapper() {
   const { 
@@ -22,6 +24,13 @@ export default function OrderNotificationWrapper() {
     isWishlistAddedVisible,
     hideWishlistAdded,
     wishlistProductName,
+    // error notification
+    isErrorVisible,
+    hideError,
+    errorMessage,
+    // personalized t-shirt order success
+    isPersonalizedTShirtOrderSuccessVisible,
+    hidePersonalizedTShirtOrderSuccess,
   } = useOrderNotification();
   
   return (
@@ -45,6 +54,15 @@ export default function OrderNotificationWrapper() {
         isVisible={isWishlistAddedVisible}
         onClose={hideWishlistAdded}
         productName={wishlistProductName}
+      />
+      <ErrorNotification
+        isVisible={isErrorVisible}
+        onClose={hideError}
+        message={errorMessage}
+      />
+      <PersonalizedTShirtOrderSuccessNotification
+        isVisible={isPersonalizedTShirtOrderSuccessVisible}
+        onClose={hidePersonalizedTShirtOrderSuccess}
       />
     </>
   );

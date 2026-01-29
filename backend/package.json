@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "seed": "node src/scripts/seed.js",
     "admin:seed": "node src/scripts/seed.js",
+    "admin:create": "node src/scripts/create-admin.js",
     "seed:categories": "node src/scripts/seedCategories.js"
   },
   "dependencies": {

@@ -16,7 +16,7 @@ class DatabaseMonitor {
       await Promise.race([
         sequelize.authenticate(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Health check timeout')), 5000)
+          setTimeout(() => reject(new Error('Health check timeout')), 20000)
         )
       ]);
       

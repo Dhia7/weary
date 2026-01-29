@@ -31,6 +31,9 @@ router.post('/checkout/guest', (req, res) => {
   return orderController.createGuestOrder(req, res);
 });
 
+// Personalized t-shirt order - accepts image upload
+router.post('/personalized-tshirt-order', optionalAuth, uploadMultipleImages, orderController.createPersonalizedTShirtOrder);
+
 module.exports = router;
 
 

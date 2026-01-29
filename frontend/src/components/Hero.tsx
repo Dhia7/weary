@@ -30,7 +30,7 @@ const Hero = () => {
             <p className="mt-3 text-base text-white sm:mt-5 sm:text-lg md:mt-5 md:text-xl drop-shadow-lg">
               Elevate your wardrobe with premium fashion and accessories. Shop the latest collections and enjoy fast, reliable shipping on all orders.
             </p>
-            <div className="mt-8 sm:flex sm:justify-center lg:justify-start gap-3">
+            <div className="mt-8 sm:flex sm:justify-center lg:justify-start gap-3 flex-wrap">
               <Link
                 href="/products"
                 className="w-full sm:w-auto flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10 transition-colors shadow-lg"
@@ -43,6 +43,15 @@ const Hero = () => {
                 className="w-full sm:w-auto flex items-center justify-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white hover:text-indigo-600 md:py-4 md:text-lg md:px-10 transition-colors shadow-lg mt-3 sm:mt-0"
               >
                 Shop Categories
+              </Link>
+              <Link
+                href="/designer"
+                className="w-full sm:w-auto flex items-center justify-center px-8 py-3 border-2 border-indigo-300 text-base font-medium rounded-md text-white bg-indigo-500/80 hover:bg-indigo-600 md:py-4 md:text-lg md:px-10 transition-colors shadow-lg mt-3 sm:mt-0"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Design Your T-Shirt
               </Link>
             </div>
           </div>

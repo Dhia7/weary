@@ -94,10 +94,16 @@ const dbStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Database status check error:', error);
+    
+    // Provide more specific error message for timeouts
+    const errorMessage = error.message && error.message.includes('timeout') 
+      ? `Database connection timeout: ${error.message}`
+      : error.message;
+    
     res.status(503).json({
       success: false,
       status: 'disconnected',
-      error: error.message,
+      error: errorMessage,
       timestamp: new Date().toISOString()
     });
   }

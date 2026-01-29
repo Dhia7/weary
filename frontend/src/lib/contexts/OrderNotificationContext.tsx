@@ -21,6 +21,15 @@ interface OrderNotificationContextType {
   hideWishlistAdded: () => void;
   isWishlistAddedVisible: boolean;
   wishlistProductName: string | undefined;
+  // Generic error notification
+  showError: (message: string) => void;
+  hideError: () => void;
+  isErrorVisible: boolean;
+  errorMessage: string | undefined;
+  // Personalized t-shirt order success
+  showPersonalizedTShirtOrderSuccess: () => void;
+  hidePersonalizedTShirtOrderSuccess: () => void;
+  isPersonalizedTShirtOrderSuccessVisible: boolean;
 }
 
 const OrderNotificationContext = createContext<OrderNotificationContextType | undefined>(undefined);
@@ -48,6 +57,11 @@ export const OrderNotificationProvider = ({ children }: OrderNotificationProvide
   // Wishlist state
   const [isWishlistAddedVisible, setIsWishlistAddedVisible] = useState(false);
   const [wishlistProductName, setWishlistProductName] = useState<string | undefined>(undefined);
+  // Error notification state
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  // Personalized t-shirt order success state
+  const [isPersonalizedTShirtOrderSuccessVisible, setIsPersonalizedTShirtOrderSuccessVisible] = useState(false);
 
   const showOrderSuccess = (newOrderId?: string) => {
     setOrderId(newOrderId);
@@ -91,6 +105,26 @@ export const OrderNotificationProvider = ({ children }: OrderNotificationProvide
     setWishlistProductName(undefined);
   };
 
+  // Error notification handlers
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setIsErrorVisible(true);
+  };
+
+  const hideError = () => {
+    setIsErrorVisible(false);
+    setErrorMessage(undefined);
+  };
+
+  // Personalized t-shirt order success handlers
+  const showPersonalizedTShirtOrderSuccess = () => {
+    setIsPersonalizedTShirtOrderSuccessVisible(true);
+  };
+
+  const hidePersonalizedTShirtOrderSuccess = () => {
+    setIsPersonalizedTShirtOrderSuccessVisible(false);
+  };
+
   const value = {
     showOrderSuccess,
     hideOrderSuccess,
@@ -110,6 +144,15 @@ export const OrderNotificationProvider = ({ children }: OrderNotificationProvide
     hideWishlistAdded,
     isWishlistAddedVisible,
     wishlistProductName,
+    // error notification
+    showError,
+    hideError,
+    isErrorVisible,
+    errorMessage,
+    // personalized t-shirt order success
+    showPersonalizedTShirtOrderSuccess,
+    hidePersonalizedTShirtOrderSuccess,
+    isPersonalizedTShirtOrderSuccessVisible,
   };
 
   return (
