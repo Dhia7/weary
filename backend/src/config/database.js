@@ -149,6 +149,14 @@ const connectDB = async () => {
       ]);
       console.log('Database synchronized.');
       
+      // Auto-create admin account from environment variables (if configured)
+      try {
+        const { autoCreateAdmin } = require('../utils/autoCreateAdmin');
+        await autoCreateAdmin();
+      } catch (error) {
+        console.warn('Admin auto-creation failed (non-critical):', error.message);
+      }
+      
       // Apply database optimizations in development
       if (process.env.NODE_ENV === 'development') {
         try {
