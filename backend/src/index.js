@@ -147,13 +147,13 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // Serve static files (uploads) - after CORS configuration
-const uploadsDir = path.join(__dirname, '..', 'uploads');
+const uploadsDir = path.resolve(__dirname, '..', 'uploads');
 
 // Direct file server to handle edge cases (Windows paths, uppercase extensions)
 app.get('/uploads/:filename', (req, res, next) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
-    let filePath = path.join(uploadsDir, filename);
+    let filePath = path.resolve(uploadsDir, filename);
 
     // If the exact file doesn't exist, try common alternate extensions
     if (!fs.existsSync(filePath)) {
@@ -171,7 +171,7 @@ app.get('/uploads/:filename', (req, res, next) => {
               : ['.jpg', '.jpeg', '.jfif', '.png', '.webp'];
 
       for (const ext of alternateExtensions) {
-        const candidatePath = path.join(uploadsDir, `${baseName}${ext}`);
+        const candidatePath = path.resolve(uploadsDir, `${baseName}${ext}`);
         if (fs.existsSync(candidatePath)) {
           filePath = candidatePath;
           break;
@@ -180,7 +180,8 @@ app.get('/uploads/:filename', (req, res, next) => {
     }
 
     if (!fs.existsSync(filePath)) {
-      return next();
+      console.log(`File not found: ${filePath}`);
+      return res.status(404).json({ success: false, message: 'Image not found' });
     }
 
     const ext = path.extname(filePath).toLowerCase();
@@ -198,7 +199,8 @@ app.get('/uploads/:filename', (req, res, next) => {
     res.type(contentType);
     return res.sendFile(filePath);
   } catch (e) {
-    return next();
+    console.error('Error serving file:', e);
+    return res.status(500).json({ success: false, message: 'Error serving image' });
   }
 });
 
