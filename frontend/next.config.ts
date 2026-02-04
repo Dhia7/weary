@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
         hostname: 'weary-backend.onrender.com',
         pathname: '/uploads/**',
       },
+      // Add Cloudinary patterns
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
     ],
     // Disable image optimization to avoid Vercel optimization issues with external images
     unoptimized: true,

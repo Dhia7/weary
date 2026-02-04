@@ -78,15 +78,16 @@ const createProduct = async (req, res) => {
 
 		// Handle multiple image uploads
 		let imageUrls = [];
-		if (req.files && req.files.length > 0) {
-			// Sort files by field name to maintain order (image_0, image_1, etc.)
+		if (req.cloudinaryUrls && req.cloudinaryUrls.length > 0) {
+			// Use Cloudinary URLs if available
+			imageUrls = req.cloudinaryUrls;
+		} else if (req.files && req.files.length > 0) {
+			// Fallback to local storage
 			const sortedFiles = req.files.sort((a, b) => {
 				const aIndex = parseInt(a.fieldname.replace('image_', ''));
 				const bIndex = parseInt(b.fieldname.replace('image_', ''));
 				return aIndex - bIndex;
 			});
-			
-			// Generate URLs for the uploaded images
 			imageUrls = sortedFiles.map(file => `/uploads/${file.filename}`);
 		}
 
@@ -341,8 +342,10 @@ const updateProduct = async (req, res) => {
 			try {
 				const parsed = JSON.parse(req.body.existingImages);
 				if (Array.isArray(parsed)) {
-					// Sanitize: keep only strings that look like our uploads path
-					desiredExistingImages = parsed.filter((p) => typeof p === 'string' && p.startsWith('/uploads/'));
+					// Keep both Cloudinary URLs and local paths
+					desiredExistingImages = parsed.filter((p) => 
+						typeof p === 'string' && (p.startsWith('/uploads/') || p.includes('cloudinary.com'))
+					);
 				}
 			} catch (_) {
 				// ignore parse error; fall back to current product images
@@ -352,14 +355,16 @@ const updateProduct = async (req, res) => {
 		let workingImages = Array.isArray(desiredExistingImages) ? desiredExistingImages : (product.images || []);
 
 		// Handle multiple image uploads (append after existing images)
-		if (req.files && req.files.length > 0) {
-			// Sort files by field name to maintain order (image_0, image_1, etc.)
+		if (req.cloudinaryUrls && req.cloudinaryUrls.length > 0) {
+			// Use Cloudinary URLs if available
+			workingImages = [...workingImages, ...req.cloudinaryUrls];
+		} else if (req.files && req.files.length > 0) {
+			// Fallback to local storage
 			const sortedFiles = req.files.sort((a, b) => {
 				const aIndex = parseInt(a.fieldname.replace('image_', ''));
 				const bIndex = parseInt(b.fieldname.replace('image_', ''));
 				return aIndex - bIndex;
 			});
-			// Generate URLs for the new uploaded images
 			const newImageUrls = sortedFiles.map(file => `/uploads/${file.filename}`);
 			workingImages = [...workingImages, ...newImageUrls];
 		}
