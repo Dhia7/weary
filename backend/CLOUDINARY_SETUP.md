@@ -71,11 +71,39 @@ The system automatically falls back to local storage if Cloudinary is not config
 
 ## Migration from Local to Cloudinary
 
-If you have existing products with local image URLs (`/uploads/...`), you can:
+If you have existing products with local image URLs (`/uploads/...`), you can migrate them:
 
-1. Keep them as-is (they'll work until server restarts)
-2. Re-upload images through the admin panel (they'll go to Cloudinary)
-3. Or create a migration script to upload existing images to Cloudinary
+### Option 1: Use the Migration Script (Recommended)
+
+A migration script is included to automatically migrate existing images:
+
+```bash
+# First, test what would be migrated (dry run)
+npm run migrate:images:dry-run
+
+# Then run the actual migration
+npm run migrate:images
+```
+
+**Requirements:**
+- Cloudinary must be configured (environment variables set)
+- Image files must exist in `backend/uploads/` directory
+- Database connection must be working
+
+**Note:** If your Render server has already restarted, the local image files may be lost. In that case, use Option 2.
+
+### Option 2: Manual Re-upload
+
+1. Go to your admin panel
+2. Edit each product
+3. Re-upload the images (they'll automatically go to Cloudinary)
+4. Save the product
+
+### Option 3: Keep as-is (Temporary)
+
+- Old images will work until server restart/redeploy
+- New images will go to Cloudinary automatically
+- Gradually migrate products as you edit them
 
 ## Troubleshooting
 
