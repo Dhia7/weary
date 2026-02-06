@@ -25,6 +25,7 @@ interface Product {
   quantity: number | '';
   barcode: string | null;
   weightGrams: number | '';
+  size?: string | null;
   isActive: boolean;
   imageUrl: string | null;
   images?: string[];
@@ -50,6 +51,7 @@ export default function EditProductPage() {
     quantity: '',
     barcode: null,
     weightGrams: '',
+    size: null,
     isActive: true,
     imageUrl: null,
     images: [],
@@ -60,11 +62,13 @@ export default function EditProductPage() {
   // Categories and UI state
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+  const [hasSizes, setHasSizes] = useState<boolean>(false); // Always initialize as boolean
   const [loading, setLoading] = useState(!isNew);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
 
   // Images & Media state
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -140,12 +144,17 @@ export default function EditProductPage() {
               quantity: (p.quantity === null || p.quantity === undefined) ? '' : p.quantity,
               barcode: p.barcode || null,
               weightGrams: (p.weightGrams === null || p.weightGrams === undefined) ? '' : p.weightGrams,
+              size: p.size || null,
               isActive: p.isActive !== false,
               imageUrl: p.imageUrl || null,
               images: p.images || [],
               mainThumbnailIndex: p.mainThumbnailIndex || 0,
               categories: p.categories || []
             });
+            // Check if product has sizes (ensure boolean)
+            setHasSizes(Boolean(p.size && p.size.trim().length > 0));
+            // For made-to-order products, sizeStock is not used
+            // Just initialize empty object for compatibility
             const categoryIds = p.categories?.map((c: Category) => c.id) || [];
             console.log('Loaded product categories:', p.categories, 'Category IDs:', categoryIds);
             setSelectedCategoryIds(categoryIds);
@@ -180,6 +189,8 @@ export default function EditProductPage() {
       loadData();
     }
   }, [id, isNew, fetcher]);
+
+  // Note: Quantity can be managed for products with or without sizes
 
   // Cleanup object URLs on component unmount
   useEffect(() => {
@@ -421,6 +432,10 @@ export default function EditProductPage() {
       formData.append('quantity', productData.quantity.toString());
       formData.append('barcode', productData.barcode || '');
       formData.append('weightGrams', productData.weightGrams.toString());
+      // If hasSizes is checked, use standard size list; otherwise empty
+      formData.append('size', hasSizes ? 'XS, S, M, L, XL, XXL' : '');
+      // For made-to-order products, send empty sizeStock (not tracking stock per size)
+      formData.append('sizeStock', JSON.stringify({}));
       formData.append('isActive', productData.isActive.toString());
       // Always send categoryIds, even if empty array
       const categoryIdsToSend = Array.isArray(selectedCategoryIds) ? selectedCategoryIds : [];
@@ -428,9 +443,23 @@ export default function EditProductPage() {
       formData.append('categoryIds', JSON.stringify(categoryIdsToSend));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
       // Include currently kept existing image paths (server-relative) so backend can remove others
+      // Keep both local uploads and Cloudinary URLs
       const remainingExisting = imagePreviews
-        .filter((url) => typeof url === 'string' && (url.startsWith('/uploads/') || url.startsWith('/api/uploads/')))
-        .map((url) => url.startsWith('/api/') ? url.replace('/api', '') : url);
+        .filter((url) => {
+          if (typeof url !== 'string') return false;
+          // Keep local uploads
+          if (url.startsWith('/uploads/') || url.startsWith('/api/uploads/')) return true;
+          // Keep Cloudinary URLs
+          if (url.includes('cloudinary.com') || url.includes('res.cloudinary.com')) return true;
+          return false;
+        })
+        .map((url) => {
+          // Remove /api prefix for local uploads
+          if (url.startsWith('/api/')) {
+            return url.replace('/api', '');
+          }
+          return url;
+        });
       formData.append('existingImages', JSON.stringify(remainingExisting));
       
       // Add multiple images (either original files or edited images)
@@ -787,18 +816,24 @@ export default function EditProductPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="quantity" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Quantity *</label>
+                  <label htmlFor="quantity" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Quantity *
+                  </label>
                   <input 
                     id="quantity" 
                     placeholder="0" 
                     type="number" 
                     min="0"
                     value={productData.quantity} 
-                    onChange={(e) => updateProduct('quantity', e.target.value === '' ? '' : Number(e.target.value))} 
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                    onChange={(e) => {
+                      updateProduct('quantity', e.target.value === '' ? '' : Number(e.target.value));
+                    }}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                     required
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter the stock level for each variant. This allows for low-stock alerts.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Enter the stock level for this product. This allows for low-stock alerts.
+                  </p>
                 </div>
               </div>
               
@@ -831,6 +866,43 @@ export default function EditProductPage() {
                   />
                 </div>
                 
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      id="hasSizes" 
+                      type="checkbox" 
+                      checked={Boolean(hasSizes)} 
+                      onChange={(e) => setHasSizes(Boolean(e.target.checked))} 
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="hasSizes" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Product has sizes (XS, S, M, L, XL, XXL)
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Check this if customers need to select a size when ordering. Leave unchecked for products without sizes (e.g., accessories, bags).
+                  </p>
+                </div>
+              </div>
+              
+              {/* Made-to-Order Notice */}
+              {hasSizes && (
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">Made-to-Order Product</h4>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Products with sizes are made-to-order. Customers can select any available size, and orders will be sent to you for fulfillment. No stock tracking is needed for these products.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="mt-6">
                 <div className="flex items-center space-x-2">
                   <input 
                     id="active" 

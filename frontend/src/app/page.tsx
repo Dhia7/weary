@@ -1,14 +1,18 @@
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import Hero from '@/components/Hero';
-import Categories from '@/components/Categories';
-import FeaturedProducts from '@/components/FeaturedProducts';
-import Collections from '@/components/Collections';
+import TrustIndicators from '@/components/TrustIndicators';
 import Footer from '@/components/Footer';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
+
+// Lazy load below-the-fold components for better initial page load
+const FeaturedProducts = lazy(() => import('@/components/FeaturedProducts'));
+const Categories = lazy(() => import('@/components/Categories'));
+const Collections = lazy(() => import('@/components/Collections'));
+const NewsletterSignup = lazy(() => import('@/components/NewsletterSignup'));
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -48,9 +52,24 @@ function HomeContent() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
       <Hero />
-      <FeaturedProducts />
-      <Categories />
-      <Collections />
+      <TrustIndicators />
+      
+      <Suspense fallback={<div className="h-96 bg-gray-100 dark:bg-gray-800 animate-pulse" />}>
+        <FeaturedProducts />
+      </Suspense>
+      
+      <Suspense fallback={<div className="h-96 bg-gray-100 dark:bg-gray-800 animate-pulse" />}>
+        <Categories />
+      </Suspense>
+      
+      <Suspense fallback={<div className="h-96 bg-gray-100 dark:bg-gray-800 animate-pulse" />}>
+        <Collections />
+      </Suspense>
+      
+      <Suspense fallback={<div className="h-32 bg-gray-100 dark:bg-gray-800 animate-pulse" />}>
+        <NewsletterSignup />
+      </Suspense>
+      
       <Footer />
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon, ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
@@ -19,6 +19,7 @@ interface Product {
   price: number;
   compareAtPrice?: number;
   quantity: number;
+  size?: string | null;
   categories?: Array<{
     id: number;
     name: string;
@@ -38,6 +39,7 @@ interface Collection {
 
 export default function CollectionDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params?.slug as string;
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,12 +73,25 @@ export default function CollectionDetailPage() {
     }
   };
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // If product has sizes, redirect to product page for size selection
+    if (product.size && product.size.trim().length > 0) {
+      router.push(`/product/${product.slug}`);
+      return;
+    }
+    
+    // For products without sizes, add directly to cart
     addItem({
       id: product.id.toString(),
       name: product.name,
       price: product.price,
-      image: product.imageUrl || '/placeholder-product.jpg'
+      image: product.imageUrl || '/placeholder-product.jpg',
+      slug: product.slug
     }, 1);
   };
 
@@ -217,15 +232,16 @@ export default function CollectionDetailPage() {
                 {/* Quick Add to Cart */}
                 <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleAddToCart(product);
-                    }}
+                    onClick={(e) => handleAddToCart(product, e)}
                     disabled={product.quantity === 0}
                     className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                    {product.quantity === 0 ? 'Out of Stock' : 'Quick Add'}
+                    {product.quantity === 0 
+                      ? 'Out of Stock' 
+                      : (product.size && product.size.trim().length > 0)
+                      ? 'Select Size'
+                      : 'Quick Add'}
                   </button>
                 </div>
 

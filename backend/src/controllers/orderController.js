@@ -1,4 +1,4 @@
-const { Op, fn, col } = require('sequelize');
+const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 // Import associations first to set up relationships
@@ -6,6 +6,41 @@ require('../models/associations');
 
 // Then import models from associations
 const { User, Product, Order, OrderItem } = require('../models/associations');
+
+// Helper function to check size-specific stock availability
+const checkSizeStockAvailability = (product, size, quantity) => {
+	// Products with sizes are made-to-order and always available
+	if (size && product.size && product.size.trim().length > 0) {
+		return { available: true, stock: 999 };
+	}
+	
+	// For products without sizes, check general quantity
+	return { available: product.quantity >= quantity, stock: product.quantity };
+};
+
+// Helper function to reduce size-specific stock
+const reduceSizeStock = async (product, size, quantity, transaction) => {
+	// Products with sizes are made-to-order, no stock reduction needed
+	if (size && product.size && product.size.trim().length > 0) {
+		return; // Made-to-order products don't track stock
+	}
+	
+	// For products without sizes, reduce general quantity
+	product.quantity = Math.max(0, product.quantity - quantity);
+	await product.save({ transaction });
+};
+
+// Helper function to restore size-specific stock
+const restoreSizeStock = async (product, size, quantity, transaction) => {
+	// Products with sizes are made-to-order, no stock restoration needed
+	if (size && product.size && product.size.trim().length > 0) {
+		return; // Made-to-order products don't track stock
+	}
+	
+	// For products without sizes, restore general quantity
+	product.quantity += quantity;
+	await product.save({ transaction });
+};
 
 // List orders with pagination and filters
 const listOrders = async (req, res) => {
@@ -162,6 +197,78 @@ const getOrderById = async (req, res) => {
   }
 };
 
+// Get orders for authenticated user
+const getUserOrders = async (req, res) => {
+  try {
+    const userId = req.user.userId; // From auth middleware (JWT token)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const { status } = req.query;
+
+    const where = { userId }; // Only get orders for this user
+    if (status) where.status = status;
+
+    const include = [
+      { model: OrderItem, as: 'items', include: [{ model: Product, as: 'Product', attributes: ['id', 'name', 'slug', 'SKU', 'description', 'price', 'compareAtPrice', 'imageUrl', 'images', 'mainThumbnailIndex', 'quantity', 'weightGrams', 'barcode', 'isActive'] }] }
+    ];
+
+    const { count, rows } = await Order.findAndCountAll({
+      where,
+      include,
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset
+    });
+
+    const orders = rows.map(order => order.toJSON());
+    const totalPages = Math.ceil(count / limit);
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        orders, 
+        pagination: { 
+          currentPage: page, 
+          totalPages, 
+          totalOrders: count, 
+          perPage: limit 
+        } 
+      } 
+    });
+  } catch (error) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Get order by id for authenticated user (checks ownership)
+const getUserOrderById = async (req, res) => {
+  try {
+    const userId = req.user.userId; // From auth middleware (JWT token)
+    const order = await Order.findByPk(req.params.id, {
+      include: [
+        { model: OrderItem, as: 'items', include: [{ model: Product, as: 'Product', attributes: ['id', 'name', 'slug', 'SKU', 'description', 'price', 'compareAtPrice', 'imageUrl', 'images', 'mainThumbnailIndex', 'quantity', 'weightGrams', 'barcode', 'isActive'] }] }
+      ]
+    });
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Check if the order belongs to the authenticated user
+    if (order.userId !== userId) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to view this order' });
+    }
+    
+    const orderData = order.toJSON();
+    res.json({ success: true, data: { order: orderData } });
+  } catch (error) {
+    console.error('Get user order error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 // Create order (admin)
 const createOrder = async (req, res) => {
   const t = await sequelize.transaction();
@@ -180,14 +287,19 @@ const createOrder = async (req, res) => {
       if (!item.productId || !item.quantity || item.unitPriceCents == null) {
         return res.status(400).json({ success: false, message: 'Each item requires productId, quantity, unitPriceCents' });
       }
-      const product = await Product.findByPk(item.productId);
+      const product = await Product.findByPk(item.productId, { 
+        transaction: t,
+        attributes: { exclude: ['sizeStock'] }
+      });
       if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
       
-      // Check stock availability
-      if (item.quantity > product.quantity) {
+      // Check size-specific stock availability
+      const stockCheck = checkSizeStockAvailability(product, item.size, item.quantity);
+      if (!stockCheck.available) {
+        const sizeText = item.size ? ` (Size: ${item.size})` : '';
         return res.status(400).json({ 
           success: false, 
-          message: `Sorry, we don't have enough ${product.name} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
+          message: `Sorry, we don't have enough ${product.name}${sizeText} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
         });
       }
       
@@ -218,7 +330,13 @@ const createOrder = async (req, res) => {
     }, { transaction: t });
 
     for (const item of items) {
-      await OrderItem.create({ orderId: order.id, productId: item.productId, quantity: item.quantity, unitPriceCents: item.unitPriceCents }, { transaction: t });
+      await OrderItem.create({ 
+        orderId: order.id, 
+        productId: item.productId, 
+        quantity: item.quantity, 
+        unitPriceCents: item.unitPriceCents,
+        size: item.size || null
+      }, { transaction: t });
     }
 
     await t.commit();
@@ -257,14 +375,19 @@ const createUserOrder = async (req, res) => {
       if (!item.productId || !item.quantity || item.unitPriceCents == null) {
         return res.status(400).json({ success: false, message: 'Each item requires productId, quantity, unitPriceCents' });
       }
-      const product = await Product.findByPk(item.productId);
+      const product = await Product.findByPk(item.productId, { 
+        transaction: t,
+        attributes: { exclude: ['sizeStock'] }
+      });
       if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
       
-      // Check stock availability
-      if (item.quantity > product.quantity) {
+      // Check size-specific stock availability
+      const stockCheck = checkSizeStockAvailability(product, item.size, item.quantity);
+      if (!stockCheck.available) {
+        const sizeText = item.size ? ` (Size: ${item.size})` : '';
         return res.status(400).json({ 
           success: false, 
-          message: `Sorry, we don't have enough ${product.name} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
+          message: `Sorry, we don't have enough ${product.name}${sizeText} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
         });
       }
       
@@ -295,7 +418,13 @@ const createUserOrder = async (req, res) => {
     }, { transaction: t });
 
     for (const item of items) {
-      await OrderItem.create({ orderId: order.id, productId: item.productId, quantity: item.quantity, unitPriceCents: item.unitPriceCents }, { transaction: t });
+      await OrderItem.create({ 
+        orderId: order.id, 
+        productId: item.productId, 
+        quantity: item.quantity, 
+        unitPriceCents: item.unitPriceCents,
+        size: item.size || null
+      }, { transaction: t });
     }
 
     await t.commit();
@@ -337,14 +466,19 @@ const createGuestOrder = async (req, res) => {
       if (!item.productId || !item.quantity || item.unitPriceCents == null) {
         return res.status(400).json({ success: false, message: 'Each item requires productId, quantity, unitPriceCents' });
       }
-      const product = await Product.findByPk(item.productId);
+      const product = await Product.findByPk(item.productId, { 
+        transaction: t,
+        attributes: { exclude: ['sizeStock'] }
+      });
       if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
       
-      // Check stock availability
-      if (item.quantity > product.quantity) {
+      // Check size-specific stock availability
+      const stockCheck = checkSizeStockAvailability(product, item.size, item.quantity);
+      if (!stockCheck.available) {
+        const sizeText = item.size ? ` (Size: ${item.size})` : '';
         return res.status(400).json({ 
           success: false, 
-          message: `Sorry, we don't have enough ${product.name} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
+          message: `Sorry, we don't have enough ${product.name}${sizeText} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
         });
       }
       
@@ -376,7 +510,13 @@ const createGuestOrder = async (req, res) => {
     }, { transaction: t });
 
     for (const item of items) {
-      await OrderItem.create({ orderId: order.id, productId: item.productId, quantity: item.quantity, unitPriceCents: item.unitPriceCents }, { transaction: t });
+      await OrderItem.create({ 
+        orderId: order.id, 
+        productId: item.productId, 
+        quantity: item.quantity, 
+        unitPriceCents: item.unitPriceCents,
+        size: item.size || null
+      }, { transaction: t });
     }
 
     await t.commit();
@@ -416,31 +556,33 @@ const updateOrderStatus = async (req, res) => {
     order.status = status;
     await order.save({ transaction: t });
     
-    // If order is being marked as paid or delivered, reduce stock
+    // If order is being marked as paid or delivered, reduce size-specific stock
     if ((status === 'paid' || status === 'delivered') && 
         previousStatus !== 'paid' && previousStatus !== 'delivered') {
       for (const item of order.items) {
-        const product = await Product.findByPk(item.productId, { transaction: t });
+        const product = await Product.findByPk(item.productId, { 
+          transaction: t,
+          attributes: { exclude: ['sizeStock'] }
+        });
         if (product) {
-          // Ensure stock doesn't go below 0
-          const newQuantity = Math.max(0, product.quantity - item.quantity);
-          product.quantity = newQuantity;
-          await product.save({ transaction: t });
-          
-          console.log(`Stock reduced for product ${product.name}: ${item.quantity} units (new stock: ${newQuantity})`);
+          await reduceSizeStock(product, item.size, item.quantity, t);
+          const sizeText = item.size ? ` (Size: ${item.size})` : '';
+          console.log(`Stock reduced for product ${product.name}${sizeText}: ${item.quantity} units`);
         }
       }
     }
     
-    // If order is being cancelled and was previously paid or delivered, restore stock
+    // If order is being cancelled and was previously paid or delivered, restore size-specific stock
     if (status === 'cancelled' && (previousStatus === 'paid' || previousStatus === 'delivered')) {
       for (const item of order.items) {
-        const product = await Product.findByPk(item.productId, { transaction: t });
+        const product = await Product.findByPk(item.productId, { 
+          transaction: t,
+          attributes: { exclude: ['sizeStock'] }
+        });
         if (product) {
-          product.quantity += item.quantity;
-          await product.save({ transaction: t });
-          
-          console.log(`Stock restored for product ${product.name}: ${item.quantity} units (new stock: ${product.quantity})`);
+          await restoreSizeStock(product, item.size, item.quantity, t);
+          const sizeText = item.size ? ` (Size: ${item.size})` : '';
+          console.log(`Stock restored for product ${product.name}${sizeText}: ${item.quantity} units`);
         }
       }
     }
@@ -595,15 +737,41 @@ const createPersonalizedTShirtOrder = async (req, res) => {
   }
 };
 
+// Count new orders (pending or confirmed status) - for admin notification badge
+const countNewOrders = async (req, res) => {
+  try {
+    const newOrders = await Order.findAll({
+      where: {
+        status: {
+          [Op.in]: ['pending', 'confirmed']
+        }
+      },
+      attributes: ['id'],
+      order: [['createdAt', 'DESC']]
+    });
+    
+    const orderIds = newOrders.map(order => order.id);
+    const count = orderIds.length;
+    
+    res.json({ success: true, data: { count, orderIds } });
+  } catch (error) {
+    console.error('Count new orders error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   listOrders,
   getOrderById,
+  getUserOrders,
+  getUserOrderById,
   createOrder,
   createUserOrder,
   createGuestOrder,
   updateOrderStatus,
   deleteOrder,
-  createPersonalizedTShirtOrder
+  createPersonalizedTShirtOrder,
+  countNewOrders
 };
 
 

@@ -33,6 +33,11 @@ const OrderItem = sequelize.define('OrderItem', {
     type: DataTypes.INTEGER,
     allowNull: false,
     validate: { min: 0 }
+  },
+  size: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: 'Selected size for the product (e.g., S, M, L)'
   }
 }, {
   timestamps: false,

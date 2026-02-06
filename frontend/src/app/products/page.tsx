@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
@@ -94,14 +93,6 @@ export default function ProductsPage() {
     fetchProducts();
   }, [sortBy, sortOrder, currentPage]);
 
-  const handleSortChange = (newSortBy: string) => {
-    if (newSortBy === sortBy) {
-      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
-    } else {
-      setSortBy(newSortBy);
-      setSortOrder('ASC');
-    }
-  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

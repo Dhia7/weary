@@ -52,8 +52,12 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    // Disable image optimization to avoid Vercel optimization issues with external images
-    unoptimized: true,
+    // Enable image optimization for better performance
+    // Cloudinary images will be optimized via Cloudinary's own optimization
+    unoptimized: false,
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   async rewrites() {
     // Get backend URL from environment

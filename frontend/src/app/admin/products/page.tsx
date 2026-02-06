@@ -16,6 +16,7 @@ interface Product {
   price: number;
   compareAtPrice?: number;
   quantity: number;
+  size?: string | null;
   stockInfo?: {
     quantity?: number;
     status: string;
@@ -30,17 +31,46 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetcher('/products?limit=50');
-        const json = await res.json();
-        if (res.ok) setProducts(json.data.products);
-      } finally {
-        setLoading(false);
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const cacheBuster = `&t=${Date.now()}`;
+      const res = await fetcher(`/products?limit=50${cacheBuster}`);
+      const json = await res.json();
+      if (res.ok) {
+        setProducts(json.data.products);
+        console.log('Products loaded:', json.data.products.length, 'products');
+        // Log stock info for debugging products with stock issues
+        json.data.products.forEach((p: Product) => {
+          const quantity = p.stockInfo?.quantity ?? p.quantity ?? 0;
+          const isInStock = p.stockInfo?.isInStock ?? quantity > 0;
+          if (!isInStock && quantity === 0) {
+            console.log(`⚠️ Product "${p.name}" (ID: ${p.id}) - Quantity: ${quantity}, StockInfo:`, p.stockInfo);
+          }
+        });
       }
-    })();
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, [fetcher]); // Include fetcher in dependency array
+
+  // Refresh products when page comes into focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (!loading) {
+        fetchProducts();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loading]);
 
 
   return (
@@ -139,15 +169,24 @@ export default function AdminProductsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          product.stockInfo?.isLowStock
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                            : product.stockInfo?.isInStock 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {product.stockInfo?.quantity ?? product.quantity} in stock
-                        </span>
+                        {(() => {
+                          // Show quantity for all products (with or without sizes)
+                          const quantity = product.stockInfo?.quantity ?? product.quantity ?? 0;
+                          const isInStock = product.stockInfo?.isInStock ?? quantity > 0;
+                          const isLowStock = product.stockInfo?.isLowStock ?? (quantity > 0 && quantity <= 10);
+                          
+                          return (
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              isLowStock
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                : isInStock 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }`}>
+                              {quantity} in stock
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {product.categories && product.categories.length > 0 ? (

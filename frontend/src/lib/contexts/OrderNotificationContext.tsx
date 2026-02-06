@@ -1,35 +1,47 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
+
+export type NotificationType = 
+  | 'orderSuccess' 
+  | 'loginSuccess' 
+  | 'addToCart' 
+  | 'wishlistAdded' 
+  | 'error' 
+  | 'personalizedTShirtOrderSuccess';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  data?: {
+    orderId?: string;
+    userName?: string;
+    productName?: string;
+    message?: string;
+  };
+}
 
 interface OrderNotificationContextType {
   showOrderSuccess: (orderId?: string) => void;
-  hideOrderSuccess: () => void;
-  isOrderSuccessVisible: boolean;
-  orderId: string | undefined;
+  hideOrderSuccess: (id: string) => void;
   showLoginSuccess: (userName?: string) => void;
-  hideLoginSuccess: () => void;
-  isLoginSuccessVisible: boolean;
-  loginUserName: string | undefined;
+  hideLoginSuccess: (id: string) => void;
   // Add-to-cart notification
   showAddToCart: (productName?: string) => void;
-  hideAddToCart: () => void;
-  isAddToCartVisible: boolean;
-  addedProductName: string | undefined;
+  hideAddToCart: (id: string) => void;
   // Wishlist notification
   showWishlistAdded: (productName?: string) => void;
-  hideWishlistAdded: () => void;
-  isWishlistAddedVisible: boolean;
-  wishlistProductName: string | undefined;
+  hideWishlistAdded: (id: string) => void;
   // Generic error notification
   showError: (message: string) => void;
-  hideError: () => void;
-  isErrorVisible: boolean;
-  errorMessage: string | undefined;
+  hideError: (id: string) => void;
+  clearAllErrors: () => void;
   // Personalized t-shirt order success
   showPersonalizedTShirtOrderSuccess: () => void;
-  hidePersonalizedTShirtOrderSuccess: () => void;
-  isPersonalizedTShirtOrderSuccessVisible: boolean;
+  hidePersonalizedTShirtOrderSuccess: (id: string) => void;
+  // Unified notification queue
+  notifications: Notification[];
+  hideNotification: (id: string) => void;
 }
 
 const OrderNotificationContext = createContext<OrderNotificationContextType | undefined>(undefined);
@@ -47,113 +59,139 @@ interface OrderNotificationProviderProps {
 }
 
 export const OrderNotificationProvider = ({ children }: OrderNotificationProviderProps) => {
-  const [isOrderSuccessVisible, setIsOrderSuccessVisible] = useState(false);
-  const [orderId, setOrderId] = useState<string | undefined>(undefined);
-  const [isLoginSuccessVisible, setIsLoginSuccessVisible] = useState(false);
-  const [loginUserName, setLoginUserName] = useState<string | undefined>(undefined);
-  // Add-to-cart state
-  const [isAddToCartVisible, setIsAddToCartVisible] = useState(false);
-  const [addedProductName, setAddedProductName] = useState<string | undefined>(undefined);
-  // Wishlist state
-  const [isWishlistAddedVisible, setIsWishlistAddedVisible] = useState(false);
-  const [wishlistProductName, setWishlistProductName] = useState<string | undefined>(undefined);
-  // Error notification state
-  const [isErrorVisible, setIsErrorVisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
-  // Personalized t-shirt order success state
-  const [isPersonalizedTShirtOrderSuccessVisible, setIsPersonalizedTShirtOrderSuccessVisible] = useState(false);
+  // Unified notification queue - all notifications stack together
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const showOrderSuccess = (newOrderId?: string) => {
-    setOrderId(newOrderId);
-    setIsOrderSuccessVisible(true);
+  const generateId = (type: NotificationType) => {
+    return `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const hideOrderSuccess = () => {
-    setIsOrderSuccessVisible(false);
-    setOrderId(undefined);
+  const addNotification = (notification: Notification) => {
+    setNotifications(prev => [...prev, notification]);
   };
 
-  const showLoginSuccess = (userName?: string) => {
-    setLoginUserName(userName);
-    setIsLoginSuccessVisible(true);
-  };
+  const hideNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  }, []);
 
-  const hideLoginSuccess = () => {
-    setIsLoginSuccessVisible(false);
-    setLoginUserName(undefined);
-  };
+  const showOrderSuccess = useCallback((orderId?: string) => {
+    const id = generateId('orderSuccess');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'orderSuccess',
+      data: { orderId },
+    }]);
+  }, []);
+
+  const hideOrderSuccess = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
+
+  const showLoginSuccess = useCallback((userName?: string) => {
+    const id = generateId('loginSuccess');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'loginSuccess',
+      data: { userName },
+    }]);
+  }, []);
+
+  const hideLoginSuccess = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
 
   // Add-to-cart handlers
-  const showAddToCart = (productName?: string) => {
-    setAddedProductName(productName);
-    setIsAddToCartVisible(true);
-  };
+  const showAddToCart = useCallback((productName?: string) => {
+    const id = generateId('addToCart');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'addToCart',
+      data: { productName },
+    }]);
+  }, []);
 
-  const hideAddToCart = () => {
-    setIsAddToCartVisible(false);
-    setAddedProductName(undefined);
-  };
+  const hideAddToCart = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
 
   // Wishlist handlers
-  const showWishlistAdded = (productName?: string) => {
-    setWishlistProductName(productName);
-    setIsWishlistAddedVisible(true);
-  };
+  const showWishlistAdded = useCallback((productName?: string) => {
+    const id = generateId('wishlistAdded');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'wishlistAdded',
+      data: { productName },
+    }]);
+  }, []);
 
-  const hideWishlistAdded = () => {
-    setIsWishlistAddedVisible(false);
-    setWishlistProductName(undefined);
-  };
+  const hideWishlistAdded = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
 
   // Error notification handlers
-  const showError = (message: string) => {
-    setErrorMessage(message);
-    setIsErrorVisible(true);
-  };
+  const showError = useCallback((message: string) => {
+    const id = generateId('error');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'error',
+      data: { message },
+    }]);
+  }, []);
 
-  const hideError = () => {
-    setIsErrorVisible(false);
-    setErrorMessage(undefined);
-  };
+  const hideError = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
+
+  const clearAllErrors = useCallback(() => {
+    setNotifications(prev => prev.filter(notif => notif.type !== 'error'));
+  }, []);
 
   // Personalized t-shirt order success handlers
-  const showPersonalizedTShirtOrderSuccess = () => {
-    setIsPersonalizedTShirtOrderSuccessVisible(true);
-  };
+  const showPersonalizedTShirtOrderSuccess = useCallback(() => {
+    const id = generateId('personalizedTShirtOrderSuccess');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'personalizedTShirtOrderSuccess',
+    }]);
+  }, []);
 
-  const hidePersonalizedTShirtOrderSuccess = () => {
-    setIsPersonalizedTShirtOrderSuccessVisible(false);
-  };
+  const hidePersonalizedTShirtOrderSuccess = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
 
-  const value = {
+  const value = useMemo(() => ({
     showOrderSuccess,
     hideOrderSuccess,
-    isOrderSuccessVisible,
-    orderId,
     showLoginSuccess,
     hideLoginSuccess,
-    isLoginSuccessVisible,
-    loginUserName,
-    // add-to-cart
     showAddToCart,
     hideAddToCart,
-    isAddToCartVisible,
-    addedProductName,
-    // wishlist
     showWishlistAdded,
     hideWishlistAdded,
-    isWishlistAddedVisible,
-    wishlistProductName,
-    // error notification
     showError,
     hideError,
-    isErrorVisible,
-    errorMessage,
-    // personalized t-shirt order success
+    clearAllErrors,
     showPersonalizedTShirtOrderSuccess,
     hidePersonalizedTShirtOrderSuccess,
-    isPersonalizedTShirtOrderSuccessVisible,
-  };
+    notifications,
+    hideNotification,
+  }), [
+    showOrderSuccess,
+    hideOrderSuccess,
+    showLoginSuccess,
+    hideLoginSuccess,
+    showAddToCart,
+    hideAddToCart,
+    showWishlistAdded,
+    hideWishlistAdded,
+    showError,
+    hideError,
+    clearAllErrors,
+    showPersonalizedTShirtOrderSuccess,
+    hidePersonalizedTShirtOrderSuccess,
+    notifications,
+    hideNotification,
+  ]);
 
   return (
     <OrderNotificationContext.Provider value={value}>

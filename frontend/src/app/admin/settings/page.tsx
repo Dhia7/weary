@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuthorizedFetch } from '@/lib/admin';
 import { Settings, Database, Shield, Bell, Save } from 'lucide-react';
 
 export default function AdminSettingsPage() {
-  const fetcher = useAuthorizedFetch();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -24,7 +22,7 @@ export default function AdminSettingsPage() {
     try {
       // TODO: Implement settings save functionality
       setMessage('Settings saved successfully!');
-    } catch (error) {
+    } catch {
       setMessage('Error saving settings');
     } finally {
       setLoading(false);
@@ -287,15 +285,6 @@ export default function AdminSettingsPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
 
 
 

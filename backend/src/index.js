@@ -20,7 +20,7 @@ if (process.env.NODE_ENV === 'production') {
   delete process.env.SSL_PORT;
 }
 
-const { connectDB, sequelize } = require('./config/database');
+const { connectDB } = require('./config/database');
 const dbMonitor = require('./utils/dbMonitor');
 
 // Import models to ensure they are registered
@@ -47,6 +47,7 @@ const collectionRoutes = require('./routes/collections');
 const categoryRoutes = require('./routes/categories');
 const cartRoutes = require('./routes/cart');
 const wishlistRoutes = require('./routes/wishlist');
+const orderRoutes = require('./routes/orders');
 const healthRoutes = require('./routes/health');
 
 const app = express();
@@ -98,19 +99,23 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// Rate limiting (skip preflight OPTIONS) - Temporarily disabled for development
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100, // limit each IP to 100 requests per windowMs
-//   message: {
-//     success: false,
-//     message: 'Too many requests from this IP, please try again later.'
-//   },
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   skip: (req) => req.method === 'OPTIONS'
-// });
-// app.use('/api/', limiter);
+// Rate limiting (skip preflight OPTIONS)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More lenient in dev
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS'
+});
+
+// Apply rate limiting only in production or when explicitly enabled
+if (process.env.NODE_ENV === 'production' || process.env.ENABLE_RATE_LIMIT === 'true') {
+  app.use('/api/', limiter);
+}
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -118,6 +123,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Compression middleware
 app.use(compression());
+
+// Enable ETags for better caching
+app.set('etag', 'strong');
 
 // CORS configuration
 const corsOptions = {
@@ -241,6 +249,7 @@ app.use('/api/collections', collectionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/orders', orderRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

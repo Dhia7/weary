@@ -23,6 +23,7 @@ import {
 import ProfileEditForm from '@/components/ProfileEditForm';
 import SecuritySettings from '@/components/SecuritySettings';
 import WishlistTab from '@/components/WishlistTab';
+import OrdersTab from '@/components/OrdersTab';
 
 function AccountPageContent() {
   const { user, logout, isLoading } = useAuth();
@@ -349,15 +350,7 @@ function AccountPageContent() {
               {/* Orders Tab */}
               {activeTab === 'orders' && (
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                    Order History
-                  </h2>
-                  <div className="text-center py-12">
-                    <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      No orders yet. Start shopping to see your order history here.
-                    </p>
-                  </div>
+                  <OrdersTab />
                 </div>
               )}
 

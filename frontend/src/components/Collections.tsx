@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { getImageUrl } from '@/lib/utils';
+import { useCollections } from '@/lib/hooks/useCollections';
 
 interface Collection {
   id: number;
@@ -23,28 +25,7 @@ interface Collection {
 }
 
 const Collections = () => {
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCollections();
-  }, []);
-
-  const fetchCollections = async () => {
-    try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${API_BASE_URL}/collections?active=true&limit=6`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setCollections(data.data.collections);
-      }
-    } catch (error) {
-      console.error('Error fetching collections:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { collections, loading } = useCollections({ active: true, limit: 6 });
 
   // price formatting not used in this component
 
@@ -83,32 +64,70 @@ const Collections = () => {
     );
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+      },
+    },
+  };
+
   return (
     <section className="py-16 bg-white dark:bg-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Shop by Collection
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Discover curated collections of our favorite pieces, from new arrivals to sustainable choices.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {collections.map((collection) => (
-            <Link
-              key={collection.id}
-              href={`/collections/${collection.slug}`}
-              className="group block bg-white dark:bg-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
-            >
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+        >
+          {collections.map((collection: Collection) => (
+            <motion.div key={collection.id} variants={itemVariants}>
+              <Link
+                href={`/collections/${collection.slug}`}
+                className="group block bg-white dark:bg-gray-900 rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
+              >
               {/* Collection Image */}
-              <div className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 relative overflow-hidden">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 relative overflow-hidden"
+              >
                 {collection.imageUrl ? (
-                  <img
+                  <Image
                     src={getImageUrl(collection.imageUrl) || ''}
                     alt={collection.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    fill
+                    className="object-cover transition-transform duration-300"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -128,7 +147,7 @@ const Collections = () => {
                     {collection.description}
                   </p>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Collection Info */}
               <div className="p-6">
@@ -144,12 +163,14 @@ const Collections = () => {
                   <div className="flex space-x-2">
                     {collection.products.slice(0, 3).map((product) => (
                       <div key={product.id} className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
+                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden relative">
                           {product.imageUrl ? (
-                            <img
+                            <Image
                               src={getImageUrl(product.imageUrl) || ''}
                               alt={product.name}
-                              className="w-full h-full object-cover"
+                              fill
+                              className="object-cover"
+                              sizes="48px"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -170,19 +191,28 @@ const Collections = () => {
                 )}
               </div>
             </Link>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* View All Collections Link */}
-        <div className="text-center mt-12">
-          <Link
-            href="/collections"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
-          >
-            View All Collections
-            <ArrowRightIcon className="ml-2 -mr-1 w-5 h-5" />
-          </Link>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="text-center mt-12"
+        >
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Link
+              href="/collections"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              View All Collections
+              <ArrowRightIcon className="ml-2 -mr-1 w-5 h-5" />
+            </Link>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );

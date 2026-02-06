@@ -33,6 +33,7 @@ router.put('/users/:id/admin', adminController.toggleUserAdmin);
 
 // Orders management
 router.get('/orders', orderController.listOrders);
+router.get('/orders/count/new', orderController.countNewOrders);
 router.get('/orders/:id', orderController.getOrderById);
 router.put('/orders/:id/status', orderController.updateOrderStatus);
 router.delete('/orders/:id', orderController.deleteOrder);

@@ -99,10 +99,16 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map(item => {
-                  console.log('CartPanel item:', item); // Debug log
+                {items.map((item, index) => {
+                  // Create a truly unique key combining multiple fields
+                  // This ensures uniqueness even if item.id is duplicated
+                  // Prefer cartItemId if available, otherwise use productId + size combination
+                  const uniqueKey = item.cartItemId 
+                    ? `cart-${item.cartItemId}-${item.size || 'no-size'}`
+                    : `${item.productId || item.id}-${item.size || 'no-size'}-${index}`;
+                  console.log('CartPanel item:', item, 'uniqueKey:', uniqueKey); // Debug log
                   return (
-                  <div key={item.id} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div key={uniqueKey} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Link 
                       href={item.slug ? `/product/${item.slug}` : '#'}
                       className="w-16 h-16 bg-white dark:bg-gray-700 rounded-md flex items-center justify-center relative overflow-hidden hover:opacity-80 transition-opacity"
@@ -129,6 +135,11 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       >
                         {item.name}
                       </Link>
+                      {item.size && (
+                        <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mt-0.5">
+                          Size: {item.size}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {formatPrice(item.price)}
                       </p>

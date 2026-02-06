@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AdminGuard } from '@/lib/admin';
+import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
+import { getSeenOrderIds } from '@/lib/utils';
 import { 
   Users, 
   Package, 
@@ -29,7 +30,51 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
   const pathname = usePathname();
+  const fetcher = useAuthorizedFetch();
+
+  // Calculate unseen new orders count
+  const calculateUnseenCount = (orderIds: string[]) => {
+    const seenIds = getSeenOrderIds();
+    return orderIds.filter(id => !seenIds.has(id)).length;
+  };
+
+  // Fetch new orders count
+  useEffect(() => {
+    const fetchNewOrdersCount = async () => {
+      try {
+        const res = await fetcher('/admin/orders/count/new');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            const orderIds = json.data.orderIds || [];
+            const unseenCount = calculateUnseenCount(orderIds);
+            setNewOrdersCount(unseenCount);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching new orders count:', error);
+      }
+    };
+
+    fetchNewOrdersCount();
+    
+    // Listen for orderSeen events to update count immediately
+    const handleOrderSeen = () => {
+      fetchNewOrdersCount();
+    };
+    
+    window.addEventListener('orderSeen', handleOrderSeen);
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchNewOrdersCount, 30000);
+    
+    return () => {
+      window.removeEventListener('orderSeen', handleOrderSeen);
+      clearInterval(interval);
+    };
+  }, [fetcher]);
 
   return (
     <AdminGuard>
@@ -51,6 +96,7 @@ export default function AdminLayout({
             <nav className="flex-1 space-y-1 px-2 py-4">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
+                const showBadge = item.name === 'Orders' && newOrdersCount > 0;
                 return (
                   <Link
                     key={item.name}
@@ -63,7 +109,12 @@ export default function AdminLayout({
                     onClick={() => setSidebarOpen(false)}
                   >
                     <item.icon className="mr-3 h-5 w-5" />
-                    {item.name}
+                    <span className="flex-1">{item.name}</span>
+                    {showBadge && (
+                      <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                        {newOrdersCount > 99 ? '99+' : newOrdersCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -80,6 +131,7 @@ export default function AdminLayout({
             <nav className="flex-1 space-y-1 px-2 py-4">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
+                const showBadge = item.name === 'Orders' && newOrdersCount > 0;
                 return (
                   <Link
                     key={item.name}
@@ -91,7 +143,12 @@ export default function AdminLayout({
                     }`}
                   >
                     <item.icon className="mr-3 h-5 w-5" />
-                    {item.name}
+                    <span className="flex-1">{item.name}</span>
+                    {showBadge && (
+                      <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                        {newOrdersCount > 99 ? '99+' : newOrdersCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

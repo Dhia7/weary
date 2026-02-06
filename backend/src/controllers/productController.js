@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const User = require('../models/User');
@@ -23,28 +24,65 @@ const formatProductForUser = (product, isAdmin = false) => {
 		productData.images = productData.imageUrl ? [productData.imageUrl] : [];
 	}
 	
+	// Calculate size-specific stock info
+	// For made-to-order products with sizes, all sizes are always available
+	const sizeStock = productData.sizeStock || {};
+	const sizeStockInfo = {};
+	
+	if (productData.size && typeof sizeStock === 'object') {
+		const sizes = productData.size.split(',').map(s => s.trim());
+		sizes.forEach(size => {
+			// Made-to-order: all sizes are always available
+			sizeStockInfo[size] = {
+				quantity: 999, // Show as available (made-to-order)
+				status: 'Available',
+				isInStock: true, // Always in stock for made-to-order
+				isLowStock: false
+			};
+		});
+	}
+
+	// Calculate overall stock status
+	let overallQuantity = productData.quantity;
+	let overallIsInStock = productData.quantity > 0;
+	let overallIsLowStock = productData.quantity > 0 && productData.quantity <= 10;
+	
+	// If product has sizes, it's made-to-order but admins still see actual quantity
+	const hasSizes = productData.size && productData.size.trim().length > 0;
+	if (hasSizes) {
+		// For made-to-order products with sizes, always show as in stock
+		overallIsInStock = true;
+		// Low stock calculation still applies based on actual quantity
+		overallIsLowStock = productData.quantity > 0 && productData.quantity <= 10;
+		// Admins see actual quantity, not 999
+		overallQuantity = productData.quantity;
+	}
+	
 	if (isAdmin) {
-		// Admin sees exact stock numbers
+		// Admin sees exact stock numbers (actual quantity even for products with sizes)
 		return {
 			...productData,
 			stockInfo: {
-				quantity: productData.quantity,
-				status: productData.quantity > 10 ? 'In Stock' : 
-				        productData.quantity > 0 ? 'Low Stock' : 'Out of Stock',
-				isInStock: productData.quantity > 0,
-				isLowStock: productData.quantity > 0 && productData.quantity <= 10
-			}
+				quantity: overallQuantity,
+				status: overallQuantity > 10 ? 'In Stock' : 
+				        overallQuantity > 0 ? 'Low Stock' : 'Out of Stock',
+				isInStock: overallIsInStock,
+				isLowStock: overallIsLowStock
+			},
+			sizeStock: sizeStock,
+			sizeStockInfo: sizeStockInfo
 		};
 	} else {
 		// Regular users see stock status with low stock indicator
 		return {
 			...productData,
 			stockInfo: {
-				status: productData.quantity > 10 ? 'In Stock' : 
-				        productData.quantity > 0 ? 'Low Stock' : 'Out of Stock',
-				isInStock: productData.quantity > 0,
-				isLowStock: productData.quantity > 0 && productData.quantity <= 10
-			}
+				status: overallQuantity > 10 ? 'In Stock' : 
+				        overallQuantity > 0 ? 'Low Stock' : 'Out of Stock',
+				isInStock: overallIsInStock,
+				isLowStock: overallIsLowStock
+			},
+			sizeStockInfo: sizeStockInfo
 		};
 	}
 };
@@ -52,7 +90,7 @@ const formatProductForUser = (product, isAdmin = false) => {
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, slug, description, SKU, weightGrams, isActive, categoryIds, price, compareAtPrice, quantity, barcode } = req.body;
+		const { name, slug, description, SKU, weightGrams, isActive, categoryIds, price, compareAtPrice, quantity, barcode, size } = req.body;
 		
 		// Parse categoryIds if it's a string (from FormData)
 		let parsedCategoryIds = categoryIds;
@@ -71,7 +109,10 @@ const createProduct = async (req, res) => {
 		}
 		console.log('Parsed categoryIds:', parsedCategoryIds);
 
-		const existing = await Product.findOne({ where: { [Op.or]: [{ slug }, { SKU }, ...(barcode ? [{ barcode }] : [])] } });
+		const existing = await Product.findOne({ 
+			where: { [Op.or]: [{ slug }, { SKU }, ...(barcode ? [{ barcode }] : [])] },
+			attributes: { exclude: ['sizeStock'] }
+		});
 		if (existing) {
 			return res.status(400).json({ success: false, message: 'Product with slug, SKU, or barcode already exists' });
 		}
@@ -94,6 +135,7 @@ const createProduct = async (req, res) => {
 		// Get main thumbnail index from request body
 		const mainThumbnailIndex = parseInt(req.body.mainThumbnailIndex) || 0;
 
+		// Note: sizeStock column doesn't exist in database, so we don't include it in create
 		const product = await Product.create({ 
 			name, 
 			slug, 
@@ -107,7 +149,9 @@ const createProduct = async (req, res) => {
 			price: parseFloat(price),
 			compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
 			quantity: parseInt(quantity) || 0,
-			barcode: barcode || null
+			barcode: barcode || null,
+			size: size || null
+			// sizeStock is not included - column doesn't exist in database
 		});
 
 		if (Array.isArray(parsedCategoryIds) && parsedCategoryIds.length) {
@@ -115,7 +159,10 @@ const createProduct = async (req, res) => {
 			await product.setCategories(categories);
 		}
 
-		const created = await Product.findByPk(product.id, { include: [{ model: Category, as: 'categories' }] });
+		const created = await Product.findByPk(product.id, { 
+			include: [{ model: Category, as: 'categories' }],
+			attributes: { exclude: ['sizeStock'] }
+		});
 		res.status(201).json({ success: true, data: { product: created } });
 	} catch (error) {
 		console.error('Create product error:', error);
@@ -126,90 +173,33 @@ const createProduct = async (req, res) => {
 // List products with pagination and filters
 	const listProducts = async (req, res) => {
 	try {
+		console.log('📦 List products request:', { query: req.query });
 		const page = parseInt(req.query.page) || 1;
-		const limit = parseInt(req.query.limit) || 12;
+		const limit = Math.min(parseInt(req.query.limit) || 12, 100); // Max 100 items per page
 		const offset = (page - 1) * limit;
 		const { q, active, categoryId, sort, order } = req.query;
 
 		const where = {};
 		if (q) {
-			const searchTerm = q.trim().toLowerCase();
+			const searchTerm = q.trim();
 			
-			// Create multiple search patterns for better matching
-			const searchPatterns = [
-				// Exact word boundary matches
-				`% ${searchTerm} %`,  // Word in middle
-				`${searchTerm} %`,    // Word at start
-				`% ${searchTerm}`,    // Word at end
-				searchTerm,           // Exact match
+			// Only proceed if we have a valid search term
+			if (searchTerm.length > 0) {
+				// Use a simpler, more reliable approach:
+				// Combine full-text search (if index exists) with ILIKE fallbacks
+				// This ensures the query works even if the full-text index hasn't been created yet
+				const escapedTerm = searchTerm.replace(/'/g, "''").replace(/[\\]/g, '\\\\');
 				
-				// Handle plural/singular variations
-				searchTerm.endsWith('s') ? searchTerm.slice(0, -1) : `${searchTerm}s`,
-				searchTerm.endsWith('es') ? searchTerm.slice(0, -2) : `${searchTerm}es`,
-				searchTerm.endsWith('ies') ? searchTerm.slice(0, -3) + 'y' : `${searchTerm}ies`,
-				
-				// Handle common variations
-				searchTerm.replace(/men/g, 'man'),
-				searchTerm.replace(/man/g, 'men'),
-				searchTerm.replace(/women/g, 'woman'),
-				searchTerm.replace(/woman/g, 'women'),
-				searchTerm.replace(/shirt/g, 'shirts'),
-				searchTerm.replace(/shirts/g, 'shirt'),
-				searchTerm.replace(/pant/g, 'pants'),
-				searchTerm.replace(/pants/g, 'pant'),
-				searchTerm.replace(/shoe/g, 'shoes'),
-				searchTerm.replace(/shoes/g, 'shoe'),
-				searchTerm.replace(/dress/g, 'dresses'),
-				searchTerm.replace(/dresses/g, 'dress'),
-				searchTerm.replace(/jacket/g, 'jackets'),
-				searchTerm.replace(/jackets/g, 'jacket'),
-				searchTerm.replace(/jean/g, 'jeans'),
-				searchTerm.replace(/jeans/g, 'jean'),
-				searchTerm.replace(/sock/g, 'socks'),
-				searchTerm.replace(/socks/g, 'sock'),
-				searchTerm.replace(/hat/g, 'hats'),
-				searchTerm.replace(/hats/g, 'hat'),
-				searchTerm.replace(/bag/g, 'bags'),
-				searchTerm.replace(/bags/g, 'bag'),
-				searchTerm.replace(/watch/g, 'watches'),
-				searchTerm.replace(/watches/g, 'watch'),
-				searchTerm.replace(/ring/g, 'rings'),
-				searchTerm.replace(/rings/g, 'ring'),
-				searchTerm.replace(/necklace/g, 'necklaces'),
-				searchTerm.replace(/necklaces/g, 'necklace'),
-				searchTerm.replace(/bracelet/g, 'bracelets'),
-				searchTerm.replace(/bracelets/g, 'bracelet'),
-				searchTerm.replace(/earring/g, 'earrings'),
-				searchTerm.replace(/earrings/g, 'earring')
-			];
-			
-			// Remove duplicates and empty strings
-			const uniquePatterns = [...new Set(searchPatterns.filter(pattern => pattern && pattern.length > 0))];
-			
-			// Build search conditions for name and description
-			const searchConditions = [];
-			
-			uniquePatterns.forEach(pattern => {
-				// Name conditions
-				searchConditions.push(
-					{ name: { [Op.iLike]: '% ' + pattern + ' %' } },
-					{ name: { [Op.iLike]: pattern + ' %' } },
-					{ name: { [Op.iLike]: '% ' + pattern } },
-					{ name: { [Op.iLike]: pattern } }
-				);
-				// Description conditions
-				searchConditions.push(
-					{ description: { [Op.iLike]: '% ' + pattern + ' %' } },
-					{ description: { [Op.iLike]: pattern + ' %' } },
-					{ description: { [Op.iLike]: '% ' + pattern } },
-					{ description: { [Op.iLike]: pattern } }
-				);
-			});
-			
-			// Add SKU search
-			searchConditions.push({ SKU: { [Op.iLike]: '%' + searchTerm + '%' } });
-			
-			where[Op.or] = searchConditions;
+				where[Op.or] = [
+					// Full-text search on name and description (uses GIN index if available)
+					// Using COALESCE to handle null values safely
+					sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", '')) @@ plainto_tsquery('english', '${escapedTerm}')`),
+					// Fallback ILIKE searches for partial matches and SKU
+					{ name: { [Op.iLike]: `%${searchTerm}%` } },
+					{ description: { [Op.iLike]: `%${searchTerm}%` } },
+					{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
+				];
+			}
 		}
 		if (active !== undefined) {
 			where.isActive = String(active) === 'true';
@@ -231,18 +221,79 @@ const createProduct = async (req, res) => {
 			}
 		}
 
-		const { count, rows } = await withTimeout(
-			Product.findAndCountAll({
-				where,
-				include,
-				order: orderClause,
-				limit,
-				offset,
-				distinct: true
-			}),
-			TIMEOUTS.COMPLEX_QUERY,
-			'Product listing query'
-		);
+		// Execute query - always exclude sizeStock since column doesn't exist and we use made-to-order
+		let count, rows;
+		try {
+			// Query without sizeStock (made-to-order products don't need stock tracking)
+			const result = await withTimeout(
+				Product.findAndCountAll({
+					where,
+					include,
+					order: orderClause,
+					limit,
+					offset,
+					distinct: true,
+					attributes: {
+						exclude: ['sizeStock'] // Always exclude sizeStock - column doesn't exist and not needed for made-to-order
+					}
+				}),
+				TIMEOUTS.COMPLEX_QUERY,
+				'Product listing query'
+			);
+			count = result.count;
+			rows = result.rows;
+			// Add empty sizeStock to each product for backward compatibility
+			rows = rows.map(product => {
+				const productData = product.toJSON ? product.toJSON() : product;
+				if (!productData.sizeStock) {
+					productData.sizeStock = {};
+				}
+				if (product.toJSON) {
+					product.sizeStock = {};
+					return product;
+				}
+				return productData;
+			});
+		} catch (error) {
+			if (q && error.message && (
+				error.message.includes('tsvector') || 
+				error.message.includes('tsquery') || 
+				error.message.includes('full-text') ||
+				error.message.includes('function') ||
+				error.name === 'SequelizeDatabaseError'
+			)) {
+				console.warn('Full-text search failed, falling back to ILIKE:', error.message);
+				const searchTerm = q.trim();
+				// Create a new where clause without full-text search
+				const fallbackWhere = {};
+				if (active !== undefined) {
+					fallbackWhere.isActive = String(active) === 'true';
+				}
+				fallbackWhere[Op.or] = [
+					{ name: { [Op.iLike]: `%${searchTerm}%` } },
+					{ description: { [Op.iLike]: `%${searchTerm}%` } },
+					{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
+				];
+				
+				const result = await withTimeout(
+					Product.findAndCountAll({
+						where: fallbackWhere,
+						include,
+						order: orderClause,
+						limit,
+						offset,
+						distinct: true
+					}),
+					TIMEOUTS.COMPLEX_QUERY,
+					'Product listing query (fallback)'
+				);
+				count = result.count;
+				rows = result.rows;
+			} else {
+				// Re-throw if it's a different error
+				throw error;
+			}
+		}
 
 		// Check if user is admin (from auth middleware)
 		let isAdmin = false;
@@ -261,8 +312,15 @@ const createProduct = async (req, res) => {
 		const formattedProducts = rows.map(product => formatProductForUser(product, isAdmin));
 
 		const totalPages = Math.ceil(count / limit);
+		console.log('✅ Products found:', count, 'Formatted:', formattedProducts.length);
 		res.json({ success: true, data: { products: formattedProducts, pagination: { currentPage: page, totalPages, totalProducts: count, perPage: limit } } });
 	} catch (error) {
+		console.error('❌ List products error:', error);
+		console.error('Error details:', {
+			name: error.name,
+			message: error.message,
+			stack: error.stack?.split('\n').slice(0, 5).join('\n')
+		});
 		return handleTimeoutError(error, res, 'List products');
 	}
 };
@@ -272,8 +330,21 @@ const getProduct = async (req, res) => {
 	try {
 		const { idOrSlug } = req.params;
 		const where = /^(\d+)$/.test(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug };
-		const product = await Product.findOne({ where, include: [{ model: Category, as: 'categories', through: { attributes: [] } }] });
+		// Always exclude sizeStock since column doesn't exist and we use made-to-order
+		const product = await Product.findOne({ 
+			where, 
+			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			attributes: { exclude: ['sizeStock'] }
+		});
+		
 		if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+		
+		// Ensure product is a Sequelize instance or plain object
+		const productData = product.toJSON ? product.toJSON() : product;
+		// Add empty sizeStock for backward compatibility (not used for made-to-order)
+		if (!productData.sizeStock) {
+			productData.sizeStock = {};
+		}
 		
 		// Check if user is admin (from auth middleware)
 		let isAdmin = false;
@@ -288,8 +359,8 @@ const getProduct = async (req, res) => {
 			}
 		}
 		
-		// Format product based on user role
-		const formattedProduct = formatProductForUser(product, isAdmin);
+		// Format product based on user role (pass productData instead of product instance)
+		const formattedProduct = formatProductForUser(productData, isAdmin);
 		
 		res.json({ success: true, data: { product: formattedProduct } });
 	} catch (error) {
@@ -302,9 +373,29 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, slug, description, SKU, weightGrams, isActive, categoryIds, price, compareAtPrice, quantity, barcode } = req.body;
-		const product = await Product.findByPk(id, { include: [{ model: Category, as: 'categories' }] });
+		const { name, slug, description, SKU, weightGrams, isActive, categoryIds, price, compareAtPrice, quantity, barcode, size, sizeStock } = req.body;
+		
+		console.log('=== UPDATE PRODUCT REQUEST ===');
+		console.log('Product ID:', id);
+		console.log('Received sizeStock:', sizeStock, 'Type:', typeof sizeStock);
+		console.log('Received size:', size);
+		console.log('Received quantity:', quantity);
+		console.log('All body keys:', Object.keys(req.body));
+		
+		// Always exclude sizeStock since column doesn't exist and we use made-to-order
+		const product = await Product.findByPk(id, { 
+			include: [{ model: Category, as: 'categories' }],
+			attributes: { exclude: ['sizeStock'] }
+		});
+		
 		if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+		
+		// Add empty sizeStock for backward compatibility
+		const productData = product.toJSON ? product.toJSON() : product;
+		if (!productData.sizeStock) {
+			productData.sizeStock = {};
+		}
+		product.sizeStock = product.sizeStock || {};
 
 		// Parse categoryIds if it's a string (from FormData)
 		let parsedCategoryIds = categoryIds;
@@ -386,10 +477,42 @@ const updateProduct = async (req, res) => {
 		if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
 		if (price !== undefined) product.price = parseFloat(price);
 		if (compareAtPrice !== undefined) product.compareAtPrice = compareAtPrice ? parseFloat(compareAtPrice) : null;
-		if (quantity !== undefined) product.quantity = parseInt(quantity) || 0;
+		// For made-to-order products with sizes, sizeStock is not used
+		// Just set empty object for compatibility (column doesn't exist anyway)
+		const finalSize = size !== undefined ? size : product.size;
+		const hasSizes = finalSize && finalSize.trim().length > 0;
+		
+		// Set empty sizeStock (not used for made-to-order, column doesn't exist)
+		product.sizeStock = {};
+		
+		// Set quantity - for products with sizes (made-to-order), quantity is not used for stock
+		// For products without sizes, use the provided quantity
+		if (quantity !== undefined) {
+			if (hasSizes) {
+				// Made-to-order: set quantity to 0 (not used for stock tracking)
+				product.quantity = 0;
+				console.log('Made-to-order product: setting quantity to 0 (not used for stock)');
+			} else {
+				// Regular product: use provided quantity
+				product.quantity = parseInt(quantity) || 0;
+				console.log('Setting quantity directly:', product.quantity);
+			}
+		}
 		if (barcode !== undefined) product.barcode = barcode || null;
+		if (size !== undefined) product.size = size || null;
 
-		await product.save();
+		// Save product - exclude sizeStock since column doesn't exist
+		const changedFields = product.changed();
+		if (changedFields && Array.isArray(changedFields)) {
+			const fieldsToSave = changedFields.filter(field => field !== 'sizeStock');
+			await product.save({ fields: fieldsToSave });
+		} else {
+			// Save all fields except sizeStock
+			const allFields = Object.keys(product.dataValues).filter(key => 
+				key !== 'sizeStock' && key !== 'createdAt' && key !== 'updatedAt'
+			);
+			await product.save({ fields: allFields });
+		}
 
 		// Always update categories (even if empty array) to ensure state is synced
 		const categories = parsedCategoryIds.length > 0 
@@ -398,7 +521,20 @@ const updateProduct = async (req, res) => {
 		console.log('Setting product categories:', categories.map(c => ({ id: c.id, name: c.name })));
 		await product.setCategories(categories);
 
-		const updated = await Product.findByPk(product.id, { include: [{ model: Category, as: 'categories', through: { attributes: [] } }] });
+		// Fetch updated product - always exclude sizeStock
+		const updated = await Product.findByPk(product.id, { 
+			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			attributes: { exclude: ['sizeStock'] }
+		});
+		
+		// Add empty sizeStock for backward compatibility
+		if (updated) {
+			const updatedData = updated.toJSON ? updated.toJSON() : updated;
+			if (!updatedData.sizeStock) {
+				updatedData.sizeStock = {};
+			}
+		}
+		
 		res.json({ success: true, message: 'Product updated', data: { product: updated } });
 	} catch (error) {
 		console.error('Update product error:', error);
@@ -410,7 +546,10 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const product = await Product.findByPk(id);
+		// Always exclude sizeStock since column doesn't exist
+		const product = await Product.findByPk(id, {
+			attributes: { exclude: ['sizeStock'] }
+		});
 		if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 		await product.destroy();
 		res.json({ success: true, message: 'Product deleted' });
@@ -425,15 +564,106 @@ const setProductCategories = async (req, res) => {
 	try {
 		const { id } = req.params;
 		const { categoryIds } = req.body;
-		const product = await Product.findByPk(id);
+		// Always exclude sizeStock since column doesn't exist
+		const product = await Product.findByPk(id, {
+			attributes: { exclude: ['sizeStock'] }
+		});
 		if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 		if (!Array.isArray(categoryIds)) return res.status(400).json({ success: false, message: 'categoryIds must be an array' });
 		const categories = await Category.findAll({ where: { id: categoryIds } });
 		await product.setCategories(categories);
-		const updated = await Product.findByPk(id, { include: [{ model: Category, as: 'categories', through: { attributes: [] } }] });
+		const updated = await Product.findByPk(id, { 
+			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			attributes: { exclude: ['sizeStock'] }
+		});
 		res.json({ success: true, data: { product: updated } });
 	} catch (error) {
 		console.error('Set product categories error:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
+// Search autocomplete - returns products, categories, and popular products
+const searchAutocomplete = async (req, res) => {
+	try {
+		const { q } = req.query;
+		const searchTerm = q ? q.trim() : '';
+		const limit = 5; // Limit results per type
+
+		const results = {
+			products: [],
+			categories: [],
+			popularProducts: []
+		};
+
+		// If there's a search term, search products and categories
+		if (searchTerm.length > 0) {
+			// Search products
+			try {
+				const escapedTerm = searchTerm.replace(/'/g, "''").replace(/[\\]/g, '\\\\');
+				const products = await Product.findAll({
+					where: {
+						isActive: true,
+						[Op.or]: [
+							sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", '')) @@ plainto_tsquery('english', '${escapedTerm}')`),
+							{ name: { [Op.iLike]: `%${searchTerm}%` } },
+							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
+						]
+					},
+					include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+					attributes: { exclude: ['sizeStock'] },
+					limit,
+					order: [['name', 'ASC']]
+				});
+
+				results.products = products.map(p => formatProductForUser(p, false));
+			} catch (error) {
+				// Fallback to ILIKE if full-text search fails
+				const products = await Product.findAll({
+					where: {
+						isActive: true,
+						[Op.or]: [
+							{ name: { [Op.iLike]: `%${searchTerm}%` } },
+							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
+						]
+					},
+					include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+					attributes: { exclude: ['sizeStock'] },
+					limit,
+					order: [['name', 'ASC']]
+				});
+				results.products = products.map(p => formatProductForUser(p, false));
+			}
+
+			// Search categories
+			const categories = await Category.findAll({
+				where: {
+					isActive: true,
+					name: { [Op.iLike]: `%${searchTerm}%` }
+				},
+				limit,
+				order: [['name', 'ASC']]
+			});
+			results.categories = categories.map(c => ({
+				id: c.id,
+				name: c.name,
+				slug: c.slug
+			}));
+		}
+
+		// Always include popular products (most recently created active products)
+		const popularProducts = await Product.findAll({
+			where: { isActive: true },
+			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			attributes: { exclude: ['sizeStock'] },
+			limit: 5,
+			order: [['createdAt', 'DESC']]
+		});
+		results.popularProducts = popularProducts.map(p => formatProductForUser(p, false));
+
+		res.json({ success: true, data: results });
+	} catch (error) {
+		console.error('Search autocomplete error:', error);
 		res.status(500).json({ success: false, message: 'Internal server error' });
 	}
 };
@@ -444,7 +674,8 @@ module.exports = {
 	getProduct,
 	updateProduct,
 	deleteProduct,
-	setProductCategories
+	setProductCategories,
+	searchAutocomplete
 };
 
 

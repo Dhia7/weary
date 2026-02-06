@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import ImageEditor from '@/components/ImageEditor';
@@ -33,6 +33,7 @@ export default function NewProductPage() {
   
   // Additional fields
   const [weightGrams, setWeightGrams] = useState<number | ''>('');
+  const [hasSizes, setHasSizes] = useState<boolean>(false); // Always initialize as boolean
   const [isActive, setIsActive] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   
@@ -309,6 +310,10 @@ export default function NewProductPage() {
       formData.append('quantity', quantity === '' ? '0' : quantity.toString());
       formData.append('barcode', barcode);
       formData.append('weightGrams', weightGrams === '' ? '' : weightGrams.toString());
+      // If hasSizes is checked, use standard size list; otherwise empty
+      formData.append('size', hasSizes ? 'XS, S, M, L, XL, XXL' : '');
+      // For made-to-order products, send empty sizeStock (not tracking stock per size)
+      formData.append('sizeStock', JSON.stringify({}));
       formData.append('isActive', isActive.toString());
       formData.append('categoryIds', JSON.stringify(selectedCategories));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
@@ -351,6 +356,7 @@ export default function NewProductPage() {
 
   return (
     <AdminGuard>
+      <Fragment>
       <div className="max-w-6xl mx-auto p-6 space-y-8">
         <h1 className="text-3xl font-bold">New Product</h1>
         
@@ -675,6 +681,44 @@ export default function NewProductPage() {
                 />
               </div>
               
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Sizes</label>
+                <div className="flex items-center space-x-2">
+                  <input 
+                    id="hasSizes" 
+                    type="checkbox" 
+                    checked={Boolean(hasSizes)} 
+                    onChange={(e) => setHasSizes(Boolean(e.target.checked))} 
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="hasSizes" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Product has sizes (XS, S, M, L, XL, XXL)
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Check this if customers need to select a size when ordering. Leave unchecked for products without sizes (e.g., accessories, bags).
+                </p>
+              </div>
+            </div>
+            
+            {/* Made-to-Order Notice */}
+            {hasSizes && (
+              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">Made-to-Order Product</h4>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      This product has sizes. Customers will select their preferred size when ordering. The quantity field above represents the total stock available for all sizes combined.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="mt-6">
               <div className="flex items-center space-x-2">
                 <input 
                   id="active" 
@@ -739,26 +783,26 @@ export default function NewProductPage() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-6 border-t">
-          <button 
-            disabled={saving || !name || !slug || !SKU || !price || quantity === ''} 
-            onClick={onSave} 
-            className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
-          >
-            {saving ? 'Creating Product...' : 'Create Product'}
-          </button>
-          <button 
-            onClick={() => router.push('/admin/products')}
-            className="px-8 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-6 border-t">
+            <button 
+              disabled={saving || !name || !slug || !SKU || !price || quantity === ''} 
+              onClick={onSave} 
+              className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
+            >
+              {saving ? 'Creating Product...' : 'Create Product'}
+            </button>
+            <button 
+              onClick={() => router.push('/admin/products')}
+              className="px-8 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
-
+      
       {/* Image Editor Modal */}
       {showImageEditor && editingImageIndex !== null && imagePreviews[editingImageIndex] && (
         <ImageEditor
@@ -943,6 +987,7 @@ export default function NewProductPage() {
           </div>
         </div>
       )}
+      </Fragment>
     </AdminGuard>
   );
 }

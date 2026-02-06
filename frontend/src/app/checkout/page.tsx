@@ -15,7 +15,7 @@ const formatPrice = (price: number | string) =>
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const { showOrderSuccess } = useOrderNotification();
   const router = useRouter();
   const [billing, setBilling] = useState({
@@ -35,11 +35,16 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deliveryCost, setDeliveryCost] = useState<number>(10); // Flat rate default
+  const [deliveryCost] = useState<number>(10); // Flat rate default
   const hasItems = items.length > 0;
 
   const payloadItems = useMemo(() =>
-    items.map(i => ({ productId: i.id, quantity: i.quantity, unitPriceCents: Math.round(i.price * 100) })),
+    items.map(i => ({ 
+      productId: i.productId || i.id.split('-')[0], // Use productId if available, otherwise parse from unique ID
+      quantity: i.quantity, 
+      unitPriceCents: Math.round(i.price * 100),
+      size: i.size || null
+    })),
   [items]);
 
 
@@ -125,28 +130,28 @@ export default function CheckoutPage() {
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                 <h2 className="text-lg font-semibold mb-4">Billing Information</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="First Name" value={billing.firstName} onChange={e=>setBilling({...billing, firstName: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="Last Name" value={billing.lastName} onChange={e=>setBilling({...billing, lastName: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="Phone Number" value={billing.phone} onChange={e=>setBilling({...billing, phone: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="Phone Number 2 (optional)" value={billing.phoneAlt} onChange={e=>setBilling({...billing, phoneAlt: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent sm:col-span-2" placeholder="E-mail" value={billing.email} onChange={e=>setBilling({...billing, email: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="First Name" value={billing.firstName} onChange={e=>setBilling({...billing, firstName: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Last Name" value={billing.lastName} onChange={e=>setBilling({...billing, lastName: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Phone Number" value={billing.phone} onChange={e=>setBilling({...billing, phone: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Phone Number 2 (optional)" value={billing.phoneAlt} onChange={e=>setBilling({...billing, phoneAlt: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:col-span-2" placeholder="E-mail" value={billing.email} onChange={e=>setBilling({...billing, email: e.target.value})} />
                 </div>
               </div>
 
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                 <h2 className="text-lg font-semibold mb-4">Delivery Address</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="Street" value={address.street} onChange={e=>setAddress({...address, street: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="City" value={address.city} onChange={e=>setAddress({...address, city: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="State" value={address.state} onChange={e=>setAddress({...address, state: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent" placeholder="Zip Code" value={address.zipCode} onChange={e=>setAddress({...address, zipCode: e.target.value})} />
-                  <input className="border rounded-md p-2 bg-transparent sm:col-span-2" placeholder="Country" value={address.country} onChange={e=>setAddress({...address, country: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Street" value={address.street} onChange={e=>setAddress({...address, street: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="City" value={address.city} onChange={e=>setAddress({...address, city: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="State" value={address.state} onChange={e=>setAddress({...address, state: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Zip Code" value={address.zipCode} onChange={e=>setAddress({...address, zipCode: e.target.value})} />
+                  <input className="border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:col-span-2" placeholder="Country" value={address.country} onChange={e=>setAddress({...address, country: e.target.value})} />
                 </div>
               </div>
 
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                 <h2 className="text-lg font-semibold mb-2">Order Notes</h2>
-                <textarea className="w-full min-h-24 border rounded-md p-2 bg-transparent" placeholder="Notes for delivery (optional)" value={notes} onChange={e=>setNotes(e.target.value)} />
+                <textarea className="w-full min-h-24 border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Notes for delivery (optional)" value={notes} onChange={e=>setNotes(e.target.value)} />
               </div>
 
             </div>
@@ -160,12 +165,24 @@ export default function CheckoutPage() {
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 h-fit">
               <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
               <div className="space-y-2 mb-4">
-                {items.map(i => (
-                  <div key={i.id} className="flex justify-between text-sm">
-                    <span>{i.name} × {i.quantity}</span>
+                {items.map((i, index) => {
+                  // Create a truly unique key combining multiple fields
+                  // This ensures uniqueness even if item.id is duplicated
+                  const uniqueKey = i.cartItemId 
+                    ? `cart-${i.cartItemId}-${i.size || 'no-size'}`
+                    : `${i.productId || i.id}-${i.size || 'no-size'}-${index}`;
+                  return (
+                  <div key={uniqueKey} className="flex justify-between text-sm">
+                    <div className="flex flex-col">
+                      <span>{i.name} × {i.quantity}</span>
+                      {i.size && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Size: {i.size}</span>
+                      )}
+                    </div>
                     <span>{formatPrice(i.price * i.quantity)}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="flex justify-between text-sm mb-2">
                 <span>Delivery</span>

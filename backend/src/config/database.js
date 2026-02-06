@@ -149,6 +149,22 @@ const connectDB = async () => {
       ]);
       console.log('Database synchronized.');
       
+      // Run Cart size migration if needed
+      try {
+        const addSizeToCart = require('../scripts/add-size-to-cart');
+        await addSizeToCart();
+      } catch (error) {
+        console.warn('Cart size migration failed (non-critical, may already exist):', error.message);
+      }
+      
+      // Always ensure constraints are correct (fix old constraint issues)
+      try {
+        const fixCartConstraint = require('../scripts/fix-cart-constraint');
+        await fixCartConstraint();
+      } catch (error) {
+        console.warn('Cart constraint fix failed (non-critical):', error.message);
+      }
+      
       // Auto-create admin account from environment variables (if configured)
       try {
         const { autoCreateAdmin } = require('../utils/autoCreateAdmin');
@@ -157,15 +173,16 @@ const connectDB = async () => {
         console.warn('Admin auto-creation failed (non-critical):', error.message);
       }
       
-      // Apply database optimizations in development
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const { createIndexes, optimizeSettings } = require('../utils/dbOptimization');
-          await createIndexes();
+      // Apply database optimizations in ALL environments
+      try {
+        const { createIndexes, optimizeSettings } = require('../utils/dbOptimization');
+        await createIndexes();
+        // Only optimize settings in production
+        if (process.env.NODE_ENV === 'production') {
           await optimizeSettings();
-        } catch (error) {
-          console.warn('Database optimization failed (non-critical):', error.message);
         }
+      } catch (error) {
+        console.warn('Database optimization failed (non-critical):', error.message);
       }
       
       return; // Success, exit the function

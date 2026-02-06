@@ -77,7 +77,13 @@ const Product = sequelize.define('Product', {
 		type: DataTypes.STRING(100),
 		allowNull: true,
 		unique: true
+	},
+	size: {
+		type: DataTypes.STRING(50),
+		allowNull: true,
+		comment: 'Product size (e.g., XS, S, M, L, XL, XXL) - optional for products without sizes'
 	}
+	// sizeStock removed - column doesn't exist in database and products with sizes are made-to-order
 }, {
 	timestamps: true,
 	indexes: [
@@ -86,7 +92,9 @@ const Product = sequelize.define('Product', {
 		{ unique: true, fields: ['barcode'] },
 		{ fields: ['name'] },
 		{ fields: ['price'] }
-	]
+	],
+	omitNull: false
+	// sizeStock field removed from model - column doesn't exist in database
 });
 
 module.exports = Product;

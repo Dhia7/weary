@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import TShirt3D, { exportTShirtAsPNG, exportTShirtAsPNGBlob } from '@/components/TShirt3D';
@@ -9,18 +8,15 @@ import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { 
   Upload, 
   Type, 
-  Move, 
   Trash2, 
   Download, 
   Palette,
   X,
-  Plus,
   Save,
   RotateCw,
   User,
   MapPin,
   Mail,
-  Phone,
   Shirt
 } from 'lucide-react';
 
@@ -56,7 +52,6 @@ function getContrastColor(hexColor: string): string {
 }
 
 export default function DesignerPage() {
-  const router = useRouter();
   const { showPersonalizedTShirtOrderSuccess, showError } = useOrderNotification();
   const [tshirtColor, setTshirtColor] = useState('#FFFFFF');
   const [elements, setElements] = useState<DesignElement[]>([]);

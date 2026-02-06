@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { ShoppingBagIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { useCart } from '@/lib/contexts/CartContext';
 import { getImageUrl } from '@/lib/utils';
 import WishlistButton from './WishlistButton';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
+import QuickViewModal from './QuickViewModal';
 
 interface Product {
   id: number;
@@ -18,9 +19,12 @@ interface Product {
   weightGrams?: number;
   isActive: boolean;
   imageUrl?: string;
+  images?: string[];
+  mainThumbnailIndex?: number;
   price: number;
   compareAtPrice?: number;
   quantity: number;
+  size?: string | null;
   stockInfo?: {
     quantity?: number;
     status: string;
@@ -40,20 +44,43 @@ interface ProductCardProps {
   product: Product;
 }
 
-const ProductCard = ({ product }: ProductCardProps) => {
+const ProductCard = memo(({ product }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
-    addItem({ 
-      id: product.id.toString(), 
-      name: product.name, 
-      price: product.price,
-      image: product.imageUrl || '/placeholder-product.jpg' 
-    }, 1);
-    showAddToCart(product.name);
+    e.stopPropagation();
+    
+    // If product has sizes, require size selection via quick view modal
+    if (product.size && product.size.trim().length > 0) {
+      setIsQuickViewOpen(true);
+      return;
+    }
+    
+    // For products without sizes, add directly to cart
+    try {
+      await addItem({ 
+        id: product.id.toString(), 
+        name: product.name, 
+        price: product.price,
+        image: product.imageUrl || '/placeholder-product.jpg',
+        slug: product.slug
+      }, 1);
+      // Show success notification every time an item is added
+      showAddToCart(product.name);
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+      // Error handling is done by CartContext
+    }
+  };
+
+  const handleQuickView = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsQuickViewOpen(true);
   };
 
 
@@ -102,7 +129,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
               src={getImageUrl(product.imageUrl) || ''}
               alt={product.name}
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
@@ -120,18 +147,29 @@ const ProductCard = ({ product }: ProductCardProps) => {
             />
           </div>
 
-          {/* Quick Add to Cart */}
+          {/* Quick Actions */}
           <div className={`absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform transition-transform duration-300 ${
             isHovered ? 'translate-y-0' : 'translate-y-full'
           }`}>
-            <button
-              onClick={handleAddToCart}
-              disabled={product.quantity === 0}
-              className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ShoppingBagIcon className="w-4 h-4 mr-2" />
-              {product.quantity === 0 ? 'Out of Stock' : 'Quick Add'}
-            </button>
+            <div className="flex border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={handleQuickView}
+                className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-r border-gray-200 dark:border-gray-700"
+              >
+                <EyeIcon className="w-4 h-4 mr-2" />
+                Quick View
+              </button>
+              <button
+                onClick={handleAddToCart}
+                disabled={!(product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0)}
+                className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingBagIcon className="w-4 h-4 mr-2" />
+                {(product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0) 
+                  ? (product.size && product.size.trim().length > 0 ? 'Select Size' : 'Add to Cart')
+                  : 'Out of Stock'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -163,19 +201,29 @@ const ProductCard = ({ product }: ProductCardProps) => {
           </div>
 
           {/* Stock Status */}
-          {product.stockInfo && (
-            <div className="mb-2">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                product.stockInfo.isLowStock
-                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                  : product.stockInfo.isInStock 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-              }`}>
-                {product.stockInfo.status}
-              </span>
-            </div>
-          )}
+          {(() => {
+            // Show status text, not exact quantity (for regular users)
+            const isInStock = product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0;
+            const isLowStock = product.stockInfo?.isLowStock ?? ((product.quantity ?? 0) > 0 && (product.quantity ?? 0) <= 10);
+            const status = product.stockInfo?.status ?? (isInStock ? (isLowStock ? 'Low Stock' : 'In Stock') : 'Out of Stock');
+            
+            if (product.stockInfo || product.quantity !== undefined) {
+              return (
+                <div className="mb-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    isLowStock
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                      : isInStock 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  }`}>
+                    {status}
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* Description preview */}
           {product.description && (
@@ -185,8 +233,27 @@ const ProductCard = ({ product }: ProductCardProps) => {
           )}
         </div>
       </Link>
+
+      {/* Quick View Modal */}
+      <QuickViewModal
+        isOpen={isQuickViewOpen}
+        onClose={() => setIsQuickViewOpen(false)}
+        product={product}
+      />
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.product.id === nextProps.product.id &&
+    prevProps.product.imageUrl === nextProps.product.imageUrl &&
+    prevProps.product.price === nextProps.product.price &&
+    prevProps.product.quantity === nextProps.product.quantity &&
+    prevProps.product.compareAtPrice === nextProps.product.compareAtPrice &&
+    prevProps.product.stockInfo?.status === nextProps.product.stockInfo?.status
+  );
+});
+
+ProductCard.displayName = 'ProductCard';
 
 export default ProductCard;

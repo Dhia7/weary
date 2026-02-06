@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
-import { getImageUrl } from '@/lib/utils';
+import { getImageUrl, markOrderAsSeen, isOrderSeen } from '@/lib/utils';
 
 interface OrderItem { 
   Product: { 
@@ -22,7 +22,8 @@ interface OrderItem {
     isActive?: boolean; 
   }; 
   quantity: number; 
-  unitPriceCents: number; 
+  unitPriceCents: number;
+  size?: string | null;
 }
 interface Order {
   id: string; // Changed from number to string for UUID
@@ -128,9 +129,26 @@ export default function AdminOrdersPage() {
     })();
   }, [fetcher, currentPage, perPage, searchQuery]); // Include search query in dependency array
 
+  // Listen for orderSeen events to force re-render and update highlighting
+  useEffect(() => {
+    const handleOrderSeen = () => {
+      // Force re-render by updating state
+      setOrders(prevOrders => [...prevOrders]);
+    };
+    
+    window.addEventListener('orderSeen', handleOrderSeen);
+    return () => {
+      window.removeEventListener('orderSeen', handleOrderSeen);
+    };
+  }, []);
+
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
     setShowDetails(true);
+    // Mark order as seen when viewing details
+    if (order.status === 'pending' || order.status === 'confirmed') {
+      markOrderAsSeen(order.id);
+    }
   };
 
   const closeDetails = () => {
@@ -377,9 +395,15 @@ export default function AdminOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((o) => (
+                  {orders.map((o) => {
+                    const isNewOrder = (o.status === 'pending' || o.status === 'confirmed') && !isOrderSeen(o.id);
+                    return (
                   <React.Fragment key={o.id}>
-                    <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr className={`border-t ${
+                      isNewOrder 
+                        ? 'bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700' 
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}>
                       {/* Order ID */}
                       <td className="p-2">
                         <div className="flex items-center gap-2">
@@ -486,7 +510,11 @@ export default function AdminOrdersPage() {
                     
                     {/* Expanded Order Items Row */}
                     {expandedOrders.has(o.id) && o.items && o.items.length > 0 && (
-                      <tr className="border-t bg-gray-50 dark:bg-gray-800">
+                      <tr className={`border-t ${
+                        isNewOrder 
+                          ? 'bg-gray-100 dark:bg-gray-700/50' 
+                          : 'bg-gray-50 dark:bg-gray-800'
+                      }`}>
                         <td colSpan={8} className="p-4">
                           <div className="space-y-3">
                             <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Order Items:</h4>
@@ -514,6 +542,11 @@ export default function AdminOrdersPage() {
                                             <p className="text-gray-600 dark:text-gray-400">
                                               <span className="font-medium">SKU:</span> {item.Product?.SKU || 'N/A'}
                                             </p>
+                                            {item.size && (
+                                              <p className="text-gray-600 dark:text-gray-400">
+                                                <span className="font-medium">Size:</span> {item.size}
+                                              </p>
+                                            )}
                                           </div>
                                         </div>
                                         
@@ -564,7 +597,8 @@ export default function AdminOrdersPage() {
                       </tr>
                     )}
                   </React.Fragment>
-                ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>
@@ -982,6 +1016,13 @@ export default function AdminOrdersPage() {
                                       <div>
                                         <span className="font-medium text-gray-600 dark:text-gray-400">Barcode:</span>
                                         <div className="text-gray-900 dark:text-gray-100 font-mono text-xs">{item.Product.barcode}</div>
+                                      </div>
+                                    )}
+                                    
+                                    {item.size && (
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Size:</span>
+                                        <div className="text-gray-900 dark:text-gray-100 font-semibold">{item.size}</div>
                                       </div>
                                     )}
                                   </div>

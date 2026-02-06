@@ -31,6 +31,15 @@ const createIndexes = async () => {
         name: 'idx_products_created_at',
         query: 'CREATE INDEX IF NOT EXISTS idx_products_created_at ON "Product" ("createdAt" DESC);'
       },
+      {
+        name: 'idx_products_fulltext',
+        query: `CREATE INDEX IF NOT EXISTS idx_products_fulltext ON "Product" 
+          USING gin(to_tsvector('english', "name" || ' ' || COALESCE("description", '')));`
+      },
+      {
+        name: 'idx_products_barcode',
+        query: 'CREATE INDEX IF NOT EXISTS idx_products_barcode ON "Product" ("barcode") WHERE "barcode" IS NOT NULL;'
+      },
       
       // Category indexes
       {

@@ -4,12 +4,15 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { useAuth } from './AuthContext';
 
 export interface CartItem {
-  id: string;
+  id: string; // Unique cart item identifier (cartItemId or productId-size)
+  productId?: string; // Product ID for backend operations
   name: string;
   price: number;
   image?: string;
   slug?: string;
   quantity: number;
+  size?: string;
+  cartItemId?: number; // Original cart item ID from database
 }
 
 interface CartContextType {
@@ -39,6 +42,32 @@ export const useCart = (): CartContextType => {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
+// Helper function to deduplicate cart items by creating a unique key
+const deduplicateCartItems = (items: CartItem[]): CartItem[] => {
+  const seen = new Map<string, CartItem>();
+  
+  for (const item of items) {
+    // Create a unique key combining cartItemId, productId, and size
+    const uniqueKey = item.cartItemId 
+      ? `cart-${item.cartItemId}-${item.size || 'no-size'}`
+      : `${item.productId || item.id}-${item.size || 'no-size'}`;
+    
+    // If we haven't seen this key, add it
+    // If we have seen it, keep the one with the higher quantity (or first one)
+    if (!seen.has(uniqueKey)) {
+      seen.set(uniqueKey, item);
+    } else {
+      // If duplicate found, merge quantities or keep the one with higher quantity
+      const existing = seen.get(uniqueKey)!;
+      if (item.quantity > existing.quantity) {
+        seen.set(uniqueKey, item);
+      }
+    }
+  }
+  
+  return Array.from(seen.values());
+};
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, token } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
@@ -62,7 +91,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (response.ok) {
           const data = await response.json();
-          setItems(data.data.items || []);
+          const items = data.data.items || [];
+          setItems(deduplicateCartItems(items));
         } else {
           console.warn('Backend cart not available, using local storage');
           // Fall back to localStorage if backend is not available
@@ -70,7 +100,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const localKey = `user_cart_${user.id}_v1`;
             const localData = localStorage.getItem(localKey);
             if (localData) {
-              setItems(JSON.parse(localData));
+              const parsedItems = JSON.parse(localData);
+              setItems(deduplicateCartItems(parsedItems));
             } else {
               setItems([]);
             }
@@ -85,7 +116,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const localKey = `user_cart_${user.id}_v1`;
           const localData = localStorage.getItem(localKey);
           if (localData) {
-            setItems(JSON.parse(localData));
+            const parsedItems = JSON.parse(localData);
+            setItems(deduplicateCartItems(parsedItems));
           } else {
             setItems([]);
           }
@@ -101,7 +133,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const raw = typeof window !== 'undefined' ? localStorage.getItem(GUEST_STORAGE_KEY) : null;
         if (raw) {
           const parsed: CartItem[] = JSON.parse(raw);
-          setItems(parsed);
+          setItems(deduplicateCartItems(parsed));
         } else {
           setItems([]);
         }
@@ -172,7 +204,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (response.ok) {
           const data = await response.json();
-          setItems(data.data.items || []);
+          const items = data.data.items || [];
+          setItems(deduplicateCartItems(items));
           
           // Clear guest cart after successful sync
           if (typeof window !== 'undefined') {
@@ -210,12 +243,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ productId: item.id, quantity }),
+          body: JSON.stringify({ productId: item.id, quantity, size: item.size }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          setItems(data.data.items || []);
+          const items = data.data.items || [];
+          setItems(deduplicateCartItems(items));
         } else {
           const errorData = await response.json();
           console.error('Failed to add item to cart:', errorData.message);
@@ -227,10 +261,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } else {
       // Add to local state for guest users
+      // Match by product ID AND size (if size exists)
       setItems(prev => {
-        const existing = prev.find(p => p.id === item.id);
+        const existing = prev.find(p => 
+          p.id === item.id && 
+          ((p.size === undefined && item.size === undefined) || p.size === item.size)
+        );
         if (existing) {
-          return prev.map(p => (p.id === item.id ? { ...p, quantity: p.quantity + quantity } : p));
+          return prev.map(p => 
+            (p.id === item.id && 
+             ((p.size === undefined && item.size === undefined) || p.size === item.size))
+              ? { ...p, quantity: p.quantity + quantity }
+              : p
+          );
         }
         return [...prev, { ...item, quantity }];
       });
@@ -242,7 +285,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Remove from backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(`${API_BASE_URL}/cart/${id}`, {
+        // Find the item to get its productId and size
+        const item = items.find(i => i.id === id);
+        if (!item) {
+          console.error('Item not found in cart');
+          return;
+        }
+        // Use productId if available, otherwise parse from id
+        const productId = item.productId || id.split('-')[0];
+        const sizeParam = item?.size ? `?size=${encodeURIComponent(item.size)}` : '';
+        const response = await fetch(`${API_BASE_URL}/cart/${productId}${sizeParam}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -252,7 +304,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (response.ok) {
           const data = await response.json();
-          setItems(data.data.items || []);
+          const items = data.data.items || [];
+          setItems(deduplicateCartItems(items));
         } else {
           console.error('Failed to remove item from cart');
         }
@@ -272,18 +325,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update in backend for authenticated users
       try {
         setIsLoading(true);
+        // Find the item to get its productId and size
+        const item = items.find(i => i.id === id);
+        if (!item) {
+          console.error('Item not found in cart');
+          return;
+        }
+        // Use productId if available, otherwise parse from id
+        const productId = item.productId || id.split('-')[0];
         const response = await fetch(`${API_BASE_URL}/cart`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ productId: id, quantity }),
+          body: JSON.stringify({ productId, quantity, size: item?.size }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          setItems(data.data.items || []);
+          const items = data.data.items || [];
+          setItems(deduplicateCartItems(items));
         } else {
           const errorData = await response.json();
           console.error('Failed to update cart item:', errorData.message);

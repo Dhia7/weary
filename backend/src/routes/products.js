@@ -8,6 +8,7 @@ const { uploadMultipleImages } = require('../middleware/upload');
 
 // Public listings
 router.get('/', optionalAuth, controller.listProducts);
+router.get('/autocomplete', controller.searchAutocomplete);
 router.get('/categories', categoryController.listCategories);
 router.get('/:idOrSlug', optionalAuth, controller.getProduct);
 

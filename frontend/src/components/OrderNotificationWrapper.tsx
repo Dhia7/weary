@@ -9,61 +9,69 @@ import ErrorNotification from './ErrorNotification';
 import PersonalizedTShirtOrderSuccessNotification from './PersonalizedTShirtOrderSuccessNotification';
 
 export default function OrderNotificationWrapper() {
-  const { 
-    isOrderSuccessVisible, 
-    hideOrderSuccess, 
-    orderId,
-    isLoginSuccessVisible,
-    hideLoginSuccess,
-    loginUserName,
-    // add-to-cart
-    isAddToCartVisible,
-    hideAddToCart,
-    addedProductName,
-    // wishlist
-    isWishlistAddedVisible,
-    hideWishlistAdded,
-    wishlistProductName,
-    // error notification
-    isErrorVisible,
-    hideError,
-    errorMessage,
-    // personalized t-shirt order success
-    isPersonalizedTShirtOrderSuccessVisible,
-    hidePersonalizedTShirtOrderSuccess,
-  } = useOrderNotification();
+  const { notifications, hideNotification } = useOrderNotification();
   
   return (
     <>
-      <OrderSuccessNotification
-        isVisible={isOrderSuccessVisible}
-        onClose={hideOrderSuccess}
-        orderId={orderId}
-      />
-      <LoginSuccessNotification
-        isVisible={isLoginSuccessVisible}
-        onClose={hideLoginSuccess}
-        userName={loginUserName}
-      />
-      <AddToCartNotification
-        isVisible={isAddToCartVisible}
-        onClose={hideAddToCart}
-        productName={addedProductName}
-      />
-      <AddToWishlistNotification
-        isVisible={isWishlistAddedVisible}
-        onClose={hideWishlistAdded}
-        productName={wishlistProductName}
-      />
-      <ErrorNotification
-        isVisible={isErrorVisible}
-        onClose={hideError}
-        message={errorMessage}
-      />
-      <PersonalizedTShirtOrderSuccessNotification
-        isVisible={isPersonalizedTShirtOrderSuccessVisible}
-        onClose={hidePersonalizedTShirtOrderSuccess}
-      />
+      {notifications.map((notification, index) => {
+        const commonProps = {
+          isVisible: true,
+          onClose: () => hideNotification(notification.id),
+          index,
+        };
+
+        switch (notification.type) {
+          case 'orderSuccess':
+            return (
+              <OrderSuccessNotification
+                key={notification.id}
+                {...commonProps}
+                orderId={notification.data?.orderId}
+              />
+            );
+          case 'loginSuccess':
+            return (
+              <LoginSuccessNotification
+                key={notification.id}
+                {...commonProps}
+                userName={notification.data?.userName}
+              />
+            );
+          case 'addToCart':
+            return (
+              <AddToCartNotification
+                key={notification.id}
+                {...commonProps}
+                productName={notification.data?.productName}
+              />
+            );
+          case 'wishlistAdded':
+            return (
+              <AddToWishlistNotification
+                key={notification.id}
+                {...commonProps}
+                productName={notification.data?.productName}
+              />
+            );
+          case 'error':
+            return (
+              <ErrorNotification
+                key={notification.id}
+                {...commonProps}
+                message={notification.data?.message}
+              />
+            );
+          case 'personalizedTShirtOrderSuccess':
+            return (
+              <PersonalizedTShirtOrderSuccessNotification
+                key={notification.id}
+                {...commonProps}
+              />
+            );
+          default:
+            return null;
+        }
+      })}
     </>
   );
 }
