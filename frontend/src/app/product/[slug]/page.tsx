@@ -229,9 +229,6 @@ export default function ProductDetailPage() {
         
         // Show success notification every time an item is added
         showAddToCart(product.name);
-        
-        // Show cart panel after adding item
-        setShowCartPanel(true);
       } catch (error) {
         console.error('Error adding item to cart:', error);
         // Error handling is done by CartContext
