@@ -143,12 +143,8 @@ export default function OrdersTab() {
     return items.reduce((sum, item) => sum + (item.unitPriceCents * item.quantity), 0);
   };
 
-  const formatPrice = (cents: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-    }).format(cents / 100);
-  };
+  const formatPrice = (cents: number, currency: string = 'TND') =>
+    `${(cents / 100).toFixed(2)} ${currency}`;
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -273,7 +273,7 @@ const getUserOrderById = async (req, res) => {
 const createOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { userId, items, currency = 'USD', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
+    const { userId, items, currency = 'TND', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
     if (!userId || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'userId and at least one item are required' });
     }
@@ -360,7 +360,7 @@ const createUserOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const userId = req.user.userId; // From auth middleware (JWT token)
-    const { items, currency = 'USD', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
+    const { items, currency = 'TND', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
     
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'At least one item is required' });
@@ -449,7 +449,7 @@ const createUserOrder = async (req, res) => {
 const createGuestOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { items, currency = 'USD', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
+    const { items, currency = 'TND', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
     
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'At least one item is required' });
@@ -708,7 +708,7 @@ const createPersonalizedTShirtOrder = async (req, res) => {
       status: 'pending',
       totalAmountCents: 0, // Will be set by admin
       shippingCostCents: 0,
-      currency: 'USD',
+      currency: 'TND',
       paymentMethod: 'cash_on_delivery',
       shippingAddress: shippingAddress,
       billingInfo: billingInfo,

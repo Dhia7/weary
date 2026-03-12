@@ -13,12 +13,12 @@ export default function ShippingPage() {
       price: 'Free',
       description: 'Our standard shipping option for most orders',
       icon: Truck,
-      features: ['Free on orders over $50', 'Tracking included', '3-5 business days']
+      features: ['Free on orders over 150 TND', 'Tracking included', '3-5 business days']
     },
     {
       name: 'Express Shipping',
       duration: '1-2 business days',
-      price: '$9.99',
+      price: '29 TND',
       description: 'Fast delivery for when you need items quickly',
       icon: Clock,
       features: ['Next-day delivery available', 'Priority handling', '1-2 business days']
@@ -26,7 +26,7 @@ export default function ShippingPage() {
     {
       name: 'Same-Day Delivery',
       duration: 'Same day',
-      price: '$19.99',
+      price: '59 TND',
       description: 'Available in select metropolitan areas',
       icon: MapPin,
       features: ['Limited areas', 'Order by 2 PM', 'Same-day delivery']
@@ -211,8 +211,8 @@ export default function ShippingPage() {
                 Do you offer free shipping?
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Yes! We offer free standard shipping on all orders over $50. 
-                Orders under $50 have a $5.99 shipping fee.
+                Yes! We offer free standard shipping on all orders over 150 TND. 
+                Orders under 150 TND have a 15 TND shipping fee.
               </p>
             </div>
             

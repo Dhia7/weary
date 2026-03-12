@@ -109,12 +109,7 @@ export default function CollectionDetailPage() {
     console.log('Wishlist toggled:', productId);
   };
 
-  const formatPrice = (price: number | string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Number(price));
-  };
+  const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
   const getCategoryEmoji = (categories?: Array<{name: string}>) => {
     if (!categories || categories.length === 0) return '👕';

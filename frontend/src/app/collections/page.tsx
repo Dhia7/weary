@@ -47,12 +47,7 @@ export default function CollectionsPage() {
     }
   };
 
-  const formatPrice = (price: number | string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Number(price));
-  };
+  const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
   const getCollectionEmoji = (name: string) => {
     const nameLower = name.toLowerCase();

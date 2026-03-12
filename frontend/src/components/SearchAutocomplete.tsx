@@ -217,12 +217,7 @@ const SearchAutocomplete = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(price);
-  };
+  const formatPrice = (price: number) => `${Number(price).toFixed(2)} TND`;
 
   const clearRecentSearches = () => {
     localStorage.removeItem(RECENT_SEARCHES_KEY);

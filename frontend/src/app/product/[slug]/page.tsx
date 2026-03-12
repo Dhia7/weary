@@ -453,12 +453,7 @@ export default function ProductDetailPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleZoomIn, handleZoomOut, resetZoom]);
 
-  const formatPrice = (price: number | string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Number(price));
-  };
+  const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
 
   const getCategoryEmoji = (categories?: Array<{name: string}>) => {
@@ -944,7 +939,7 @@ export default function ProductDetailPage() {
             {/* Additional Info */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>Free shipping</strong> on orders over $50
+                <strong>Free shipping</strong> on orders over 100 TND
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 <strong>30-day returns</strong> for unused items

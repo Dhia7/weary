@@ -46,7 +46,7 @@ const Order = sequelize.define('Order', {
   currency: {
     type: DataTypes.STRING(3),
     allowNull: false,
-    defaultValue: 'USD'
+    defaultValue: 'TND'
   },
   paymentMethod: {
     type: DataTypes.STRING(50),

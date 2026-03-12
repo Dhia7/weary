@@ -13,7 +13,7 @@ const TrustIndicators = () => {
     {
       icon: Truck,
       title: 'Free Shipping',
-      description: 'Free shipping on orders over $50',
+      description: 'Free shipping over 100 TND',
     },
     {
       icon: RotateCcw,

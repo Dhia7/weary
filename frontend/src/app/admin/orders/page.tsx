@@ -84,6 +84,11 @@ function extractTShirtColor(notes: string | undefined): string | null {
   return null;
 }
 
+// Format order price (cents) to currency string - amount on left, TND on right
+function formatOrderPrice(cents: number, currency: string = 'TND'): string {
+  return `${(cents / 100).toFixed(2)} ${currency}`;
+}
+
 export default function AdminOrdersPage() {
   const fetcher = useAuthorizedFetch();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -461,7 +466,7 @@ export default function AdminOrdersPage() {
                       
                       {/* Total Value */}
                       <td className="p-2 font-medium">
-                        {'$' + (calculateItemsTotal(o.items || [])/100).toFixed(2) + ' ' + (o.currency || 'USD')}
+                        {formatOrderPrice(calculateItemsTotal(o.items || []), o.currency || 'TND')}
                       </td>
                       
                       {/* Status */}
@@ -556,10 +561,10 @@ export default function AdminOrdersPage() {
                                               <span className="font-medium">Quantity:</span> {item.quantity}
                                             </p>
                                             <p className="text-gray-600 dark:text-gray-400">
-                                              <span className="font-medium">Unit Price:</span> ${(item.unitPriceCents/100).toFixed(2)}
+                                              <span className="font-medium">Unit Price:</span> {formatOrderPrice(item.unitPriceCents, o.currency || 'TND')}
                                             </p>
                                             <p className="font-semibold text-gray-900 dark:text-gray-100">
-                                              <span className="font-medium">Item Total:</span> ${((item.unitPriceCents * item.quantity)/100).toFixed(2)}
+                                              <span className="font-medium">Item Total:</span> {formatOrderPrice(item.unitPriceCents * item.quantity, o.currency || 'TND')}
                                             </p>
                                           </div>
                                         </div>
@@ -574,7 +579,7 @@ export default function AdminOrdersPage() {
                               <div className="flex justify-between items-center">
                                 <span className="font-semibold text-gray-700 dark:text-gray-300">Items Total:</span>
                                 <span className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                                  ${(calculateItemsTotal(o.items || [])/100).toFixed(2)} {o.currency}
+                                  {formatOrderPrice(calculateItemsTotal(o.items || []), o.currency || 'TND')}
                                 </span>
                               </div>
                               {o.totalAmountCents !== calculateItemsTotal(o.items || []) && (
@@ -582,12 +587,12 @@ export default function AdminOrdersPage() {
                                   <div className="flex justify-between items-center text-sm">
                                     <span className="text-gray-600 dark:text-gray-400">Order Total (includes shipping):</span>
                                     <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                      ${(o.totalAmountCents/100).toFixed(2)} {o.currency}
+                                      {formatOrderPrice(o.totalAmountCents, o.currency || 'TND')}
                                     </span>
                                   </div>
                                   <div className="flex justify-between items-center text-xs mt-1 text-gray-500 dark:text-gray-400">
                                     <span>Shipping:</span>
-                                    <span>${((o.totalAmountCents - calculateItemsTotal(o.items || []))/100).toFixed(2)}</span>
+                                    <span>{formatOrderPrice(o.totalAmountCents - calculateItemsTotal(o.items || []), o.currency || 'TND')}</span>
                                   </div>
                                 </div>
                               )}
@@ -791,11 +796,11 @@ export default function AdminOrdersPage() {
                         <span className="text-xs text-gray-500 mt-1 block">Updating status...</span>
                       )}
                     </div>
-                    <p><strong>Items Total:</strong> ${(calculateItemsTotal(selectedOrder.items || [])/100).toFixed(2)} {selectedOrder.currency}</p>
+                    <p><strong>Items Total:</strong> {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}</p>
                     {selectedOrder.totalAmountCents !== calculateItemsTotal(selectedOrder.items || []) && (
                       <>
-                        <p><strong>Order Total (includes shipping):</strong> ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400"><strong>Shipping:</strong> ${((selectedOrder.totalAmountCents - calculateItemsTotal(selectedOrder.items || []))/100).toFixed(2)}</p>
+                        <p><strong>Order Total (includes shipping):</strong> {formatOrderPrice(selectedOrder.totalAmountCents, selectedOrder.currency || 'TND')}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400"><strong>Shipping:</strong> {formatOrderPrice(selectedOrder.totalAmountCents - calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}</p>
                       </>
                     )}
                     <p><strong>Items:</strong> {selectedOrder.items?.length || 0}</p>
@@ -971,7 +976,7 @@ export default function AdminOrdersPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Order Items ({selectedOrder.items.length})</h3>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Items Total: ${(calculateItemsTotal(selectedOrder.items || [])/100).toFixed(2)} {selectedOrder.currency}
+                      Items Total: {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}
                     </div>
                   </div>
                   
@@ -1062,13 +1067,13 @@ export default function AdminOrdersPage() {
                                     </div>
                                     <div className="flex justify-between">
                                       <span className="text-blue-700 dark:text-blue-300">Unit Price:</span>
-                                      <span className="font-semibold text-blue-900 dark:text-blue-100">${(item.unitPriceCents/100).toFixed(2)}</span>
+                                      <span className="font-semibold text-blue-900 dark:text-blue-100">{formatOrderPrice(item.unitPriceCents, selectedOrder.currency || 'TND')}</span>
                                     </div>
                                     <hr className="border-blue-200 dark:border-blue-700" />
                                     <div className="flex justify-between">
                                       <span className="font-semibold text-blue-900 dark:text-blue-100">Item Total:</span>
                                       <span className="font-bold text-lg text-blue-900 dark:text-blue-100">
-                                        ${((item.unitPriceCents * item.quantity)/100).toFixed(2)}
+                                        {formatOrderPrice(item.unitPriceCents * item.quantity, selectedOrder.currency || 'TND')}
                                       </span>
                                     </div>
                                   </div>
@@ -1082,13 +1087,13 @@ export default function AdminOrdersPage() {
                                       {item.Product?.price && (
                                         <div className="flex justify-between">
                                           <span className="text-gray-600 dark:text-gray-400">Current Price:</span>
-                                          <span className="text-gray-900 dark:text-gray-100">${Number(item.Product.price).toFixed(2)}</span>
+                                          <span className="text-gray-900 dark:text-gray-100">{formatOrderPrice(Math.round(Number(item.Product.price) * 100), selectedOrder.currency || 'TND')}</span>
                                         </div>
                                       )}
                                       {item.Product?.compareAtPrice && (
                                         <div className="flex justify-between">
                                           <span className="text-gray-600 dark:text-gray-400">Compare At:</span>
-                                          <span className="text-gray-900 dark:text-gray-100">${Number(item.Product.compareAtPrice).toFixed(2)}</span>
+                                          <span className="text-gray-900 dark:text-gray-100">{formatOrderPrice(Math.round(Number(item.Product.compareAtPrice) * 100), selectedOrder.currency || 'TND')}</span>
                                         </div>
                                       )}
                                     </div>
@@ -1154,7 +1159,7 @@ export default function AdminOrdersPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Items Total:</span>
                         <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                          ${(calculateItemsTotal(selectedOrder.items || [])/100).toFixed(2)} {selectedOrder.currency}
+                          {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}
                         </span>
                       </div>
                       {selectedOrder.totalAmountCents !== calculateItemsTotal(selectedOrder.items || []) && (
@@ -1162,13 +1167,13 @@ export default function AdminOrdersPage() {
                           <div className="flex justify-between items-center pt-2 border-t border-gray-300 dark:border-gray-600">
                             <span className="text-sm text-gray-600 dark:text-gray-400">Shipping:</span>
                             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                              ${((selectedOrder.totalAmountCents - calculateItemsTotal(selectedOrder.items || []))/100).toFixed(2)}
+                              {formatOrderPrice(selectedOrder.totalAmountCents - calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}
                             </span>
                           </div>
                           <div className="flex justify-between items-center pt-2 border-t border-gray-300 dark:border-gray-600">
                             <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Order Total:</span>
                             <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                              ${(selectedOrder.totalAmountCents/100).toFixed(2)} {selectedOrder.currency}
+                              {formatOrderPrice(selectedOrder.totalAmountCents, selectedOrder.currency || 'TND')}
                             </span>
                           </div>
                         </>

@@ -10,8 +10,7 @@ import Navigation from '@/components/Navigation';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-const formatPrice = (price: number | string) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(price));
+const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
@@ -74,6 +73,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           items: payloadItems,
           shippingAddress: address,
+          currency: 'TND',
           shippingCostCents: Math.round(deliveryCost * 100),
           billingInfo: {
             firstName: billing.firstName,

@@ -160,10 +160,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         <div className="flex flex-col">
-                          <span className="font-medium">${Number(product.price).toFixed(2)}</span>
+                          <span className="font-medium">{Number(product.price).toFixed(2)} TND</span>
                           {product.compareAtPrice && (
                             <span className="text-xs text-gray-500 line-through">
-                              ${Number(product.compareAtPrice).toFixed(2)}
+                              {Number(product.compareAtPrice).toFixed(2)} TND
                             </span>
                           )}
                         </div>

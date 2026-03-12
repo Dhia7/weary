@@ -165,12 +165,8 @@ export default function AdminDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const formatPrice = (amount: number | string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Number(amount));
-  };
+  const formatPrice = (amount: number | string) =>
+    `${Number(amount).toFixed(2)} TND`;
 
   // Prepare chart data with colors
   const ordersByStatusChartData = data?.ordersByStatus?.map(status => ({

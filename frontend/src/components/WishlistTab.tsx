@@ -93,12 +93,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
-  };
+  const formatPrice = (price: number) => `${Number(price).toFixed(2)} TND`;
 
   const getProductImage = (product: {
     images?: string[];

@@ -13,8 +13,7 @@ interface CartPanelProps {
   onClose: () => void;
 }
 
-const formatPrice = (price: number | string) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(price));
+const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
 export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
   const { items, subtotal, updateQuantity, removeItem, clearCart } = useCart();

@@ -140,12 +140,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
     }
   };
 
-  const formatPrice = (price: number | string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Number(price));
-  };
+  const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
