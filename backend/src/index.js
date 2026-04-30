@@ -128,31 +128,56 @@ app.use(compression());
 app.set('etag', 'strong');
 
 // CORS configuration
+const allowedOrigins = new Set([
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://localhost:3000',
+  'http://localhost:3001',
+  'https://localhost:3001',
+  // Vercel deployment domains
+  'https://weary-iota.vercel.app',
+  'https://weary-git-main-dhia7s-projects.vercel.app',
+  'https://weary-kndtv5wjk-dhia7s-projects.vercel.app'
+]);
+
+const vercelOriginPattern = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i;
+const projectVercelPattern = /^https:\/\/weary-.*\.vercel\.app$/i;
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  return allowedOrigins.has(origin) || vercelOriginPattern.test(origin) || projectVercelPattern.test(origin);
+};
+
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://localhost:3000',
-    'http://localhost:3001',
-    'https://localhost:3001',
-    // Vercel deployment domains
-    'https://weary-iota.vercel.app',
-    'https://weary-git-main-dhia7s-projects.vercel.app',
-    'https://weary-kndtv5wjk-dhia7s-projects.vercel.app',
-    // Allow any Vercel subdomain for your project
-    /^https:\/\/weary-.*\.vercel\.app$/,
-    /^https:\/\/.*\.vercel\.app$/
-  ],
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked origin: ${origin}`));
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 204
 };
-app.use(cors(corsOptions));
 
-// Explicitly handle preflight requests
-app.options('*', cors(corsOptions));
+app.use((req, res, next) => {
+  const requestOrigin = req.headers.origin;
+  if (isAllowedOrigin(requestOrigin) && requestOrigin) {
+    res.header('Access-Control-Allow-Origin', requestOrigin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  return next();
+});
+
+app.use(cors(corsOptions));
 
 // Serve static files (uploads) - after CORS configuration
 const uploadsDir = path.resolve(__dirname, '..', 'uploads');
