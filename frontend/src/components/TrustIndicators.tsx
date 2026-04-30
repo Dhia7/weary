@@ -23,7 +23,7 @@ const TrustIndicators = () => {
     {
       icon: CreditCard,
       title: 'Multiple Payment Options',
-      description: 'Pay with credit card, PayPal, or other methods',
+      description: 'Pay with credit card or other methods',
     },
   ];
 
