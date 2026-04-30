@@ -52,6 +52,11 @@ const healthRoutes = require('./routes/health');
 
 const app = express();
 
+// Render sits behind a reverse proxy; trust the first proxy hop in production
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Connect to database
 connectDB();
 
