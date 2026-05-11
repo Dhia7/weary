@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useWishlist } from '@/lib/contexts/WishlistContext';
 import { 
   User, 
   Mail, 
@@ -27,6 +28,7 @@ import OrdersTab from '@/components/OrdersTab';
 
 function AccountPageContent() {
   const { user, logout, isLoading } = useAuth();
+  const { wishlistCount } = useWishlist();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showOrderSuccess } = useOrderNotification();
@@ -187,7 +189,12 @@ function AccountPageContent() {
                           }`}
                         >
                           <Icon className="w-4 h-4" />
-                          <span>{tab.label}</span>
+                          <span className="flex-1 text-left">{tab.label}</span>
+                          {tab.id === 'wishlist' && wishlistCount > 0 && (
+                            <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 px-2 py-0.5 text-xs font-semibold tabular-nums">
+                              {wishlistCount}
+                            </span>
+                          )}
                         </button>
                       </li>
                     );

@@ -28,7 +28,7 @@ const TrustIndicators = () => {
   ];
 
   return (
-    <section className="py-12 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 border-t border-b border-gray-200 dark:border-gray-700">
+    <section className="py-12 bg-gradient-to-b from-muted/80 to-background border-y border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -45,18 +45,18 @@ const TrustIndicators = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              className="flex flex-col items-center text-center p-6 rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-all duration-300"
+              className="flex flex-col items-center text-center p-6 rounded-lg hover:bg-card/80 transition-all duration-300"
             >
               <motion.div
                 whileHover={{ scale: 1.1, rotate: 5 }}
-                className="mb-4 p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-full"
+                className="mb-4 p-3 rounded-full bg-primary/12 ring-1 ring-primary/25"
               >
-                <indicator.icon className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <indicator.icon className="w-8 h-8 text-primary" />
               </motion.div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-display font-semibold text-foreground mb-2">
                 {indicator.title}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 {indicator.description}
               </p>
             </motion.div>

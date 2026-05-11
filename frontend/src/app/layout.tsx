@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-
-const inter = Inter({ subsets: ["latin"] });
+import { CHUNK_RECOVERY_INLINE_SCRIPT } from "@/lib/chunkRecoveryInlineScript";
 
 export const metadata: Metadata = {
-  title: "StyleHub - Premium Clothing Marketplace",
-  description: "Discover unique fashion pieces from independent designers and creators. Shop the latest trends in clothing, accessories, and more.",
-  keywords: "clothing, fashion, ecommerce, marketplace, designer clothes, unique fashion",
+  title: "SWISSÉ — Luxury Craftsmanship",
+  description:
+    "Swissé — timeless elegance and Swiss artistry. Hand-finished luxury fashion and accessories.",
+  keywords:
+    "Swissé, luxury fashion, Swiss craftsmanship, premium clothing, curated collections",
 };
 
 export default function RootLayout({
@@ -18,7 +18,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200`} suppressHydrationWarning={true}>
+      <head>
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_INLINE_SCRIPT }}
+        />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=zodiak@400,500,700&f[]=satoshi@300,400,500,700&display=swap"
+        />
+      </head>
+      <body
+        className="min-h-screen bg-swisse-canvas text-swisse-ink antialiased transition-colors duration-200"
+        suppressHydrationWarning={true}
+      >
         <Providers>
           {children}
         </Providers>
@@ -26,4 +39,3 @@ export default function RootLayout({
     </html>
   );
 }
-

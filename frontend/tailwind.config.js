@@ -49,11 +49,26 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        swisse: {
+          canvas: "#faf8f5",
+          ink: "#2d2416",
+          gold: "#c5a059",
+          mist: "#f5f0e8",
+          linen: "#f9f7f4",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        sans: ["Satoshi", "system-ui", "sans-serif"],
+        serif: ["Zodiak", "Georgia", "ui-serif", "serif"],
+        display: ["Zodiak", "Georgia", "ui-serif", "serif"],
+      },
+      maxWidth: {
+        swisse: "1440px",
       },
       keyframes: {
         "accordion-down": {

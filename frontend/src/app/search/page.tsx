@@ -43,10 +43,52 @@ function SearchPageContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryLabel, setCategoryLabel] = useState<string>('');
   const productsPerPage = 12;
 
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
+  const categorySlug = searchParams.get('category') || '';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveCategory = async () => {
+      if (!categorySlug) {
+        setCategoryId(null);
+        setCategoryLabel('');
+        return;
+      }
+
+      try {
+        const apiUrl = buildApiUrl('/products/categories');
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const data = await response.json();
+        const categories = data?.data?.categories ?? [];
+        const match = categories.find((c: { id: number; name: string; slug: string }) => c.slug === categorySlug);
+        if (cancelled) return;
+
+        if (match) {
+          setCategoryId(match.id);
+          setCategoryLabel(match.name);
+        } else {
+          setCategoryId(null);
+          setCategoryLabel('');
+        }
+      } catch {
+        if (cancelled) return;
+        setCategoryId(null);
+        setCategoryLabel('');
+      }
+    };
+
+    resolveCategory();
+    return () => {
+      cancelled = true;
+    };
+  }, [categorySlug]);
 
   const fetchSearchResults = useCallback(async () => {
     try {
@@ -55,6 +97,7 @@ function SearchPageContent() {
       
       const apiUrl = buildApiUrl('/products', {
         q: query,
+        ...(categoryId ? { categoryId } : {}),
         sort: sortBy,
         order: sortOrder,
         page: currentPage,
@@ -93,7 +136,7 @@ function SearchPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [query, sortBy, sortOrder, currentPage, productsPerPage]);
+  }, [query, sortBy, sortOrder, currentPage, productsPerPage, categoryId]);
 
   useEffect(() => {
     if (query) {
@@ -169,6 +212,7 @@ function SearchPageContent() {
               {query ? (
                 <>
                   Found {totalProducts} result{totalProducts !== 1 ? 's' : ''} for &quot;{query}&quot;
+                  {categoryLabel ? <> in {categoryLabel}</> : null}
                 </>
               ) : (
                 'Enter a search term to find products'

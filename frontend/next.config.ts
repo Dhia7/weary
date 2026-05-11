@@ -3,13 +3,18 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Removed outputFileTracingRoot as it can cause 404 errors on Vercel
   // outputFileTracingRoot: __dirname,
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
         tls: false,
+      };
+      // Slow first compile / disk can hit webpack’s default chunk wait; dev gets a higher ceiling.
+      config.output = {
+        ...config.output,
+        chunkLoadTimeout: dev ? 300_000 : 180_000,
       };
     }
     return config;
@@ -49,6 +54,11 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
         pathname: '/**',
       },
     ],

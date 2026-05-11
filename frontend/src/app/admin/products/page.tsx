@@ -113,6 +113,9 @@ export default function AdminProductsPage() {
                       Stock
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Sizes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Categories
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -187,6 +190,13 @@ export default function AdminProductsPage() {
                             </span>
                           );
                         })()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                        {product.size?.trim() ? (
+                          <span className="line-clamp-2">{product.size}</span>
+                        ) : (
+                          <span className="text-gray-400">No sizes</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {product.categories && product.categories.length > 0 ? (

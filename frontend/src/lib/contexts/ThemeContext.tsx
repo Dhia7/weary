@@ -1,6 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -12,48 +19,48 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const THEME_STORAGE_KEY = 'theme';
+
+function applyThemeClass(next: Theme) {
+  if (typeof window === 'undefined') return;
+  document.documentElement.classList.toggle('dark', next === 'dark');
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Check if we're in the browser environment
     if (typeof window === 'undefined') return;
-    
-    setMounted(true);
-    // Check for saved theme preference or default to system preference
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    const initialTheme = savedTheme || systemTheme;
-    
-    setTheme(initialTheme);
-    // Set the initial class immediately to prevent flash
-    if (initialTheme === 'dark') {
-      document.documentElement.classList.add('dark');
+    const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+    // Project default: light. Only override if user explicitly saved a preference.
+    const initial: Theme = stored === 'light' || stored === 'dark' ? stored : 'light';
+
+    setTheme(initial);
+    applyThemeClass(initial);
+  }, []);
+
+  const setThemeAndPersist = useCallback((next: Theme) => {
+    setTheme(next);
+    applyThemeClass(next);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // ignore storage failures (private mode, quota, etc.)
     }
   }, []);
 
-  useEffect(() => {
-    if (mounted && typeof window !== 'undefined') {
-      // Only update localStorage and class when theme changes (not on initial load)
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      localStorage.setItem('theme', theme);
-    }
-  }, [theme, mounted]);
+  const toggleTheme = useCallback(() => {
+    setThemeAndPersist(theme === 'dark' ? 'light' : 'dark');
+  }, [setThemeAndPersist, theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
-  const value = {
-    theme,
-    toggleTheme,
-    setTheme,
-  };
+  const value = useMemo(
+    () => ({
+      theme,
+      toggleTheme,
+      setTheme: setThemeAndPersist,
+    }),
+    [setThemeAndPersist, theme, toggleTheme],
+  );
 
   return (
     <ThemeContext.Provider value={value}>

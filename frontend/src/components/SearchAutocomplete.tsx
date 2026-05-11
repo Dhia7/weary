@@ -2,11 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MagnifyingGlassIcon, ClockIcon, FireIcon, TagIcon } from '@heroicons/react/24/outline';
+import {
+  MagnifyingGlassIcon,
+  ClockIcon,
+  FireIcon,
+  TagIcon,
+  ChevronDownIcon,
+} from '@heroicons/react/24/outline';
 import { buildApiUrl } from '@/lib/api';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 interface Product {
   id: number;
@@ -42,18 +49,33 @@ interface SearchAutocompleteProps {
 const RECENT_SEARCHES_KEY = 'recent_searches';
 const MAX_RECENT_SEARCHES = 5;
 
+const CATEGORY_OPTIONS = [
+  { slug: '', label: 'Shop', labelFr: 'Boutique' },
+  { slug: 'women', label: 'Women', labelFr: 'Femmes' },
+  { slug: 'men', label: 'Men', labelFr: 'Hommes' },
+  { slug: 'accessories', label: 'Accessories', labelFr: 'Accessoires' },
+  { slug: 'footwear', label: 'Footwear', labelFr: 'Chaussures' },
+  { slug: 'jewelry', label: 'Jewelry', labelFr: 'Bijoux' },
+] as const;
+
 const SearchAutocomplete = ({ 
   onSearch, 
   className = '', 
   placeholder = 'Search for products...' 
 }: SearchAutocompleteProps) => {
+  const { isFrench } = useLanguage();
+  const resolvedPlaceholder =
+    placeholder === 'Search for products...' && isFrench ? 'Rechercher des produits...' : placeholder;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AutocompleteResults | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [categorySlug, setCategorySlug] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -139,12 +161,17 @@ const SearchAutocomplete = ({
 
     saveRecentSearch(term);
     setIsOpen(false);
+    setIsCategoryOpen(false);
     setQuery('');
-    router.push(`/search?q=${encodeURIComponent(term)}`);
+    const url =
+      categorySlug && categorySlug.trim().length > 0
+        ? `/search?q=${encodeURIComponent(term)}&category=${encodeURIComponent(categorySlug)}`
+        : `/search?q=${encodeURIComponent(term)}`;
+    router.push(url);
     if (onSearch) {
       onSearch(term);
     }
-  }, [query, router, onSearch, saveRecentSearch]);
+  }, [query, router, onSearch, saveRecentSearch, categorySlug]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -203,18 +230,27 @@ const SearchAutocomplete = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setIsCategoryOpen(false);
         setSelectedIndex(-1);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCategoryOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const formatPrice = (price: number) => `${Number(price).toFixed(2)} TND`;
@@ -228,8 +264,10 @@ const SearchAutocomplete = ({
     ? results.categories.length + results.products.length + results.popularProducts.length
     : 0;
 
+  const selectedCategory = CATEGORY_OPTIONS.find((c) => c.slug === categorySlug) ?? CATEGORY_OPTIONS[0];
+
   return (
-    <div className={`relative w-full ${className}`}>
+    <div ref={containerRef} className={`relative w-full ${className}`}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -237,26 +275,82 @@ const SearchAutocomplete = ({
         }}
         className="relative"
       >
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+        <div className="relative flex w-full border border-swisse-gold/25 dark:border-input rounded-sm leading-5 bg-swisse-canvas/80 dark:bg-card overflow-visible">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsCategoryOpen((v) => !v)}
+              className="h-full inline-flex items-center gap-1.5 px-3 text-[11px] font-bold uppercase tracking-widest text-swisse-ink/80 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary border-r border-swisse-gold/20 dark:border-border"
+              aria-haspopup="menu"
+              aria-controls="search-category-menu"
+            >
+              <span className="whitespace-nowrap">
+                {isFrench ? selectedCategory.labelFr : selectedCategory.label}
+              </span>
+              <ChevronDownIcon
+                className={`h-4 w-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {isCategoryOpen && (
+              <div
+                id="search-category-menu"
+                className="absolute left-0 top-full mt-2 w-52 rounded-md border border-swisse-gold/15 bg-swisse-canvas dark:bg-popover dark:border-border shadow-lg py-1 z-50"
+                role="menu"
+              >
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.slug || 'all'}
+                    type="button"
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-swisse-mist dark:hover:bg-muted ${
+                      opt.slug === categorySlug
+                        ? 'text-swisse-gold dark:text-primary'
+                        : 'text-swisse-ink dark:text-popover-foreground'
+                    }`}
+                    onClick={() => {
+                      setCategorySlug(opt.slug);
+                      setIsCategoryOpen(false);
+                      setIsOpen(false);
+
+                      // Behave like the old "Shop" dropdown: choosing a category navigates immediately.
+                      if (!opt.slug) {
+                        router.push('/products');
+                      } else {
+                        router.push(`/category/${opt.slug}`);
+                      }
+                    }}
+                    role="menuitem"
+                  >
+                    {isFrench ? opt.labelFr : opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={resolvedPlaceholder}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(-1);
+              }}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                if (query.trim() || recentSearches.length > 0) {
+                  setIsOpen(true);
+                }
+              }}
+              className="block w-full pl-10 pr-3 py-2 bg-transparent text-swisse-ink dark:text-foreground placeholder-swisse-ink/45 dark:placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-inset focus:ring-swisse-gold/50 dark:focus:ring-primary/40"
+            />
+          </div>
         </div>
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder={placeholder}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSelectedIndex(-1);
-          }}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (query.trim() || recentSearches.length > 0) {
-              setIsOpen(true);
-            }
-          }}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-        />
       </form>
 
       {/* Dropdown */}
@@ -267,7 +361,7 @@ const SearchAutocomplete = ({
         >
           {loading ? (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              Searching...
+              {isFrench ? 'Recherche...' : 'Searching...'}
             </div>
           ) : !query.trim() && recentSearches.length > 0 ? (
             // Recent searches
@@ -276,7 +370,7 @@ const SearchAutocomplete = ({
                 <div className="flex items-center gap-2">
                   <ClockIcon className="h-4 w-4 text-gray-400" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Recent Searches
+                    {isFrench ? 'Recherches recentes' : 'Recent Searches'}
                   </span>
                 </div>
                 {recentSearches.length > 0 && (
@@ -284,7 +378,7 @@ const SearchAutocomplete = ({
                     onClick={clearRecentSearches}
                     className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                   >
-                    Clear
+                    {isFrench ? 'Effacer' : 'Clear'}
                   </button>
                 )}
               </div>
@@ -309,7 +403,7 @@ const SearchAutocomplete = ({
                   <div className="flex items-center gap-2 px-3 py-2">
                     <TagIcon className="h-4 w-4 text-gray-400" />
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Categories
+                      {isFrench ? 'Categories' : 'Categories'}
                     </span>
                   </div>
                   {results.categories.map((category, index) => {
@@ -338,7 +432,7 @@ const SearchAutocomplete = ({
                   <div className="flex items-center gap-2 px-3 py-2">
                     <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Products
+                      {isFrench ? 'Produits' : 'Products'}
                     </span>
                   </div>
                   {results.products.map((product, index) => {
@@ -383,7 +477,7 @@ const SearchAutocomplete = ({
                   <div className="flex items-center gap-2 px-3 py-2">
                     <FireIcon className="h-4 w-4 text-orange-400" />
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Popular Products
+                      {isFrench ? 'Produits populaires' : 'Popular Products'}
                     </span>
                   </div>
                   {results.popularProducts.map((product, index) => {
@@ -424,7 +518,9 @@ const SearchAutocomplete = ({
             </div>
           ) : query.trim() ? (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              No results found for &quot;{query}&quot;
+              {isFrench
+                ? `Aucun resultat pour "${query}"`
+                : `No results found for "${query}"`}
             </div>
           ) : null}
         </div>

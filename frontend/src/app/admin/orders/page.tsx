@@ -35,11 +35,12 @@ interface Order {
   user: { id: number; email: string; firstName?: string; lastName?: string };
   items: OrderItem[];
   shippingAddress?: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    locality?: string;
+    zipCode?: string;
+    country?: string;
   };
   billingInfo?: {
     firstName: string;
@@ -831,10 +832,31 @@ export default function AdminOrdersPage() {
                 {selectedOrder.shippingAddress && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Shipping Address</h3>
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                      <p>{selectedOrder.shippingAddress.street}</p>
-                      <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.zipCode}</p>
-                      <p>{selectedOrder.shippingAddress.country}</p>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg space-y-2 text-sm">
+                      {(() => {
+                        const a = selectedOrder.shippingAddress;
+                        const line = (label: string, value: string | undefined) => (
+                          <div className="flex flex-col sm:flex-row sm:gap-2">
+                            <span className="font-medium text-gray-700 dark:text-gray-300 shrink-0 sm:min-w-[10.5rem]">
+                              {label}
+                            </span>
+                            <span className="text-gray-900 dark:text-gray-100 break-words">
+                              {value && String(value).trim() ? String(value).trim() : '—'}
+                            </span>
+                          </div>
+                        );
+                        const zip = a.zipCode?.trim();
+                        return (
+                          <>
+                            {line('Street address', a.street)}
+                            {line('Governorate (wilaya)', a.city)}
+                            {line('Delegation', a.state)}
+                            {line('Locality', a.locality)}
+                            {zip ? line('Postal code', zip) : null}
+                            {line('Country', a.country)}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

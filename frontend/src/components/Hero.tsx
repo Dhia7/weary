@@ -2,10 +2,15 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=2574&auto=format&fit=crop';
 
 const Hero = () => {
+  const { isFrench } = useLanguage();
   const scrollToContent = () => {
     window.scrollTo({
       top: window.innerHeight,
@@ -14,115 +19,93 @@ const Hero = () => {
   };
 
   return (
-    <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
-      {/* Background Image */}
-      <motion.div
-        initial={{ scale: 1.1 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 1.2, ease: 'easeOut' }}
-        className="absolute inset-0"
-      >
+    <section
+      id="hero"
+      className="relative min-h-screen flex items-center dark:bg-swisse-ink"
+    >
+      <div className="absolute inset-0">
         <Image
-          src="/hero-image.jpg"
-          alt="Latest Collections"
+          src={HERO_IMAGE}
+          alt={isFrench ? 'Hero mode suisse' : 'Swiss fashion hero'}
           fill
           className="object-cover"
           priority
+          sizes="100vw"
         />
-      </motion.div>
-      
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50" />
-      
-      {/* Content */}
-      <div className="relative z-10 h-full flex items-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
+        <div className="absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />
+      </div>
+
+      <div className="relative z-10 max-w-swisse mx-auto px-6 md:px-8 w-full pt-24 pb-32 md:pb-40">
+        <div className="max-w-2xl">
+          <motion.span
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-center lg:text-left max-w-3xl"
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="inline-flex max-w-full items-stretch overflow-hidden border border-[#d7cebe] bg-[#f3eee3]/95 dark:border-swisse-gold/30 dark:bg-swisse-ink/75 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.28em] mb-6 backdrop-blur-sm"
           >
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl drop-shadow-lg"
+            <span className="shrink-0 px-3 sm:px-4 py-2 font-medium text-swisse-ink dark:text-swisse-canvas border-r border-[#d7cebe] dark:border-swisse-gold/30 tracking-[0.2em]">
+              CH
+            </span>
+            <span className="px-3 sm:px-5 py-2 font-semibold text-[#b39b69] dark:text-swisse-gold leading-relaxed">
+              {isFrench
+                ? 'Importation Officielle · Suisse → Tunisie'
+                : 'Official Import · Switzerland → Tunisia'}
+            </span>
+          </motion.span>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1] mb-8 text-swisse-ink dark:text-swisse-canvas"
+          >
+            {isFrench ? 'Le Luxe Suisse,' : 'Swiss Luxury,'} <br />{' '}
+            {isFrench ? 'Livre Chez Vous' : 'Delivered to Your Door'}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
+            className="text-lg text-swisse-ink/80 dark:text-swisse-canvas/85 font-light mb-10 leading-relaxed max-w-2xl"
+          >
+            {isFrench
+              ? 'Swissé redéfinit le shopping premium en Tunisie en vous livrant, en moins d’une semaine, des créations internationales soigneusement sélectionnées directement à votre porte. Des pièces mode intemporelles aux essentiels lifestyle raffinés, chaque produit est choisi pour sa qualité, son élégance et son authenticité. Sans intermédiaires ni surcoûts artificiels — des produits d’exception, des prix honnêtes en TND, et une expérience de luxe qui parle d’elle-même.'
+              : 'Swissé redefines premium shopping in Tunisia by bringing carefully selected international creations directly to your doorstep in under a week. From timeless fashion pieces to refined lifestyle essentials, every product is chosen for its quality, elegance, and authenticity. No middlemen, no inflated pricing — just exceptional products, honest prices in TND, and a luxury experience that speaks for itself.'}
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8"
+          >
+            <Link
+              href="/products"
+              className="inline-flex justify-center px-10 py-4 bg-swisse-ink text-swisse-canvas text-xs font-bold uppercase tracking-widest hover:bg-swisse-gold transition-colors duration-500 dark:bg-swisse-canvas dark:text-swisse-ink dark:hover:bg-swisse-gold dark:hover:text-swisse-ink"
             >
-              <span className="block">Discover Your</span>
-              <motion.span
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.5 }}
-                className="block text-indigo-300 bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent"
-              >
-                Unique Style
-              </motion.span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="mt-3 text-base text-white/90 sm:mt-5 sm:text-lg md:mt-5 md:text-xl drop-shadow-lg max-w-2xl"
+              {isFrench ? 'Decouvrir la Collection' : 'Discover the Collection'}
+            </Link>
+            <Link
+              href="#brand-story"
+              className="group inline-flex items-center justify-center sm:justify-start gap-3 text-xs font-bold uppercase tracking-widest text-swisse-ink dark:text-swisse-canvas"
             >
-              Elevate your wardrobe with premium fashion and accessories. Shop the latest collections and enjoy fast, reliable shipping on all orders.
-            </motion.p>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              className="mt-8 sm:flex sm:justify-center lg:justify-start gap-3 flex-wrap"
-            >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  href="/products"
-                  className="w-full sm:w-auto flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  Shop Now
-                  <ArrowRightIcon className="ml-2 h-5 w-5" />
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  href="/categories"
-                  className="w-full sm:w-auto flex items-center justify-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white hover:text-indigo-600 md:py-4 md:text-lg md:px-10 transition-all duration-200 shadow-lg hover:shadow-xl mt-3 sm:mt-0"
-                >
-                  Shop Categories
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  href="/designer"
-                  className="w-full sm:w-auto flex items-center justify-center px-8 py-3 border-2 border-indigo-300 text-base font-medium rounded-md text-white bg-indigo-500/80 hover:bg-indigo-600 md:py-4 md:text-lg md:px-10 transition-all duration-200 shadow-lg hover:shadow-xl mt-3 sm:mt-0"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Design Your T-Shirt
-                </Link>
-              </motion.div>
-            </motion.div>
+              <span>{isFrench ? 'Comment ca marche ?' : 'How it Works?'}</span>
+              <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-2" />
+            </Link>
           </motion.div>
         </div>
       </div>
 
-      {/* Scroll Indicator */}
-      <motion.button
+      <button
+        type="button"
         onClick={scrollToContent}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 text-white hover:text-indigo-300 transition-colors"
-        aria-label="Scroll down"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4 text-swisse-ink/50 dark:text-swisse-canvas/50 hover:text-swisse-gold transition-colors"
+        aria-label={isFrench ? 'Defiler vers le contenu' : 'Scroll to content'}
       >
-        <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        >
-          <ChevronDownIcon className="w-8 h-8" />
-        </motion.div>
-      </motion.button>
-    </div>
+        <span className="text-[10px] uppercase tracking-[0.5em] rotate-90 -translate-y-5">
+          {isFrench ? 'Defiler' : 'Scroll'}
+        </span>
+        <div className="w-px h-20 bg-gradient-to-b from-swisse-gold/20 to-swisse-gold/60" />
+      </button>
+    </section>
   );
 };
 

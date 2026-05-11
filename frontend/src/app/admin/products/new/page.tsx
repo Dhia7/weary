@@ -34,6 +34,7 @@ export default function NewProductPage() {
   // Additional fields
   const [weightGrams, setWeightGrams] = useState<number | ''>('');
   const [hasSizes, setHasSizes] = useState<boolean>(false); // Always initialize as boolean
+  const [sizeOptions, setSizeOptions] = useState('XS, S, M, L, XL, XXL');
   const [isActive, setIsActive] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   
@@ -310,8 +311,8 @@ export default function NewProductPage() {
       formData.append('quantity', quantity === '' ? '0' : quantity.toString());
       formData.append('barcode', barcode);
       formData.append('weightGrams', weightGrams === '' ? '' : weightGrams.toString());
-      // If hasSizes is checked, use standard size list; otherwise empty
-      formData.append('size', hasSizes ? 'XS, S, M, L, XL, XXL' : '');
+      // If hasSizes is checked, use custom size list; otherwise empty
+      formData.append('size', hasSizes ? sizeOptions.trim() : '');
       // For made-to-order products, send empty sizeStock (not tracking stock per size)
       formData.append('sizeStock', JSON.stringify({}));
       formData.append('isActive', isActive.toString());
@@ -692,27 +693,44 @@ export default function NewProductPage() {
                     className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
                   <label htmlFor="hasSizes" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Product has sizes (XS, S, M, L, XL, XXL)
+                    Product has sizes
                   </label>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Check this if customers need to select a size when ordering. Leave unchecked for products without sizes (e.g., accessories, bags).
+                  Check this if customers need to select a size when ordering. You can use apparel sizes or shoe sizes.
                 </p>
               </div>
             </div>
             
             {/* Made-to-Order Notice */}
             {hasSizes && (
-              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">Made-to-Order Product</h4>
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      This product has sizes. Customers will select their preferred size when ordering. The quantity field above represents the total stock available for all sizes combined.
-                    </p>
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label htmlFor="sizeOptions" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Available Sizes
+                  </label>
+                  <input
+                    id="sizeOptions"
+                    placeholder="XS, S, M, L or 38, 39, 40, 41"
+                    value={sizeOptions}
+                    onChange={(e) => setSizeOptions(e.target.value)}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Enter sizes separated by commas. Example: XS, S, M or 38, 39, 40, 41.
+                  </p>
+                </div>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">Made-to-Order Product</h4>
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        Customers will select their preferred size when ordering. The quantity field above represents total stock across all sizes.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -787,7 +805,7 @@ export default function NewProductPage() {
           {/* Action Buttons */}
           <div className="flex gap-3 pt-6 border-t">
             <button 
-              disabled={saving || !name || !slug || !SKU || !price || quantity === ''} 
+              disabled={saving || !name || !slug || !SKU || !price || quantity === '' || (hasSizes && !sizeOptions.trim())} 
               onClick={onSave} 
               className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
             >
@@ -838,6 +856,8 @@ export default function NewProductPage() {
                     setNewCategoryDescription('');
                     setError(null);
                   }}
+                  aria-label="Close modal"
+                  title="Close"
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

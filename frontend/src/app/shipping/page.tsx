@@ -6,6 +6,9 @@ import { motion } from 'framer-motion';
 import { Truck, Clock, MapPin, Shield, Package } from 'lucide-react';
 
 export default function ShippingPage() {
+  const FREE_SHIPPING_THRESHOLD_TND = 100;
+  const STANDARD_SHIPPING_FEE_TND = 10;
+
   const shippingOptions = [
     {
       name: 'Standard Shipping',
@@ -13,7 +16,7 @@ export default function ShippingPage() {
       price: 'Free',
       description: 'Our standard shipping option for most orders',
       icon: Truck,
-      features: ['Free on orders over 150 TND', 'Tracking included', '3-5 business days']
+      features: [`Free on orders over ${FREE_SHIPPING_THRESHOLD_TND} TND`, 'Tracking included', '3-5 business days']
     },
     {
       name: 'Express Shipping',
@@ -211,8 +214,8 @@ export default function ShippingPage() {
                 Do you offer free shipping?
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Yes! We offer free standard shipping on all orders over 150 TND. 
-                Orders under 150 TND have a 15 TND shipping fee.
+                Yes! Shipping is free on all orders over {FREE_SHIPPING_THRESHOLD_TND} TND.
+                Orders under {FREE_SHIPPING_THRESHOLD_TND} TND have a {STANDARD_SHIPPING_FEE_TND} TND shipping fee.
               </p>
             </div>
             

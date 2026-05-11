@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { buildApiUrl } from '@/lib/api';
 
 export interface CartItem {
   id: string; // Unique cart item identifier (cartItemId or productId-size)
@@ -14,6 +15,14 @@ export interface CartItem {
   size?: string;
   cartItemId?: number; // Original cart item ID from database
 }
+
+export const getCartItemKey = (item: Pick<CartItem, 'id' | 'productId' | 'size' | 'cartItemId'>): string => {
+  if (item.cartItemId) {
+    return `cart-${item.cartItemId}-${item.size || 'no-size'}`;
+  }
+
+  return `${item.productId || item.id}-${item.size || 'no-size'}`;
+};
 
 interface CartContextType {
   items: CartItem[];
@@ -40,17 +49,12 @@ export const useCart = (): CartContextType => {
   return context;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
 // Helper function to deduplicate cart items by creating a unique key
 const deduplicateCartItems = (items: CartItem[]): CartItem[] => {
   const seen = new Map<string, CartItem>();
   
   for (const item of items) {
-    // Create a unique key combining cartItemId, productId, and size
-    const uniqueKey = item.cartItemId 
-      ? `cart-${item.cartItemId}-${item.size || 'no-size'}`
-      : `${item.productId || item.id}-${item.size || 'no-size'}`;
+    const uniqueKey = getCartItemKey(item);
     
     // If we haven't seen this key, add it
     // If we have seen it, keep the one with the higher quantity (or first one)
@@ -82,7 +86,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Load from backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(`${API_BASE_URL}/cart`, {
+        const response = await fetch(buildApiUrl('/cart'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -193,7 +197,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (guestCartItems.length > 0) {
         // Sync guest cart with user cart
-        const response = await fetch(`${API_BASE_URL}/cart/sync`, {
+        const response = await fetch(buildApiUrl('/cart/sync'), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -237,7 +241,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Add to backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(`${API_BASE_URL}/cart`, {
+        const response = await fetch(buildApiUrl('/cart'), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -281,20 +285,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeItem = async (id: string) => {
+    const item = items.find(i => getCartItemKey(i) === id || i.id === id);
+    if (!item) {
+      console.error('Item not found in cart');
+      return;
+    }
+
     if (user && token) {
       // Remove from backend for authenticated users
       try {
         setIsLoading(true);
-        // Find the item to get its productId and size
-        const item = items.find(i => i.id === id);
-        if (!item) {
-          console.error('Item not found in cart');
-          return;
-        }
         // Use productId if available, otherwise parse from id
-        const productId = item.productId || id.split('-')[0];
+        const productId = item.productId || item.id.split('-')[0];
         const sizeParam = item?.size ? `?size=${encodeURIComponent(item.size)}` : '';
-        const response = await fetch(`${API_BASE_URL}/cart/${productId}${sizeParam}`, {
+        const response = await fetch(buildApiUrl(`/cart/${productId}${sizeParam}`), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -316,24 +320,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } else {
       // Remove from local state for guest users
-      setItems(prev => prev.filter(p => p.id !== id));
+      setItems(prev => prev.filter(p => getCartItemKey(p) !== id && p.id !== id));
     }
   };
 
   const updateQuantity = async (id: string, quantity: number) => {
+    const item = items.find(i => getCartItemKey(i) === id || i.id === id);
+    if (!item) {
+      console.error('Item not found in cart');
+      return;
+    }
+
     if (user && token) {
       // Update in backend for authenticated users
       try {
         setIsLoading(true);
-        // Find the item to get its productId and size
-        const item = items.find(i => i.id === id);
-        if (!item) {
-          console.error('Item not found in cart');
-          return;
-        }
         // Use productId if available, otherwise parse from id
-        const productId = item.productId || id.split('-')[0];
-        const response = await fetch(`${API_BASE_URL}/cart`, {
+        const productId = item.productId || item.id.split('-')[0];
+        const response = await fetch(buildApiUrl('/cart'), {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -358,7 +362,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       // Update in local state for guest users
       setItems(prev => prev
-        .map(p => (p.id === id ? { ...p, quantity } : p))
+        .map(p => ((getCartItemKey(p) === id || p.id === id) ? { ...p, quantity } : p))
         .filter(p => p.quantity > 0)
       );
     }
@@ -369,7 +373,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear from backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(`${API_BASE_URL}/cart`, {
+        const response = await fetch(buildApiUrl('/cart'), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

@@ -1,0 +1,79 @@
+'use client';
+
+import Link from 'next/link';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+
+const COLLECTIONS = [
+  {
+    id: 'men',
+    title: 'Men Collection',
+    titleFr: 'Collection Homme',
+    tag: 'New Arrival',
+    tagFr: 'Nouvelle Arrivee',
+    description: 'Coats, jackets & accessories',
+    descriptionFr: 'Manteaux, vestes & accessoires',
+    image:
+      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=2672&auto=format&fit=crop',
+    href: '/category/men',
+  },
+  {
+    id: 'women',
+    title: 'Women Collection',
+    titleFr: 'Collection Femme',
+    tag: 'Best-Sellers',
+    tagFr: 'Best-Sellers',
+    description: 'Dresses, silks & leather goods',
+    descriptionFr: 'Robes, soieries & maroquinerie',
+    image:
+      'https://images.unsplash.com/photo-1713425885188-f1daa057691f?q=80&w=711&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    href: '/category/women',
+  },
+];
+
+export default function HomeFeaturedCollections() {
+  const { isFrench } = useLanguage();
+
+  return (
+    <section id="collections" className="py-24 md:py-32 px-6 md:px-8 max-w-swisse mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
+        {COLLECTIONS.map((col, index) => (
+          <motion.div
+            key={col.id}
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.7, delay: index * 0.15 }}
+            className="group relative h-[520px] md:h-[640px] lg:h-[700px] overflow-hidden"
+          >
+            <Link href={col.href} className="block h-full w-full">
+              <Image
+                src={col.image}
+                alt={col.title}
+                fill
+                className="object-cover transition-transform duration-1000 group-hover:scale-105"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+              <div className="absolute inset-0 bg-white/10 transition-colors duration-500 group-hover:bg-swisse-canvas/20" />
+              <div className="absolute bottom-10 left-8 md:bottom-12 md:left-12 z-10">
+                <span className="inline-block mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-swisse-ink/75">
+                  {isFrench ? col.tagFr : col.tag}
+                </span>
+                <h3 className="font-serif text-3xl md:text-4xl text-swisse-ink mb-4">
+                  {isFrench ? col.titleFr : col.title}
+                </h3>
+                <p className="text-sm md:text-base text-swisse-ink/85 mb-5 max-w-md">
+                  {isFrench ? col.descriptionFr : col.description}
+                </p>
+                <span className="inline-block border-b border-swisse-ink pb-1 text-xs font-bold uppercase tracking-widest text-swisse-ink transition-colors group-hover:text-swisse-gold group-hover:border-swisse-gold">
+                  {isFrench ? 'Voir la Selection' : 'View Selection'}
+                </span>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}
