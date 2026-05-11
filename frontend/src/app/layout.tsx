@@ -4,12 +4,54 @@ import { Providers } from "@/components/Providers";
 import { CHUNK_RECOVERY_INLINE_SCRIPT } from "@/lib/chunkRecoveryInlineScript";
 import { THEME_INLINE_SCRIPT } from "@/lib/themeInlineScript";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "SWISSÉ — Luxury Craftsmanship",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default:
+      "Swissé — Premium fashion & lifestyle | Switzerland → Tunisia",
+    template: "%s | Swissé",
+  },
   description:
-    "Swissé — timeless elegance and Swiss artistry. Hand-finished luxury fashion and accessories.",
-  keywords:
-    "Swissé, luxury fashion, Swiss craftsmanship, premium clothing, curated collections",
+    "Curated international premium fashion and lifestyle, delivered across Tunisia in under a week. Official Switzerland→Tunisia import — authentic quality, no middlemen, honest prices in TND.",
+  keywords: [
+    "Swissé",
+    "Swisse",
+    "premium fashion Tunisia",
+    "luxury shopping Tunisia",
+    "Switzerland Tunisia import",
+    "Swiss import Tunisia",
+    "mode premium Tunisie",
+    "lifestyle Tunisie",
+    "livraison rapide Tunisie",
+    "prix TND",
+    "sans intermédiaires",
+    "curated fashion",
+    "international premium brands",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: "Swissé",
+    title:
+      "Swissé — Premium fashion & lifestyle | Switzerland → Tunisia",
+    description:
+      "Curated international premium fashion and lifestyle in under a week. Official import to Tunisia — quality, elegance, fair TND prices.",
+    locale: "en_US",
+    alternateLocale: ["fr_TN", "fr_FR"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title:
+      "Swissé — Premium fashion & lifestyle | Switzerland → Tunisia",
+    description:
+      "Curated premium fashion & lifestyle. Switzerland→Tunisia, delivery in under a week. Honest prices in TND.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
