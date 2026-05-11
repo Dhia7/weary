@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { CHUNK_RECOVERY_INLINE_SCRIPT } from "@/lib/chunkRecoveryInlineScript";
+import { THEME_INLINE_SCRIPT } from "@/lib/themeInlineScript";
 
 export const metadata: Metadata = {
   title: "SWISSÉ — Luxury Craftsmanship",
@@ -19,6 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <head>
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_INLINE_SCRIPT }}
+        />
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_INLINE_SCRIPT }}

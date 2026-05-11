@@ -5,9 +5,13 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
+
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 type Theme = 'light' | 'dark';
 
@@ -29,7 +33,7 @@ function applyThemeClass(next: Theme) {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
     // Project default: light. Only override if user explicitly saved a preference.
