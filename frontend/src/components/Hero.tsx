@@ -61,16 +61,37 @@ const Hero = () => {
             {isFrench ? 'Le Luxe Suisse,' : 'Swiss Luxury,'} <br />{' '}
             {isFrench ? 'Livre Chez Vous' : 'Delivered to Your Door'}
           </motion.h1>
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
-            className="text-lg text-swisse-ink/80 dark:text-swisse-canvas/85 font-light mb-10 leading-relaxed max-w-2xl"
+            className="mb-10 max-w-xl space-y-3 text-base text-swisse-ink/90 dark:text-swisse-canvas/90 sm:text-lg sm:leading-[1.65] font-normal leading-[1.6]"
           >
-            {isFrench
-              ? 'Swissé redéfinit le shopping premium en Tunisie en vous livrant, en moins d’une semaine, des créations internationales soigneusement sélectionnées directement à votre porte. Des pièces mode intemporelles aux essentiels lifestyle raffinés, chaque produit est choisi pour sa qualité, son élégance et son authenticité. Sans intermédiaires ni surcoûts artificiels — des produits d’exception, des prix honnêtes en TND, et une expérience de luxe qui parle d’elle-même.'
-              : 'Swissé redefines premium shopping in Tunisia by bringing carefully selected international creations directly to your doorstep in under a week. From timeless fashion pieces to refined lifestyle essentials, every product is chosen for its quality, elegance, and authenticity. No middlemen, no inflated pricing — just exceptional products, honest prices in TND, and a luxury experience that speaks for itself.'}
-          </motion.p>
+            <p>
+              {isFrench ? (
+                <>
+                  En moins d’une semaine, Swissé vous livre des{' '}
+                  <strong className="font-semibold text-swisse-ink dark:text-swisse-canvas">
+                    créations premium internationales
+                  </strong>
+                  , soigneusement sélectionnées — mode et lifestyle.
+                </>
+              ) : (
+                <>
+                  In under a week, Swissé brings you{' '}
+                  <strong className="font-semibold text-swisse-ink dark:text-swisse-canvas">
+                    carefully selected international premium pieces
+                  </strong>
+                  — fashion and lifestyle.
+                </>
+              )}
+            </p>
+            <p className="text-swisse-ink/75 dark:text-swisse-canvas/80">
+              {isFrench
+                ? 'Authenticité, qualité et élégance. Sans intermédiaires, à des prix honnêtes en TND.'
+                : 'Authenticity, quality, and elegance. No middlemen — honest prices in TND.'}
+            </p>
+          </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
