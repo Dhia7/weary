@@ -1,13 +1,13 @@
 /**
  * Runs from a literal <script> in document head (before paint).
- * Keeps <html class="dark"> in sync with localStorage so production
- * does not briefly follow OS dark mode or flash the wrong palette.
+ * Dark mode is disabled for now: always strip `dark` from <html> and
+ * persist `theme=light` so the storefront stays on the light palette.
  */
 export const THEME_INLINE_SCRIPT = [
   "(function(){",
   "try{",
-  "var t=localStorage.getItem('theme');",
-  "document.documentElement.classList.toggle('dark',t==='dark');",
+  "document.documentElement.classList.remove('dark');",
+  "localStorage.setItem('theme','light');",
   "}catch(e){}",
   "})();",
 ].join("");

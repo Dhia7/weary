@@ -7,16 +7,15 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useState,
 } from 'react';
 
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
-type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
-  theme: Theme;
+  theme: 'light';
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
 }
@@ -25,45 +24,35 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = 'theme';
 
-function applyThemeClass(next: Theme) {
+function forceLight() {
   if (typeof window === 'undefined') return;
-  document.documentElement.classList.toggle('dark', next === 'dark');
+  document.documentElement.classList.remove('dark');
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, 'light');
+  } catch {
+    // ignore storage failures (private mode, quota, etc.)
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
-
   useIsomorphicLayoutEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    // Project default: light. Only override if user explicitly saved a preference.
-    const initial: Theme = stored === 'light' || stored === 'dark' ? stored : 'light';
-
-    setTheme(initial);
-    applyThemeClass(initial);
+    forceLight();
   }, []);
 
-  const setThemeAndPersist = useCallback((next: Theme) => {
-    setTheme(next);
-    applyThemeClass(next);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // ignore storage failures (private mode, quota, etc.)
-    }
-  }, []);
+  const noop = useCallback(() => {}, []);
 
-  const toggleTheme = useCallback(() => {
-    setThemeAndPersist(theme === 'dark' ? 'light' : 'dark');
-  }, [setThemeAndPersist, theme]);
+  const setTheme = useCallback((next: Theme) => {
+    if (next !== 'light') return;
+    forceLight();
+  }, []);
 
   const value = useMemo(
     () => ({
-      theme,
-      toggleTheme,
-      setTheme: setThemeAndPersist,
+      theme: 'light' as const,
+      toggleTheme: noop,
+      setTheme,
     }),
-    [setThemeAndPersist, theme, toggleTheme],
+    [noop, setTheme],
   );
 
   return (
@@ -76,9 +65,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    // Return a default context during SSR
     return {
-      theme: 'light' as Theme,
+      theme: 'light' as const,
       toggleTheme: () => {},
       setTheme: () => {},
     };

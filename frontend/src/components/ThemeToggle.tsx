@@ -1,22 +1,8 @@
 'use client';
 
-import { useTheme } from '@/lib/contexts/ThemeContext';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
-
+/**
+ * Dark mode is disabled for now; keep the module so imports do not break.
+ */
 export default function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="p-2 text-swisse-ink/70 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary transition-colors rounded-md hover:bg-swisse-gold/10 dark:hover:bg-muted"
-      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-    >
-      {theme === 'light' ? (
-        <MoonIcon className="h-6 w-6" />
-      ) : (
-        <SunIcon className="h-6 w-6" />
-      )}
-    </button>
-  );
+  return null;
 }
