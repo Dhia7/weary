@@ -3,6 +3,20 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Removed outputFileTracingRoot as it can cause 404 errors on Vercel
   // outputFileTracingRoot: __dirname,
+  // Google Sign-In uses window.postMessage; default strict COOP can break the flow in some browsers.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.fallback = {

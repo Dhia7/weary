@@ -165,19 +165,21 @@ export default function LoginPage() {
           {hasGoogleSignIn && (
             <>
               <div className="flex flex-col items-stretch gap-2">
-                <GoogleLogin
-                  onSuccess={async (credentialResponse) => {
-                    const c = credentialResponse.credential;
-                    if (c) await handleGoogleSuccess(c);
-                  }}
-                  onError={() => setError('Google sign-in failed')}
-                  useOneTap={false}
-                  theme="outline"
-                  size="large"
-                  width="100%"
-                  text="continue_with"
-                  shape="rectangular"
-                />
+                <div className="flex w-full justify-center">
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      const c = credentialResponse.credential;
+                      if (c) await handleGoogleSuccess(c);
+                    }}
+                    onError={() => setError('Google sign-in failed')}
+                    useOneTap={false}
+                    theme="outline"
+                    size="large"
+                    width={384}
+                    text="continue_with"
+                    shape="rectangular"
+                  />
+                </div>
                 {googleLoading && (
                   <p className="text-center text-sm text-gray-500 dark:text-gray-400">Signing in…</p>
                 )}
