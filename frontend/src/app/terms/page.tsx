@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
@@ -37,9 +38,9 @@ export default function TermsPage() {
               2. Use License
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Permission is granted to temporarily download one copy of the materials on Wear&apos;s 
-              website for personal, non-commercial transitory viewing only. This is the grant of 
-              a license, not a transfer of title, and under this license you may not:
+              Permission is granted to temporarily download one copy of the materials on
+              Swissé&apos;s website for personal, non-commercial transitory viewing only. This is
+              the grant of a license, not a transfer of title, and under this license you may not:
             </p>
             <ul className="list-disc pl-6 text-gray-600 dark:text-gray-400 mb-6">
               <li>modify or copy the materials</li>
@@ -94,7 +95,7 @@ export default function TermsPage() {
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               The information on this website is provided on an &ldquo;as is&rdquo; basis. To the fullest 
-              extent permitted by law, this Company excludes all representations, warranties, 
+              extent permitted by law, Swissé excludes all representations, warranties, 
               conditions and terms relating to our website and the use of this website.
             </p>
             
@@ -120,10 +121,11 @@ export default function TermsPage() {
               10. Contact Information
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              If you have any questions about these Terms of Service, please contact us at 
-              <a href="mailto:legal@wear.com" className="text-blue-600 hover:text-blue-800">
-                legal@wear.com
-              </a>
+              If you have any questions about these Terms of Service, please use our{' '}
+              <Link href="/contact" className="text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                Contact
+              </Link>{' '}
+              page.
             </p>
           </div>
         </motion.div>

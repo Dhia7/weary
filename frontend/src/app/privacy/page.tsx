@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
@@ -51,6 +52,31 @@ export default function PrivacyPage() {
               <li>Respond to your comments and questions</li>
               <li>Develop new products and services</li>
             </ul>
+
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Sign in with Google
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              If you choose Sign in with Google, Google may share with Swissé the data you authorize
+              through the OAuth consent screen for our app (typically your Google account subject
+              identifier, name, email address, and profile picture, consistent with the{' '}
+              <strong>openid</strong>, <strong>email</strong>, and <strong>profile</strong> scopes).
+              We use that information only to create or log you into your Swissé account, secure
+              your session, and personalize your experience on our site. Google processes your
+              information under Google&apos;s own policies; see Google&apos;s Privacy Policy for
+              details on how Google handles your data.
+            </p>
+
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Email
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              We use the email address associated with your account for account-related messages
+              (for example sign-in, verification, order and shipping updates, password reset, and
+              security notices). If we offer optional marketing emails, we will only send them when
+              you have opted in, and you can unsubscribe using the link in those messages. We do
+              not sell your email address or rent it to third parties for their marketing.
+            </p>
             
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Information Sharing
@@ -119,10 +145,11 @@ export default function PrivacyPage() {
               Contact Us
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              If you have any questions about this Privacy Policy, please contact us at 
-              <a href="mailto:privacy@wear.com" className="text-blue-600 hover:text-blue-800">
-                privacy@wear.com
-              </a>
+              If you have any questions about this Privacy Policy, please reach out through our{' '}
+              <Link href="/contact" className="text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                Contact
+              </Link>{' '}
+              page.
             </p>
           </div>
         </motion.div>

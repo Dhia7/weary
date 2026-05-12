@@ -1,5 +1,6 @@
 'use client';
 
+import { GoogleAuthWrapper } from '@/components/GoogleAuthWrapper';
 import { ThemeProvider } from "@/lib/contexts/ThemeContext";
 import { LanguageProvider } from "@/lib/contexts/LanguageContext";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
@@ -12,16 +13,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <OrderNotificationProvider>
-                {children}
-                <OrderNotificationWrapper />
-              </OrderNotificationProvider>
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
+        <GoogleAuthWrapper>
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <OrderNotificationProvider>
+                  {children}
+                  <OrderNotificationWrapper />
+                </OrderNotificationProvider>
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
+        </GoogleAuthWrapper>
       </ThemeProvider>
     </LanguageProvider>
   );

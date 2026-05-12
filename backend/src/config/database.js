@@ -156,6 +156,13 @@ const connectDB = async () => {
       } catch (error) {
         console.warn('Cart size migration failed (non-critical, may already exist):', error.message);
       }
+
+      try {
+        const addGoogleIdToUsers = require('../scripts/add-google-id-to-users');
+        await addGoogleIdToUsers();
+      } catch (error) {
+        console.warn('googleId migration failed (non-critical):', error.message);
+      }
       
       // Always ensure constraints are correct (fix old constraint issues)
       try {

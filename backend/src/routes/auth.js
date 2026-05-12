@@ -138,6 +138,13 @@ const forgotPasswordValidation = [
     .normalizeEmail()
 ];
 
+const resendVerificationValidation = [
+  body('email')
+    .isEmail()
+    .withMessage('Please enter a valid email')
+    .normalizeEmail()
+];
+
 const resetPasswordValidation = [
   body('token')
     .notEmpty()
@@ -180,6 +187,13 @@ const verifyTwoFactorValidation = [
 // Routes
 router.post('/register', registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
+router.post('/google', authController.googleAuth);
+router.get('/verify-email', authController.verifyEmail);
+router.post(
+  '/resend-verification',
+  resendVerificationValidation,
+  authController.resendVerification
+);
 router.post('/forgot-password', forgotPasswordValidation, authController.forgotPassword);
 router.post('/reset-password', resetPasswordValidation, authController.resetPassword);
 

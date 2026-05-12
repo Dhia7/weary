@@ -3,6 +3,9 @@ const Address = require('../models/Address');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
+const { Op } = require('sequelize');
+const { hasMailTransport, sendVerificationEmail } = require('../utils/mail');
+const { verifyGoogleIdToken } = require('../utils/google');
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -35,21 +38,48 @@ const register = async (req, res) => {
       });
     }
 
-    // Create new user
+    const rawVerificationToken = crypto.randomBytes(32).toString('hex');
+    const hashedVerificationToken = crypto
+      .createHash('sha256')
+      .update(rawVerificationToken)
+      .digest('hex');
+
     const user = await User.create({
       email: email.toLowerCase(),
       password,
       firstName,
       lastName,
-      phone
+      phone,
+      isEmailVerified: false,
+      emailVerificationToken: hashedVerificationToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000)
     });
 
-    // Generate JWT token
-    const token = generateToken(user.id);
+    const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const verifyUrl = `${frontendBase}/auth/verify-email?token=${rawVerificationToken}`;
+
+    let emailSent = false;
+    try {
+      if (hasMailTransport()) {
+        await sendVerificationEmail(user.email, verifyUrl, user.firstName);
+        emailSent = true;
+      } else {
+        console.warn(
+          'Email verification: set RESEND_API_KEY or SMTP_* to send verification emails.'
+        );
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[dev] Verification URL (no mail transport):', verifyUrl);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send verification email:', err.message || err);
+    }
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: emailSent
+        ? 'Account created. Check your email to verify your address before signing in.'
+        : 'Account created. Verification email was not sent (configure mail or check server logs in development). You can use "Resend verification" after configuring email.',
       data: {
         user: {
           id: user.id,
@@ -59,7 +89,8 @@ const register = async (req, res) => {
           fullName: user.getFullName(),
           isEmailVerified: user.isEmailVerified
         },
-        token
+        requiresEmailVerification: true,
+        emailSent
       }
     });
   } catch (error) {
@@ -118,6 +149,21 @@ const login = async (req, res) => {
     // Reset login attempts on successful login
     await User.resetLoginAttempts(user.id);
 
+    if (!user.isEmailVerified) {
+      const awaitingVerification = !!(user.emailVerificationToken || user.emailVerificationExpires);
+      if (!awaitingVerification) {
+        user.isEmailVerified = true;
+        await user.save();
+      } else {
+        return res.status(403).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          message:
+            'Please verify your email before signing in. Check your inbox for the confirmation link.'
+        });
+      }
+    }
+
     // Generate JWT token
     const token = generateToken(user.id);
 
@@ -140,6 +186,255 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Sign in or register with Google (GIS credential)
+// @route   POST /api/auth/google
+// @access  Public
+const googleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential || typeof credential !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Google credential is required'
+      });
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(503).json({
+        success: false,
+        message: 'Google sign-in is not configured on the server'
+      });
+    }
+
+    let payload;
+    try {
+      payload = await verifyGoogleIdToken(credential);
+    } catch (err) {
+      console.error('Google token verification failed:', err.message || err);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Google sign-in token'
+      });
+    }
+
+    if (!payload.sub || !payload.email) {
+      return res.status(401).json({
+        success: false,
+        message: 'Google account did not return a usable email'
+      });
+    }
+
+    if (!payload.email_verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Google email must be verified to use this sign-in method'
+      });
+    }
+
+    const email = String(payload.email).toLowerCase();
+    let user = await User.findOne({ where: { googleId: payload.sub } });
+
+    if (!user) {
+      user = await User.findOne({ where: { email } });
+    }
+
+    if (user) {
+      if (user.googleId && user.googleId !== payload.sub) {
+        return res.status(409).json({
+          success: false,
+          message: 'This email is already linked to a different Google account'
+        });
+      }
+
+      if (!user.googleId) {
+        user.googleId = payload.sub;
+      }
+
+      user.isEmailVerified = true;
+      user.emailVerificationToken = null;
+      user.emailVerificationExpires = null;
+
+      const gn = payload.given_name?.trim();
+      const fn = payload.family_name?.trim();
+      if (gn && gn.length >= 2 && gn.length <= 50) {
+        user.firstName = gn;
+      }
+      if (fn && fn.length >= 2 && fn.length <= 50) {
+        user.lastName = fn;
+      }
+
+      await user.save();
+    } else {
+      const gn = payload.given_name?.trim();
+      const fn = payload.family_name?.trim();
+      const localPart = email.split('@')[0] || 'user';
+      const firstName =
+        gn && gn.length >= 2 && gn.length <= 50
+          ? gn
+          : localPart.slice(0, 50).padEnd(2, 'x');
+      const lastName =
+        fn && fn.length >= 2 && fn.length <= 50
+          ? fn
+          : 'Member';
+
+      user = await User.create({
+        email,
+        googleId: payload.sub,
+        firstName,
+        lastName,
+        isEmailVerified: true,
+        password: crypto.randomBytes(32).toString('hex')
+      });
+    }
+
+    if (user.isLocked()) {
+      return res.status(423).json({
+        success: false,
+        message: 'Account is temporarily locked due to too many failed login attempts'
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+
+    await User.resetLoginAttempts(user.id);
+
+    const token = generateToken(user.id);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.getFullName(),
+          isEmailVerified: user.isEmailVerified,
+          isAdmin: user.isAdmin,
+          preferences: user.preferences
+        },
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Verify email from link token
+// @route   GET /api/auth/verify-email?token=
+// @access  Public
+const verifyEmail = async (req, res) => {
+  try {
+    const token = req.query.token;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required'
+      });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      where: {
+        emailVerificationToken: hashedToken,
+        emailVerificationExpires: { [Op.gt]: new Date() }
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification link'
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully. You can sign in now.'
+    });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Resend verification email
+// @route   POST /api/auth/resend-verification
+// @access  Public
+const resendVerification = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email: email.toLowerCase() } });
+
+    const genericResponse = () =>
+      res.json({
+        success: true,
+        message: 'If an account exists and still needs verification, a new email was sent.'
+      });
+
+    if (!user || user.isEmailVerified) {
+      return genericResponse();
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const verifyUrl = `${frontendBase}/auth/verify-email?token=${rawToken}`;
+
+    try {
+      if (hasMailTransport()) {
+        await sendVerificationEmail(user.email, verifyUrl, user.firstName);
+      } else {
+        console.warn('Resend verification: no mail transport configured.');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[dev] Verification URL:', verifyUrl);
+        }
+      }
+    } catch (err) {
+      console.error('Resend verification email failed:', err.message || err);
+    }
+
+    return genericResponse();
+  } catch (error) {
+    console.error('Resend verification error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -401,7 +696,7 @@ const resetPassword = async (req, res) => {
     const user = await User.findOne({
       where: {
         passwordResetToken: hashedToken,
-        passwordResetExpires: { [require('sequelize').Op.gt]: new Date() }
+        passwordResetExpires: { [Op.gt]: new Date() }
       }
     });
 
@@ -712,6 +1007,9 @@ const logout = async (req, res) => {
 module.exports = {
   register,
   login,
+  googleAuth,
+  verifyEmail,
+  resendVerification,
   getMe,
   updateProfile,
   updateProfileComprehensive,

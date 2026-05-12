@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -17,12 +18,32 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+const hasGoogleSignIn = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const [infoMessage, setInfoMessage] = useState('');
+  const [verifyGateEmail, setVerifyGateEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+  const { login, resendVerificationEmail, loginWithGoogle } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registered') === '1') {
+      const sent = params.get('emailSent');
+      setInfoMessage(
+        sent === '0'
+          ? 'Account created. We could not send the verification email yet (check server mail settings). After mail is configured, use “Resend verification” below with your email.'
+          : 'Account created. Check your email for a verification link, then sign in here.'
+      );
+    }
+  }, []);
 
   const {
     register,
@@ -35,6 +56,8 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setError('');
+    setVerifyGateEmail(null);
+    setResendMessage('');
 
     try {
       const result = await login(data.email, data.password);
@@ -55,11 +78,52 @@ export default function LoginPage() {
         }
       } else {
         setError(result.message);
+        if (result.code === 'EMAIL_NOT_VERIFIED') {
+          setVerifyGateEmail(data.email);
+        }
       }
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!verifyGateEmail) return;
+    setResendLoading(true);
+    setResendMessage('');
+    const r = await resendVerificationEmail(verifyGateEmail);
+    setResendMessage(r.message);
+    setResendLoading(false);
+  };
+
+  const handleGoogleSuccess = async (credential: string) => {
+    setError('');
+    setVerifyGateEmail(null);
+    setResendMessage('');
+    setGoogleLoading(true);
+    try {
+      const result = await loginWithGoogle(credential);
+      if (result.success) {
+        if (result.user?.isAdmin) {
+          router.push('/admin');
+        } else {
+          const userName = result.user?.firstName || result.user?.fullName;
+          const params = new URLSearchParams();
+          params.set('loginSuccess', 'true');
+          if (userName) {
+            params.set('userName', userName);
+          }
+          router.push(`/?${params.toString()}`);
+        }
+      } else {
+        setError(result.message);
+      }
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -98,7 +162,48 @@ export default function LoginPage() {
           transition={{ delay: 0.3 }}
           className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8"
         >
+          {hasGoogleSignIn && (
+            <>
+              <div className="flex flex-col items-stretch gap-2">
+                <GoogleLogin
+                  onSuccess={async (credentialResponse) => {
+                    const c = credentialResponse.credential;
+                    if (c) await handleGoogleSuccess(c);
+                  }}
+                  onError={() => setError('Google sign-in failed')}
+                  useOneTap={false}
+                  theme="outline"
+                  size="large"
+                  width="100%"
+                  text="continue_with"
+                  shape="rectangular"
+                />
+                {googleLoading && (
+                  <p className="text-center text-sm text-gray-500 dark:text-gray-400">Signing in…</p>
+                )}
+              </div>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    Or continue with email
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {infoMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3"
+              >
+                <p className="text-sm text-blue-800 dark:text-blue-200">{infoMessage}</p>
+              </motion.div>
+            )}
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -171,9 +276,22 @@ export default function LoginPage() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3"
+                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 space-y-3"
               >
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                {verifyGateEmail && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendLoading}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50"
+                  >
+                    {resendLoading ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                )}
+                {resendMessage && (
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{resendMessage}</p>
+                )}
               </motion.div>
             )}
 
@@ -182,7 +300,7 @@ export default function LoginPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || googleLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
             >
               {isLoading ? (

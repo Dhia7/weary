@@ -24,8 +24,16 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string; user?: User }>;
-  signup: (userData: SignupData) => Promise<{ success: boolean; message: string; user?: User }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string; user?: User; code?: string }>;
+  signup: (userData: SignupData) => Promise<{
+    success: boolean;
+    message: string;
+    user?: User;
+    requiresEmailVerification?: boolean;
+    emailSent?: boolean;
+  }>;
+  resendVerificationEmail: (email: string) => Promise<{ success: boolean; message: string }>;
+  loginWithGoogle: (credential: string) => Promise<{ success: boolean; message: string; user?: User }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean; message: string }>;
@@ -147,7 +155,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return { success: true, message: data.message, user: data.data.user };
       } else {
-        return { success: false, message: data.message || 'Login failed' };
+        return {
+          success: false,
+          message: data.message || 'Login failed',
+          code: data.code,
+        };
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -168,17 +180,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (response.ok) {
+        const payload = data.data;
+        if (payload?.token) {
+          setUser(payload.user);
+          setToken(payload.token);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('token', payload.token);
+          }
+        } else {
+          setUser(null);
+          setToken(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+          }
+        }
+        return {
+          success: true,
+          message: data.message,
+          user: payload?.user,
+          requiresEmailVerification: payload?.requiresEmailVerification,
+          emailSent: payload?.emailSent,
+        };
+      } else {
+        return { success: false, message: data.message || 'Registration failed' };
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
+  const loginWithGoogle = async (credential: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await response.json();
+      if (response.ok) {
         setUser(data.data.user);
         setToken(data.data.token);
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', data.data.token);
         }
         return { success: true, message: data.message, user: data.data.user };
-      } else {
-        return { success: false, message: data.message || 'Registration failed' };
       }
+      return { success: false, message: data.message || 'Google sign-in failed' };
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('Google login error:', error);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, message: data.message || 'Request processed.' };
+      }
+      return { success: false, message: data.message || 'Could not send verification email.' };
+    } catch (error) {
+      console.error('Resend verification error:', error);
       return { success: false, message: 'Network error. Please try again.' };
     }
   };
@@ -389,6 +457,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     login,
     signup,
+    resendVerificationEmail,
+    loginWithGoogle,
     logout,
     refreshUser,
     updateProfile,

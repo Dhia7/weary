@@ -13,6 +13,19 @@ JWT_SECRET=your_super_secure_jwt_secret_key_for_production
 FRONTEND_URL=https://your-frontend-app.onrender.com
 ```
 
+### Sign in with Google (backend):
+```
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+```
+Use the same OAuth Web client ID as on Vercel (`NEXT_PUBLIC_GOOGLE_CLIENT_ID`). See [GOOGLE_SIGNIN.md](./GOOGLE_SIGNIN.md).
+
+### Sign in with Google (Vercel frontend):
+In the Vercel project → Environment Variables:
+```
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+```
+Redeploy the frontend after adding it. In Google Cloud Console, add your Vercel URL under **Authorized JavaScript origins** for that OAuth client.
+
 ### Important Notes:
 - **Do NOT set any SSL-related environment variables** (SSL_CERT, SSL_KEY, SSL_CA, HTTPS_PORT, SSL_PORT)
 - Render handles SSL termination at the load balancer level
