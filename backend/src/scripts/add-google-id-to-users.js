@@ -1,45 +1,35 @@
 const { sequelize } = require('../config/database');
+const User = require('../models/User');
 
 /**
- * Adds nullable unique googleId to Users table for Sign in with Google.
+ * Adds nullable unique googleId to the User model's table for Sign in with Google.
  * Safe to run multiple times (idempotent).
  */
 async function addGoogleIdToUsers() {
   try {
-    const [tableResults] = await sequelize.query(`
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-        AND lower(table_name) = 'users'
-        AND table_type = 'BASE TABLE'
-    `);
-
-    if (!tableResults.length) {
-      console.log('⚠️  Users table not found; skipping googleId migration.');
-      return;
-    }
-
-    const usersTable = tableResults[0].table_name;
+    const usersTable = User.tableName;
+    const qi = sequelize.getQueryInterface();
+    const quotedTable = qi.quoteIdentifier(usersTable);
 
     const [colResults] = await sequelize.query(
       `
       SELECT column_name
       FROM information_schema.columns
       WHERE table_schema = 'public'
-        AND table_name = $1
+        AND table_name = :tableName
         AND column_name = 'googleId'
     `,
-      { bind: [usersTable] }
+      { replacements: { tableName: usersTable } }
     );
 
     if (colResults.length === 0) {
       await sequelize.query(`
-        ALTER TABLE "${usersTable}"
+        ALTER TABLE ${quotedTable}
         ADD COLUMN "googleId" VARCHAR(255) NULL
       `);
-      console.log('✅ Added googleId column to Users table');
+      console.log(`✅ Added googleId column to table ${quotedTable}`);
     } else {
-      console.log('✅ googleId column already exists on Users table');
+      console.log('✅ googleId column already exists on User table');
     }
 
     const [idxResults] = await sequelize.query(
@@ -47,16 +37,16 @@ async function addGoogleIdToUsers() {
       SELECT indexname
       FROM pg_indexes
       WHERE schemaname = 'public'
-        AND tablename = $1
+        AND tablename = :tableName
         AND indexname = 'users_google_id_unique'
     `,
-      { bind: [usersTable] }
+      { replacements: { tableName: usersTable } }
     );
 
     if (idxResults.length === 0) {
       await sequelize.query(`
         CREATE UNIQUE INDEX users_google_id_unique
-        ON "${usersTable}" ("googleId")
+        ON ${quotedTable} ("googleId")
         WHERE "googleId" IS NOT NULL
       `);
       console.log('✅ Created partial unique index on googleId');
