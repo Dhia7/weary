@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=2574&auto=format&fit=crop';
+  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=75&w=1920&auto=format&fit=crop';
 
 const Hero = () => {
   const { isFrench } = useLanguage();
@@ -30,6 +30,7 @@ const Hero = () => {
           fill
           className="object-cover"
           priority
+          quality={75}
           sizes="100vw"
         />
         <div className="absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />

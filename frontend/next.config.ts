@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      '@heroicons/react',
+      'framer-motion',
+      'recharts',
+    ],
+  },
   // Removed outputFileTracingRoot as it can cause 404 errors on Vercel
   // outputFileTracingRoot: __dirname,
   // Google Sign-In uses window.postMessage; default strict COOP can break the flow in some browsers.

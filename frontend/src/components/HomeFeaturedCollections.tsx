@@ -15,7 +15,7 @@ const COLLECTIONS = [
     description: 'Coats, jackets & accessories',
     descriptionFr: 'Manteaux, vestes & accessoires',
     image:
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=2672&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=75&w=1200&auto=format&fit=crop',
     href: '/category/men',
   },
   {
@@ -27,7 +27,7 @@ const COLLECTIONS = [
     description: 'Dresses, silks & leather goods',
     descriptionFr: 'Robes, soieries & maroquinerie',
     image:
-      'https://images.unsplash.com/photo-1713425885188-f1daa057691f?q=80&w=711&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      'https://images.unsplash.com/photo-1713425885188-f1daa057691f?q=75&w=1200&auto=format&fit=crop',
     href: '/category/women',
   },
 ];

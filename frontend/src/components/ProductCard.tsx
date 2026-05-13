@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, memo } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShoppingBagIcon, EyeIcon } from '@heroicons/react/24/outline';
@@ -8,8 +9,9 @@ import { useCart } from '@/lib/contexts/CartContext';
 import { getImageUrl } from '@/lib/utils';
 import WishlistButton from './WishlistButton';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
-import QuickViewModal from './QuickViewModal';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+
+const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
 
 interface Product {
   id: number;
@@ -192,11 +194,13 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             </div>
           </div>
         </Link>
-        <QuickViewModal
-          isOpen={isQuickViewOpen}
-          onClose={() => setIsQuickViewOpen(false)}
-          product={product}
-        />
+        {isQuickViewOpen ? (
+          <QuickViewModal
+            isOpen={isQuickViewOpen}
+            onClose={() => setIsQuickViewOpen(false)}
+            product={product}
+          />
+        ) : null}
       </div>
     );
   }
@@ -329,11 +333,13 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
         </div>
       </Link>
 
-      <QuickViewModal
-        isOpen={isQuickViewOpen}
-        onClose={() => setIsQuickViewOpen(false)}
-        product={product}
-      />
+      {isQuickViewOpen ? (
+        <QuickViewModal
+          isOpen={isQuickViewOpen}
+          onClose={() => setIsQuickViewOpen(false)}
+          product={product}
+        />
+      ) : null}
     </div>
   );
 }, (prevProps, nextProps) => {

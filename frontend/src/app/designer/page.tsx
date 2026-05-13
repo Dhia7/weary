@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import TShirt3D, { exportTShirtAsPNG, exportTShirtAsPNGBlob } from '@/components/TShirt3D';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { 
   Upload, 
@@ -19,6 +19,15 @@ import {
   Mail,
   Shirt
 } from 'lucide-react';
+
+const TShirt3D = dynamic(() => import('@/components/TShirt3D'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-900">
+      <span className="text-sm text-gray-500 dark:text-gray-400">Loading 3D designer…</span>
+    </div>
+  ),
+});
 
 interface DesignElement {
   id: string;
@@ -264,6 +273,7 @@ export default function DesignerPage() {
 
   const handleExport = async () => {
     try {
+      const { exportTShirtAsPNG } = await import('@/components/TShirt3D');
       await exportTShirtAsPNG(tshirtColor, elements, selectedModel);
     } catch (error) {
       console.error('Error exporting PNG:', error);
@@ -304,6 +314,7 @@ export default function DesignerPage() {
       setOrderError(null);
       
       // Export the design as PNG blob using the 3D renderer
+      const { exportTShirtAsPNGBlob } = await import('@/components/TShirt3D');
       const designBlob = await exportTShirtAsPNGBlob(tshirtColor, elements, selectedModel);
 
       // Create FormData and send to backend

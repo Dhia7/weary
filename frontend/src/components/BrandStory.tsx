@@ -22,7 +22,7 @@ export default function BrandStory() {
             <div className="absolute -top-8 -left-8 md:-top-10 md:-left-10 w-32 h-32 md:w-40 md:h-40 border-l border-t border-swisse-gold/30" />
             <div className="relative z-10">
               <Image
-                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop"
+                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=75&w=1200&auto=format&fit=crop"
                 alt={isFrench ? 'Savoir-faire Swisse' : 'Swissé craftsmanship'}
                 width={900}
                 height={1100}

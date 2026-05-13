@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   ShoppingBagIcon,
@@ -8,11 +9,12 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import CartPanel from './CartPanel';
 import SearchAutocomplete from './SearchAutocomplete';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCart } from '@/lib/contexts/CartContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+
+const CartPanel = dynamic(() => import('./CartPanel'), { ssr: false });
 
 const mainNav = [
   { name: 'Home', href: '/' },
@@ -202,7 +204,9 @@ const Navigation = () => {
         </div>
       )}
 
-      <CartPanel isOpen={isCartPanelOpen} onClose={() => setIsCartPanelOpen(false)} />
+      {isCartPanelOpen ? (
+        <CartPanel isOpen={isCartPanelOpen} onClose={() => setIsCartPanelOpen(false)} />
+      ) : null}
     </nav>
   );
 };

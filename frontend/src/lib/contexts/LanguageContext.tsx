@@ -1,8 +1,15 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useSyncExternalStore,
+} from 'react';
 
-type Language = 'en' | 'fr';
+export type Language = 'en' | 'fr';
 
 interface LanguageContextType {
   language: Language;
@@ -13,38 +20,76 @@ interface LanguageContextType {
 
 const LANGUAGE_STORAGE_KEY = 'language';
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const languageListeners = new Set<() => void>();
+let languageStoreHydrated = false;
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('fr');
-  const [mounted, setMounted] = useState(false);
+function subscribe(listener: () => void) {
+  languageListeners.add(listener);
+  return () => {
+    languageListeners.delete(listener);
+  };
+}
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setMounted(true);
-    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
-    if (savedLanguage === 'en' || savedLanguage === 'fr') {
-      setLanguageState(savedLanguage);
-      document.documentElement.lang = savedLanguage;
-    } else {
-      setLanguageState('fr');
-      document.documentElement.lang = 'fr';
+function notifyLanguageListeners() {
+  languageListeners.forEach((listener) => listener());
+}
+
+function readStoredLanguage(fallback: Language): Language {
+  if (typeof window === 'undefined') return fallback;
+  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  if (stored === 'en' || stored === 'fr') return stored;
+  return fallback;
+}
+
+function persistLanguage(language: Language) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  document.documentElement.lang = language;
+  document.cookie = `${LANGUAGE_STORAGE_KEY}=${language};path=/;max-age=31536000;SameSite=Lax`;
+}
+
+function getClientLanguageSnapshot(serverLanguage: Language): Language {
+  if (!languageStoreHydrated) return serverLanguage;
+  return readStoredLanguage(serverLanguage);
+}
+
+export function LanguageProvider({
+  children,
+  initialLanguage = 'fr',
+}: {
+  children: React.ReactNode;
+  initialLanguage?: Language;
+}) {
+  const language = useSyncExternalStore(
+    subscribe,
+    () => getClientLanguageSnapshot(initialLanguage),
+    () => initialLanguage
+  );
+
+  useLayoutEffect(() => {
+    languageStoreHydrated = true;
+    const stored = readStoredLanguage(initialLanguage);
+    if (!localStorage.getItem(LANGUAGE_STORAGE_KEY)) {
+      persistLanguage(initialLanguage);
+    } else if (stored !== initialLanguage) {
+      persistLanguage(stored);
     }
-  }, []);
+    notifyLanguageListeners();
+  }, [initialLanguage]);
 
-  useEffect(() => {
-    if (!mounted || typeof window === 'undefined') return;
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    document.documentElement.lang = language;
-  }, [language, mounted]);
+  const setLanguage = useCallback((next: Language) => {
+    persistLanguage(next);
+    notifyLanguageListeners();
+  }, []);
 
   const value = useMemo(
     () => ({
       language,
       isFrench: language === 'fr',
-      setLanguage: setLanguageState,
-      toggleLanguage: () => setLanguageState((prev) => (prev === 'en' ? 'fr' : 'en')),
+      setLanguage,
+      toggleLanguage: () => setLanguage(language === 'en' ? 'fr' : 'en'),
     }),
-    [language]
+    [language, setLanguage]
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

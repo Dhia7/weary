@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { CHUNK_RECOVERY_INLINE_SCRIPT } from "@/lib/chunkRecoveryInlineScript";
+import { LANGUAGE_INLINE_SCRIPT } from "@/lib/languageInlineScript";
 import { THEME_INLINE_SCRIPT } from "@/lib/themeInlineScript";
+import type { Language } from "@/lib/contexts/LanguageContext";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -54,14 +57,29 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+function resolveInitialLanguage(value: string | undefined): Language {
+  return value === "en" || value === "fr" ? value : "fr";
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const initialLanguage = resolveInitialLanguage(
+    cookieStore.get("language")?.value
+  );
+
   return (
-    <html lang="en" suppressHydrationWarning={true}>
+    <html lang={initialLanguage} suppressHydrationWarning={true}>
       <head>
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.fontshare.com" />
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: LANGUAGE_INLINE_SCRIPT }}
+        />
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: THEME_INLINE_SCRIPT }}
@@ -79,7 +97,7 @@ export default function RootLayout({
         className="min-h-screen bg-swisse-canvas text-swisse-ink antialiased transition-colors duration-200"
         suppressHydrationWarning={true}
       >
-        <Providers>
+        <Providers initialLanguage={initialLanguage}>
           {children}
         </Providers>
       </body>
