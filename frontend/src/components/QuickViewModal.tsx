@@ -159,6 +159,9 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
       onClick={handleBackdropClick}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-view-title"
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col transform transition-all duration-200 scale-100 opacity-100"
         onClick={(e) => e.stopPropagation()}
       >
@@ -232,7 +235,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               )}
 
               {/* Product Name */}
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+              <h2 id="quick-view-title" className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                 {product.name}
               </h2>
 

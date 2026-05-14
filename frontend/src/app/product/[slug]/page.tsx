@@ -502,9 +502,9 @@ export default function ProductDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-8">
+        <nav aria-label="Breadcrumb" className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-8">
           <Link href="/" className="hover:text-gray-700 dark:hover:text-gray-300">
             Home
           </Link>
@@ -665,8 +665,10 @@ export default function ProductDetailPage() {
                 {getOrderedImages(product).map((image, index) => (
                   <button
                     key={index}
+                    type="button"
                     onClick={() => setSelectedImageIndex(index)}
-                    title={`Select image ${index + 1}`}
+                    aria-label={`View image ${index + 1} of ${getOrderedImages(product).length}`}
+                    aria-current={selectedImageIndex === index ? 'true' : undefined}
                     className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
                       selectedImageIndex === index
                         ? 'border-blue-500 dark:border-blue-400'
@@ -950,7 +952,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
       
       {/* Cart Panel */}
       <CartPanel 

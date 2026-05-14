@@ -58,30 +58,30 @@ export default function BrandStory() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               <div>
-                <h5 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
+                <h3 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
                   {isFrench ? '01' : '01'}
-                </h5>
-                <p className="text-xs text-swisse-ink/50 uppercase tracking-widest">
+                </h3>
+                <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
                     ? 'Commandez en ligne Sélectionnez vos pièces, payez à la livraison (payez à la réception de votre commande) ou par carte/virement.'
                     : 'Order online: select your pieces, then pay on delivery (upon receipt of your order) or by card/bank transfer.'}
                 </p>
               </div>
               <div>
-                <h5 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
+                <h3 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
                   {isFrench ? '02' : '02'}
-                </h5>
-                <p className="text-xs text-swisse-ink/50 uppercase tracking-widest">
+                </h3>
+                <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
                     ? 'Expédition depuis Genève Votre colis est préparé et expédié sous 48h ouvrées, douane incluse.'
                     : 'Shipping from Geneva: your package is prepared and dispatched within 48 business hours, customs included.'}
                 </p>
               </div>
               <div>
-                <h5 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
+                <h3 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
                   {isFrench ? '03' : '03'}
-                </h5>
-                <p className="text-xs text-swisse-ink/50 uppercase tracking-widest">
+                </h3>
+                <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
                     ? 'Livraison à domicile en Tunisie Réception en 5 à 7 jours dans toute la Tunisie, emballage signature inclus.'
                     : 'Home delivery in Tunisia: receive your order in 5 to 7 days across Tunisia, with signature packaging included.'}

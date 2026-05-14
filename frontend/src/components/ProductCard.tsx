@@ -175,9 +175,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
         <Link href={`/product/${product.slug}`} className="block">
           <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
-              <h4 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
+              <h3 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
                 {product.name}
-              </h4>
+              </h3>
               <p className="text-xs text-swisse-ink/60 dark:text-muted-foreground">
                 {getCategoryName(product.categories)}
               </p>

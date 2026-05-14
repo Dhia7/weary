@@ -36,7 +36,10 @@ export default function HomeFeaturedCollections() {
   const { isFrench } = useLanguage();
 
   return (
-    <section id="collections" className="py-24 md:py-32 px-6 md:px-8 max-w-swisse mx-auto">
+    <section id="collections" aria-labelledby="collections-heading" className="py-24 md:py-32 px-6 md:px-8 max-w-swisse mx-auto">
+      <h2 id="collections-heading" className="sr-only">
+        {isFrench ? 'Collections' : 'Collections'}
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
         {COLLECTIONS.map((col, index) => (
           <motion.div
@@ -45,19 +48,20 @@ export default function HomeFeaturedCollections() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.7, delay: index * 0.15 }}
-            className="group relative h-[520px] md:h-[640px] lg:h-[700px] overflow-hidden"
+            className="group relative h-[420px] sm:h-[520px] md:h-[640px] lg:h-[700px] overflow-hidden"
           >
             <Link href={col.href} className="block h-full w-full">
               <Image
                 src={col.image}
-                alt={col.title}
+                alt={isFrench ? col.titleFr : col.title}
                 fill
                 className="object-cover transition-transform duration-1000 group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, 50vw"
+                loading="lazy"
               />
               <div className="absolute inset-0 bg-white/10 transition-colors duration-500 group-hover:bg-swisse-canvas/20" />
               <div className="absolute bottom-10 left-8 md:bottom-12 md:left-12 z-10">
-                <span className="inline-block mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-swisse-ink/75">
+                <span className="inline-block mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-swisse-ink/85">
                   {isFrench ? col.tagFr : col.tag}
                 </span>
                 <h3 className="font-serif text-3xl md:text-4xl text-swisse-ink mb-4">

@@ -149,7 +149,7 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -164,8 +164,11 @@ export default function ProductsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Sort by:</span>
+              <label htmlFor="products-sort" className="text-sm text-gray-600 dark:text-gray-400">
+                Sort by:
+              </label>
               <select
+                id="products-sort"
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [newSortBy, newSortOrder] = e.target.value.split('-');
@@ -188,9 +191,11 @@ export default function ProductsPage() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
             <button
+              type="button"
               onClick={() => setViewMode('grid')}
-              title="Grid view"
-              className={`p-2 rounded-md ${
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 ${
                 viewMode === 'grid'
                   ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -199,9 +204,11 @@ export default function ProductsPage() {
               <Grid className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('list')}
-              title="List view"
-              className={`p-2 rounded-md ${
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 ${
                 viewMode === 'list'
                   ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -272,7 +279,7 @@ export default function ProductsPage() {
             </nav>
           </div>
         )}
-      </div>
+      </main>
       
       <Footer />
     </div>

@@ -58,6 +58,18 @@
     color-scheme: light;
   }
 
+  #collections,
+  #most-loved,
+  #brand-story {
+    scroll-margin-top: 5.5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
   html.dark {
     color-scheme: dark;
   }

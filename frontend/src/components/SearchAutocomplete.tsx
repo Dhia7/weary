@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MagnifyingGlassIcon,
@@ -64,6 +64,9 @@ const SearchAutocomplete = ({
   placeholder = 'Search for products...' 
 }: SearchAutocompleteProps) => {
   const { isFrench } = useLanguage();
+  const fieldId = useId();
+  const searchInputId = `${fieldId}-search`;
+  const categoryMenuId = `${fieldId}-category-menu`;
   const resolvedPlaceholder =
     placeholder === 'Search for products...' && isFrench ? 'Rechercher des produits...' : placeholder;
   const [query, setQuery] = useState('');
@@ -282,7 +285,13 @@ const SearchAutocomplete = ({
               onClick={() => setIsCategoryOpen((v) => !v)}
               className="h-full inline-flex items-center gap-1.5 px-3 text-[11px] font-bold uppercase tracking-widest text-swisse-ink/80 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary border-r border-swisse-gold/20 dark:border-border"
               aria-haspopup="menu"
-              aria-controls="search-category-menu"
+              aria-controls={categoryMenuId}
+              aria-expanded={isCategoryOpen}
+              aria-label={
+                isFrench
+                  ? `Filtrer par categorie : ${selectedCategory.labelFr}`
+                  : `Filter by category: ${selectedCategory.label}`
+              }
             >
               <span className="whitespace-nowrap">
                 {isFrench ? selectedCategory.labelFr : selectedCategory.label}
@@ -294,7 +303,7 @@ const SearchAutocomplete = ({
 
             {isCategoryOpen && (
               <div
-                id="search-category-menu"
+                id={categoryMenuId}
                 className="absolute left-0 top-full mt-2 w-52 rounded-md border border-swisse-gold/15 bg-swisse-canvas dark:bg-popover dark:border-border shadow-lg py-1 z-50"
                 role="menu"
               >
@@ -332,9 +341,17 @@ const SearchAutocomplete = ({
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
             </div>
+            <label htmlFor={searchInputId} className="sr-only">
+              {isFrench ? 'Rechercher des produits' : 'Search products'}
+            </label>
             <input
               ref={inputRef}
-              type="text"
+              id={searchInputId}
+              type="search"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={isOpen}
+              aria-controls={isOpen ? `${fieldId}-results` : undefined}
               placeholder={resolvedPlaceholder}
               value={query}
               onChange={(e) => {
@@ -357,6 +374,7 @@ const SearchAutocomplete = ({
       {isOpen && (
         <div
           ref={dropdownRef}
+          id={`${fieldId}-results`}
           className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto"
         >
           {loading ? (

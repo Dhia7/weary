@@ -57,6 +57,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 function resolveInitialLanguage(value: string | undefined): Language {
   return value === "en" || value === "fr" ? value : "fr";
 }
@@ -97,6 +103,12 @@ export default async function RootLayout({
         className="min-h-screen bg-swisse-canvas text-swisse-ink antialiased transition-colors duration-200"
         suppressHydrationWarning={true}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-swisse-ink focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-swisse-canvas"
+        >
+          Skip to main content
+        </a>
         <Providers initialLanguage={initialLanguage}>
           {children}
         </Providers>

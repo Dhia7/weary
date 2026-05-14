@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   ShoppingBagIcon,
   UserIcon,
@@ -13,14 +14,21 @@ import SearchAutocomplete from './SearchAutocomplete';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCart } from '@/lib/contexts/CartContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { scrollToHomeSection } from '@/lib/homeSectionNavigation';
 
 const CartPanel = dynamic(() => import('./CartPanel'), { ssr: false });
 
-const mainNav = [
+type MainNavItem = {
+  name: string;
+  href: string;
+  sectionId?: string;
+};
+
+const mainNav: MainNavItem[] = [
   { name: 'Home', href: '/' },
-  { name: 'Collections', href: '/#collections' },
-  { name: 'Featured', href: '/#most-loved' },
-  { name: 'How it Works', href: '/#brand-story' },
+  { name: 'Collections', href: '/collections', sectionId: 'collections' },
+  { name: 'Featured', href: '/products', sectionId: 'most-loved' },
+  { name: 'How it Works', href: '/about', sectionId: 'brand-story' },
 ];
 
 const Navigation = () => {
@@ -29,7 +37,20 @@ const Navigation = () => {
   const { user, logout } = useAuth();
   const { totalQuantity } = useCart();
   const { language, toggleLanguage } = useLanguage();
+  const pathname = usePathname();
   const isFrench = language === 'fr';
+  const isHome = pathname === '/';
+
+  const handleSectionNavClick = (
+    item: MainNavItem,
+    event: React.MouseEvent<HTMLAnchorElement>
+  ) => {
+    if (!item.sectionId || !isHome) return;
+
+    event.preventDefault();
+    scrollToHomeSection(item.sectionId);
+    setIsMobileMenuOpen(false);
+  };
 
   const translatedMainNav = mainNav.map((item) => {
     if (!isFrench) return item;
@@ -45,7 +66,7 @@ const Navigation = () => {
   });
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-swisse-gold/15 bg-swisse-canvas/95 backdrop-blur-md dark:bg-background/95 dark:border-border">
+    <nav aria-label={isFrench ? 'Navigation principale' : 'Primary navigation'} className="fixed top-0 left-0 right-0 z-50 border-b border-swisse-gold/15 bg-swisse-canvas/95 backdrop-blur-md dark:bg-background/95 dark:border-border">
       <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-[4.25rem]">
           <div className="flex-shrink-0">
@@ -56,7 +77,12 @@ const Navigation = () => {
 
           <div className="hidden lg:flex items-center gap-8 xl:gap-10">
             {translatedMainNav.map((item) => (
-              <Link key={item.name} href={item.href} className="nav-link">
+              <Link
+                key={item.name}
+                href={item.href}
+                className="nav-link"
+                onClick={(event) => handleSectionNavClick(item, event)}
+              >
                 {item.name}
               </Link>
             ))}
@@ -70,7 +96,7 @@ const Navigation = () => {
             <button
               type="button"
               onClick={toggleLanguage}
-              className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded border border-swisse-gold/30 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded border border-swisse-gold/30 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
               aria-label={isFrench ? 'Switch language to English' : 'Basculer la langue en francais'}
             >
               {isFrench ? 'FR' : 'EN'}
@@ -78,7 +104,7 @@ const Navigation = () => {
             <button
               type="button"
               onClick={() => setIsCartPanelOpen(true)}
-              className="relative p-2 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
+              className="relative inline-flex min-h-11 min-w-11 items-center justify-center p-2 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
               aria-label={isFrench ? 'Ouvrir le panier' : 'Open cart'}
             >
               <ShoppingBagIcon className="h-6 w-6" />
@@ -93,7 +119,8 @@ const Navigation = () => {
               <div className="relative group">
                 <Link
                   href="/account"
-                  className="p-2 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
+                  aria-label={isFrench ? 'Mon compte' : 'My account'}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center p-2 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
                 >
                   <UserIcon className="h-6 w-6" />
                 </Link>
@@ -124,7 +151,8 @@ const Navigation = () => {
             ) : (
               <Link
                 href="/auth/login"
-                className="p-2 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
+                aria-label={isFrench ? 'Connexion' : 'Sign in'}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center p-2 text-swisse-ink hover:text-swisse-gold dark:text-foreground dark:hover:text-primary transition-colors"
               >
                 <UserIcon className="h-6 w-6" />
               </Link>
@@ -133,7 +161,7 @@ const Navigation = () => {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 text-swisse-ink dark:text-foreground"
+              className="lg:hidden inline-flex min-h-11 min-w-11 items-center justify-center p-2 text-swisse-ink dark:text-foreground"
               aria-label={
                 isMobileMenuOpen
                   ? isFrench
@@ -162,7 +190,10 @@ const Navigation = () => {
                 key={item.name}
                 href={item.href}
                 className="block py-2 text-xs font-bold uppercase tracking-widest text-swisse-ink hover:text-swisse-gold dark:text-foreground"
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={(event) => {
+                  handleSectionNavClick(item, event);
+                  setIsMobileMenuOpen(false);
+                }}
               >
                 {item.name}
               </Link>

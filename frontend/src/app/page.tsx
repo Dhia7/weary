@@ -40,12 +40,14 @@ export default function Home() {
         <HomeUrlNotifications />
       </Suspense>
       <Navigation />
-      <Hero />
-      <HomeFeaturedCollections />
-      <ManifestoBanner />
-      <FeaturedProducts />
-      <BrandStory />
-      <NewsletterSignup />
+      <main id="main-content">
+        <Hero />
+        <HomeFeaturedCollections />
+        <ManifestoBanner />
+        <FeaturedProducts />
+        <BrandStory />
+        <NewsletterSignup />
+      </main>
       <Footer />
     </div>
   );

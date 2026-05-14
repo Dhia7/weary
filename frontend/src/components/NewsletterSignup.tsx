@@ -45,11 +45,16 @@ const NewsletterSignup = () => {
             onSubmit={handleSubmit}
             className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-end"
           >
+            <label htmlFor="newsletter-email" className="sr-only">
+              {isFrench ? 'Adresse e-mail' : 'Email address'}
+            </label>
             <input
+              id="newsletter-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={isFrench ? 'Votre adresse e-mail' : 'Your email address'}
+              autoComplete="email"
               required
               className="flex-1 bg-transparent border-b border-swisse-gold/30 dark:border-border py-4 px-2 outline-none focus:border-swisse-gold dark:focus:border-primary text-swisse-ink dark:text-foreground placeholder:text-swisse-ink/40 dark:placeholder:text-muted-foreground transition-colors text-left"
             />

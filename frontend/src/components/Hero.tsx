@@ -5,17 +5,15 @@ import Image from 'next/image';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { scrollToHomeSection } from '@/lib/homeSectionNavigation';
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=75&w=1920&auto=format&fit=crop';
+  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=75&w=1200&auto=format&fit=crop';
 
 const Hero = () => {
   const { isFrench } = useLanguage();
   const scrollToContent = () => {
-    window.scrollTo({
-      top: window.innerHeight,
-      behavior: 'smooth',
-    });
+    scrollToHomeSection('collections');
   };
 
   return (
@@ -106,7 +104,11 @@ const Hero = () => {
               {isFrench ? 'Decouvrir la Collection' : 'Discover the Collection'}
             </Link>
             <Link
-              href="#brand-story"
+              href="/about"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToHomeSection('brand-story');
+              }}
               className="group inline-flex items-center justify-center sm:justify-start gap-3 text-xs font-bold uppercase tracking-widest text-swisse-ink dark:text-swisse-canvas"
             >
               <span>{isFrench ? 'Comment ca marche ?' : 'How it Works?'}</span>
@@ -119,7 +121,7 @@ const Hero = () => {
       <button
         type="button"
         onClick={scrollToContent}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4 text-swisse-ink/50 dark:text-swisse-canvas/50 hover:text-swisse-gold transition-colors"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex min-h-11 flex-col items-center gap-4 text-swisse-ink/70 dark:text-swisse-canvas/70 hover:text-swisse-gold transition-colors"
         aria-label={isFrench ? 'Defiler vers le contenu' : 'Scroll to content'}
       >
         <span className="text-[10px] uppercase tracking-[0.5em] rotate-90 -translate-y-5">

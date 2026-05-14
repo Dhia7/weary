@@ -360,11 +360,13 @@ export default function CheckoutPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2 space-y-2">
-                      <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                      <label htmlFor="checkout-full-name" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
                         {isFrench ? 'Nom complet' : 'Full Name'}
                       </label>
                       <input
+                        id="checkout-full-name"
                         type="text"
+                        autoComplete="name"
                         placeholder={isFrench ? 'Saisissez votre nom complet' : 'Enter your complete name'}
                         className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                         value={fullName}
@@ -372,11 +374,13 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                      <label htmlFor="checkout-email" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
                         {isFrench ? 'Adresse email' : 'Email Address'}
                       </label>
                       <input
+                        id="checkout-email"
                         type="email"
+                        autoComplete="email"
                         placeholder={isFrench ? 'email@domaine.com' : 'email@domain.com'}
                         className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                         value={billing.email}
@@ -384,11 +388,13 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                      <label htmlFor="checkout-phone" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
                         {isFrench ? 'Numéro de téléphone' : 'Phone Number'}
                       </label>
                       <input
+                        id="checkout-phone"
                         type="tel"
+                        autoComplete="tel"
                         placeholder="+216 -- --- ---"
                         className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                         value={billing.phone}
@@ -396,11 +402,13 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div className="md:col-span-2 space-y-2">
-                      <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                      <label htmlFor="checkout-street" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
                         {isFrench ? 'Adresse (facultatif)' : 'Street Address (optional)'}
                       </label>
                       <input
+                        id="checkout-street"
                         type="text"
+                        autoComplete="street-address"
                         placeholder={isFrench ? 'Appartement, immeuble, rue…' : 'Apt, suite, building, street (optional)'}
                         className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                         value={address.street}
@@ -702,11 +710,13 @@ export default function CheckoutPage() {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                       <div className="space-y-2">
-                        <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                        <label htmlFor="checkout-alt-phone" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
                           {isFrench ? 'Téléphone secondaire (optionnel)' : 'Alternate Phone (optional)'}
                         </label>
                         <input
+                          id="checkout-alt-phone"
                           type="tel"
+                          autoComplete="tel"
                           placeholder={isFrench ? 'Numéro secondaire' : 'Secondary phone number'}
                           className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                           value={billing.phoneAlt}
@@ -714,10 +724,11 @@ export default function CheckoutPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                        <label htmlFor="checkout-notes" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
                           {isFrench ? 'Notes de livraison (optionnel)' : 'Delivery Notes (optional)'}
                         </label>
                         <input
+                          id="checkout-notes"
                           type="text"
                           placeholder={isFrench ? 'Code, étage, instructions…' : 'Gate code, floor, instructions'}
                           className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"

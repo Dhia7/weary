@@ -79,16 +79,20 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
     <>
       {/* Backdrop */}
       {isOpen && (
-        <div 
+        <div
           className={`fixed inset-0 bg-black/60 z-[60] transition-opacity duration-200 ${
             isAnimating ? 'opacity-100' : 'opacity-0'
           }`}
           onClick={handleClose}
+          aria-hidden="true"
         />
       )}
 
       {/* Cart Panel */}
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-panel-title"
         className={`fixed inset-y-0 right-0 w-full sm:max-w-md lg:max-w-lg h-[100dvh] bg-card text-card-foreground shadow-2xl z-[70] transform transition-transform duration-200 ease-in-out ${
           isOpen && isAnimating ? 'translate-x-0' : 'translate-x-full'
         }`}
@@ -97,13 +101,14 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
         <div className="flex flex-col h-full min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border shrink-0 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-            <h2 className="text-lg font-display font-semibold text-foreground">
+            <h2 id="cart-panel-title" className="text-lg font-display font-semibold text-foreground">
               {isFrench ? 'Panier' : 'Shopping Cart'} ({items.reduce((sum, item) => sum + item.quantity, 0)})
             </h2>
             <button
+              type="button"
               onClick={handleClose}
-              className="p-2 hover:bg-muted rounded-full transition-colors"
-              title={isFrench ? 'Fermer le panier' : 'Close cart panel'}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center p-2 hover:bg-muted rounded-full transition-colors"
+              aria-label={isFrench ? 'Fermer le panier' : 'Close cart panel'}
             >
               <XMarkIcon className="w-5 h-5 text-muted-foreground" />
             </button>
@@ -172,7 +177,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         <button
                           onClick={() => updateQuantity(getCartItemKey(item), Math.max(1, item.quantity - 1))}
                           disabled={item.quantity <= 1}
-                          className="w-8 h-8 flex items-center justify-center border border-border rounded-md text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center border border-border rounded-md text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                           title={isFrench ? 'Diminuer la quantite' : 'Decrease quantity'}
                           aria-label={isFrench ? 'Diminuer la quantite' : 'Decrease quantity'}
                         >
@@ -183,7 +188,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         </span>
                         <button
                           onClick={() => updateQuantity(getCartItemKey(item), item.quantity + 1)}
-                          className="w-8 h-8 flex items-center justify-center border border-border rounded-md text-sm hover:bg-muted"
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center border border-border rounded-md text-sm hover:bg-muted"
                           title={isFrench ? 'Augmenter la quantite' : 'Increase quantity'}
                           aria-label={isFrench ? 'Augmenter la quantite' : 'Increase quantity'}
                         >
@@ -197,9 +202,14 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         {formatPrice(item.price * item.quantity)}
                       </p>
                       <button
+                        type="button"
                         onClick={() => removeItem(getCartItemKey(item))}
-                        className="mt-2 inline-flex items-center justify-center p-2 rounded-md text-red-500 hover:text-red-700 hover:bg-red-500/10 transition-colors"
-                        title={isFrench ? 'Supprimer l article' : 'Remove item'}
+                        className="mt-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-red-500 hover:text-red-700 hover:bg-red-500/10 transition-colors"
+                        aria-label={
+                          isFrench
+                            ? `Supprimer ${item.name} du panier`
+                            : `Remove ${item.name} from cart`
+                        }
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>

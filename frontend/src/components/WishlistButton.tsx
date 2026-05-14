@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 interface WishlistButtonProps {
   productId: string;
@@ -31,6 +32,7 @@ export default function WishlistButton({
   const [showTooltip, setShowTooltip] = useState(false);
   const [optimisticInWishlist, setOptimisticInWishlist] = useState<boolean>(false);
   const { showWishlistAdded } = useOrderNotification();
+  const { isFrench } = useLanguage();
 
   const isProductInWishlist = isInWishlist(productId);
 
@@ -99,11 +101,23 @@ export default function WishlistButton({
     }
   };
 
+  const wishlistLabel = optimisticInWishlist
+    ? isFrench
+      ? 'Retirer des favoris'
+      : 'Remove from wishlist'
+    : isFrench
+      ? 'Ajouter aux favoris'
+      : 'Add to wishlist';
+
   return (
-    <div className="relative">
+    <motion.div className="relative">
       <motion.button
         onClick={handleToggleWishlist}
         disabled={isLoading}
+        type="button"
+        aria-label={wishlistLabel}
+        aria-pressed={optimisticInWishlist}
+        aria-busy={isLoading}
         className={`
           ${sizeClasses[size]}
           ${variantClasses[variant]}
@@ -160,6 +174,6 @@ export default function WishlistButton({
           />
         </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
