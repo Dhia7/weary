@@ -6,9 +6,7 @@ import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { scrollToHomeSection } from '@/lib/homeSectionNavigation';
-
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=75&w=1200&auto=format&fit=crop';
+import { HOME_IMAGES, HERO_BLUR_DATA_URL } from '@/lib/homeImages';
 
 const Hero = () => {
   const { isFrench } = useLanguage();
@@ -23,13 +21,16 @@ const Hero = () => {
     >
       <div className="absolute inset-0">
         <Image
-          src={HERO_IMAGE}
+          src={HOME_IMAGES.hero}
           alt={isFrench ? 'Hero mode suisse' : 'Swiss fashion hero'}
           fill
           className="object-cover"
           priority
-          quality={75}
+          fetchPriority="high"
+          quality={65}
           sizes="100vw"
+          placeholder="blur"
+          blurDataURL={HERO_BLUR_DATA_URL}
         />
         <div className="absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />
       </div>

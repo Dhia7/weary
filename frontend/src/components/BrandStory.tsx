@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { HOME_IMAGES } from '@/lib/homeImages';
 
 export default function BrandStory() {
   const { isFrench } = useLanguage();
@@ -22,11 +23,14 @@ export default function BrandStory() {
             <div className="absolute -top-8 -left-8 md:-top-10 md:-left-10 w-32 h-32 md:w-40 md:h-40 border-l border-t border-swisse-gold/30" />
             <div className="relative z-10">
               <Image
-                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=75&w=1200&auto=format&fit=crop"
+                src={HOME_IMAGES.brandStory}
                 alt={isFrench ? 'Savoir-faire Swisse' : 'Swissé craftsmanship'}
                 width={900}
                 height={1100}
                 className="w-full h-auto grayscale hover:grayscale-0 transition-all duration-1000"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                quality={70}
+                loading="lazy"
               />
             </div>
             <div className="absolute -bottom-4 -right-4 md:-bottom-6 md:-right-6 px-8 py-6 md:px-12 md:py-8 bg-swisse-gold text-white font-serif text-lg md:text-xl z-20 shadow-xl">

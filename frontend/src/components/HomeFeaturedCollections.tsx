@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { HOME_IMAGES } from '@/lib/homeImages';
 
 const COLLECTIONS = [
   {
@@ -14,8 +15,7 @@ const COLLECTIONS = [
     tagFr: 'Nouvelle Arrivee',
     description: 'Coats, jackets & accessories',
     descriptionFr: 'Manteaux, vestes & accessoires',
-    image:
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=75&w=1200&auto=format&fit=crop',
+    image: HOME_IMAGES.menCollection,
     href: '/category/men',
   },
   {
@@ -26,8 +26,7 @@ const COLLECTIONS = [
     tagFr: 'Best-Sellers',
     description: 'Dresses, silks & leather goods',
     descriptionFr: 'Robes, soieries & maroquinerie',
-    image:
-      'https://images.unsplash.com/photo-1713425885188-f1daa057691f?q=75&w=1200&auto=format&fit=crop',
+    image: HOME_IMAGES.womenCollection,
     href: '/category/women',
   },
 ];
@@ -57,6 +56,7 @@ export default function HomeFeaturedCollections() {
                 fill
                 className="object-cover transition-transform duration-1000 group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, 50vw"
+                quality={70}
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-white/10 transition-colors duration-500 group-hover:bg-swisse-canvas/20" />
