@@ -6,7 +6,7 @@ import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { scrollToHomeSection } from '@/lib/homeSectionNavigation';
-import { HOME_IMAGES, HERO_BLUR_DATA_URL } from '@/lib/homeImages';
+import { HOME_IMAGES } from '@/lib/homeImages';
 
 const Hero = () => {
   const { isFrench } = useLanguage();
@@ -27,10 +27,8 @@ const Hero = () => {
           className="object-cover"
           priority
           fetchPriority="high"
-          quality={65}
           sizes="100vw"
-          placeholder="blur"
-          blurDataURL={HERO_BLUR_DATA_URL}
+          unoptimized
         />
         <div className="absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />
       </div>

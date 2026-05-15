@@ -1,11 +1,7 @@
-/** Home page imagery — WebP in /public/images (optimized by next/image). */
+/** Home page imagery — hero from Unsplash CDN; collections/brand story use local WebP. */
 export const HOME_IMAGES = {
-  hero: '/images/hero.webp',
+  hero: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=1920&auto=format&fit=crop',
   womenCollection: '/images/women-collection.webp',
   menCollection: '/images/men-collection.webp',
   brandStory: '/images/brand-story.webp',
 } as const;
-
-/** Tiny placeholder for hero LCP perceived load (12px WebP). */
-export const HERO_BLUR_DATA_URL =
-  'data:image/webp;base64,UklGRmYAAABXRUJQVlA4IFoAAAAwBACdASoMABIAP1WSv1WxqiajMAgCMCqJZQC2yBuuZiYPNHVaXxwJr2AA/oxlzEnzmFCX8c/vCCOjwVd3sINmKaNgh2oO2sj25JjlVrtOQxmfdc3vUVUAAAA=';

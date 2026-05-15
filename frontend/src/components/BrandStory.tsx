@@ -29,7 +29,6 @@ export default function BrandStory() {
                 height={1100}
                 className="w-full h-auto grayscale hover:grayscale-0 transition-all duration-1000"
                 sizes="(max-width: 1024px) 100vw, 50vw"
-                quality={70}
                 loading="lazy"
               />
             </div>

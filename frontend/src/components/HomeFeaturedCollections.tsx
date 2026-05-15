@@ -56,7 +56,6 @@ export default function HomeFeaturedCollections() {
                 fill
                 className="object-cover transition-transform duration-1000 group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, 50vw"
-                quality={70}
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-white/10 transition-colors duration-500 group-hover:bg-swisse-canvas/20" />

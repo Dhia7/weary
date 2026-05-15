@@ -82,6 +82,8 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.fontshare.com" />
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: LANGUAGE_INLINE_SCRIPT }}
