@@ -111,7 +111,7 @@ const FR = {
   selectImage: (n: number, total: number) => `Sélectionner l'image ${n} sur ${total}`,
 } as const;
 
-export type ProductTranslations = typeof EN;
+export type ProductTranslations = typeof EN | typeof FR;
 
 export function getProductTranslations(isFrench: boolean): ProductTranslations {
   return isFrench ? FR : EN;

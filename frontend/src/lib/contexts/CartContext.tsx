@@ -286,7 +286,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Match by product ID AND size (if size exists)
       setItems(prev => {
         const existing = prev.find(
-          (p) => getCartItemKey(p) === getCartItemKey({ ...item, quantity: 1 })
+          (p) => getCartItemKey(p) === getCartItemKey(item)
         );
         if (existing) {
           if (!allowQty) return prev;
@@ -295,7 +295,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ? Math.min(existing.quantity + addQty, maxStock)
               : existing.quantity + addQty;
           return prev.map((p) =>
-            getCartItemKey(p) === getCartItemKey({ ...item, quantity: 1 })
+            getCartItemKey(p) === getCartItemKey(item)
               ? { ...p, quantity: nextQty }
               : p
           );

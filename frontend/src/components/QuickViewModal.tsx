@@ -15,7 +15,6 @@ import {
   getVariantPrice,
   getColorPrice,
   formatPriceTnd,
-  formatProductPriceLabel,
   getProductMaxStock,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
