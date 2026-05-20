@@ -1,7 +1,28 @@
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const ProductVariant = require('../models/ProductVariant');
 const User = require('../models/User');
 const { Op } = require('sequelize');
+const {
+	findMatchingVariant,
+	getActiveVariants,
+	getVariantPrice,
+	resolveCartLinePrice
+} = require('../utils/variantHelpers');
+
+const cartListInclude = [
+	{
+		model: Product,
+		attributes: { exclude: ['sizeStock'] },
+		include: [{ model: ProductVariant, as: 'variants', required: false }]
+	},
+	{ model: ProductVariant, as: 'variant', required: false }
+];
+
+const getPurchasableStock = (product, variant) => {
+	if (variant) return Number(variant.quantity) || 0;
+	return Number(product.quantity) || 0;
+};
 
 // Helper function to transform cart items with unique IDs
 const transformCartItems = (cartItems) => {
@@ -39,22 +60,41 @@ const transformCartItems = (cartItems) => {
           
           // Use cart item ID as unique identifier (allows same product with different sizes)
           // Fallback to productId-size combination if cart item ID not available
-          const uniqueId = itemData.id 
-            ? `${itemData.id}` 
-            : `${product.id}-${itemData.size || 'no-size'}`;
-          
+          const variant = itemData.variant || itemData.ProductVariant;
+          const uniqueId = itemData.id
+            ? `${itemData.id}`
+            : itemData.variantId
+              ? `${product.id}-v${itemData.variantId}`
+              : `${product.id}-${itemData.color || 'no-color'}-${itemData.size || 'no-size'}`;
+
+          const variantPrice = resolveCartLinePrice(product, itemData, variant);
+          const variantImage =
+            variant?.imageUrl ||
+            (Array.isArray(variant?.images) && variant.images[0]) ||
+            product.imageUrl ||
+            null;
+
+          const maxStock = variant
+            ? Number(variant.quantity) || 0
+            : Number(product.quantity) || 0;
+          const allowCustomerQuantity = Boolean(product.allowCustomerQuantity);
+
           const transformed = {
-            id: uniqueId, // Unique cart item identifier
-            productId: String(product.id), // Product ID for reference (ensure string)
+            id: uniqueId,
+            productId: String(product.id),
             name: product.name || 'Unknown Product',
-            price: Number(product.price) || 0,
-            image: product.imageUrl || null,
+            price: variantPrice,
+            image: variantImage,
             slug: product.slug || null,
             quantity: Number(itemData.quantity) || 1,
-            stock: Number(product.quantity) || 0,
-            SKU: product.SKU || '',
-            size: itemData.size || undefined,
-            cartItemId: itemData.id ? String(itemData.id) : undefined // Keep original cart item ID for backend operations
+            stock: maxStock,
+            maxStock,
+            allowCustomerQuantity,
+            SKU: variant?.SKU || product.SKU || '',
+            size: itemData.size || variant?.size || undefined,
+            color: itemData.color || variant?.color || undefined,
+            variantId: itemData.variantId ? String(itemData.variantId) : undefined,
+            cartItemId: itemData.id ? String(itemData.id) : undefined
           };
           
           return transformed;
@@ -79,10 +119,7 @@ const getCart = async (req, res) => {
     
     const cartItems = await Cart.findAll({
       where: { userId },
-      include: [{
-        model: Product,
-        attributes: { exclude: ['sizeStock'] }
-      }],
+      include: cartListInclude,
       order: [['createdAt', 'ASC']]
     });
 
@@ -106,12 +143,13 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { productId, quantity = 1, size: rawSize } = req.body;
+    const { productId, quantity = 1, size: rawSize, color: rawColor, variantId: rawVariantId } = req.body;
     
-    // Normalize size: convert empty string to null
     const size = rawSize && rawSize.trim() ? rawSize.trim() : null;
+    const color = rawColor && rawColor.trim() ? rawColor.trim() : null;
+    const variantId = rawVariantId ? parseInt(rawVariantId, 10) : null;
     
-    console.log('Add to cart request:', { userId, productId, quantity, size });
+    console.log('Add to cart request:', { userId, productId, quantity, size, color, variantId });
 
     if (!productId) {
       return res.status(400).json({
@@ -122,7 +160,8 @@ const addToCart = async (req, res) => {
 
     // Validate product exists
     const product = await Product.findByPk(productId, {
-      attributes: { exclude: ['sizeStock'] }
+      attributes: { exclude: ['sizeStock'] },
+      include: [{ model: ProductVariant, as: 'variants', required: false }]
     });
     if (!product) {
       return res.status(404).json({
@@ -131,11 +170,45 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // If product has sizes, size is required
-    if (product.size && product.size.trim().length > 0 && !size) {
+    const allowCustomerQuantity = Boolean(product.allowCustomerQuantity);
+    let requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
+    if (!allowCustomerQuantity) {
+      requestedQty = 1;
+    }
+
+    const activeVariants = getActiveVariants(product.variants || []);
+    let resolvedVariant = null;
+    if (activeVariants.length > 0) {
+      resolvedVariant = findMatchingVariant(activeVariants, { variantId, color, size });
+      if (!resolvedVariant) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please select a valid color and size for this product'
+        });
+      }
+      const variantStock = getPurchasableStock(product, resolvedVariant);
+      if (variantStock < requestedQty) {
+        return res.status(400).json({
+          success: false,
+          message: 'Not enough stock for the selected option'
+        });
+      }
+    } else if (product.size && product.size.trim().length > 0 && !size) {
       return res.status(400).json({
         success: false,
         message: 'Size is required for this product'
+      });
+    }
+
+    const finalVariantId = resolvedVariant?.id || null;
+    const finalColor = resolvedVariant?.color || color;
+    const finalSize = resolvedVariant?.size || size;
+    const maxStock = getPurchasableStock(product, resolvedVariant);
+
+    if (!resolvedVariant && maxStock < requestedQty) {
+      return res.status(400).json({
+        success: false,
+        message: 'Not enough stock for this product'
       });
     }
 
@@ -152,16 +225,16 @@ const addToCart = async (req, res) => {
         allUserProductItems.map(i => ({ id: i.id, size: i.size, quantity: i.quantity })));
       
       let whereClause;
-      if (size) {
-        // Product with size - find exact match
-        whereClause = { userId, productId, size: size };
+      if (finalVariantId) {
+        whereClause = { userId, productId, variantId: finalVariantId };
+      } else if (size) {
+        whereClause = { userId, productId, size: finalSize, variantId: { [Op.is]: null } };
       } else {
-        // Product without size - find where size is NULL
-        // Use Op.is for explicit NULL comparison
         whereClause = { 
           userId, 
           productId,
-          size: { [Op.is]: null }
+          size: { [Op.is]: null },
+          variantId: { [Op.is]: null }
         };
       }
       
@@ -192,8 +265,12 @@ const addToCart = async (req, res) => {
     }
 
     if (existingCartItem) {
-      // Update quantity - automatically sum with existing quantity
-      const newQuantity = existingCartItem.quantity + quantity;
+      let newQuantity = allowCustomerQuantity
+        ? existingCartItem.quantity + requestedQty
+        : 1;
+      if (allowCustomerQuantity && maxStock > 0) {
+        newQuantity = Math.min(newQuantity, maxStock);
+      }
       try {
         await existingCartItem.update({ quantity: newQuantity });
       } catch (error) {
@@ -205,14 +282,20 @@ const addToCart = async (req, res) => {
         }
       }
     } else {
+      const createQty =
+        allowCustomerQuantity && maxStock > 0
+          ? Math.min(requestedQty, maxStock)
+          : requestedQty;
       // Create new cart item with selected size
-      console.log('Creating new cart item:', { userId, productId, quantity, size });
+      console.log('Creating new cart item:', { userId, productId, quantity: createQty, size: finalSize, color: finalColor, variantId: finalVariantId });
       try {
         const newCartItem = await Cart.create({
           userId,
           productId,
-          quantity,
-          size: size || null
+          quantity: createQty,
+          size: finalSize || null,
+          color: finalColor || null,
+          variantId: finalVariantId
         });
         console.log('Cart item created successfully:', newCartItem.id);
       } catch (error) {
@@ -232,7 +315,7 @@ const addToCart = async (req, res) => {
           await Cart.create({
             userId,
             productId,
-            quantity
+            quantity: createQty
           });
         } else if (error.name === 'SequelizeUniqueConstraintError' || (error.parent && error.parent.code === '23505')) {
           // Unique constraint violation - item already exists, update it instead
@@ -250,8 +333,12 @@ const addToCart = async (req, res) => {
           existingCartItem = await Cart.findOne({ where: whereClause });
           if (existingCartItem) {
             console.log('Found existing item, updating quantity');
-            // Update quantity instead
-            const newQuantity = existingCartItem.quantity + quantity;
+            let newQuantity = allowCustomerQuantity
+              ? existingCartItem.quantity + requestedQty
+              : 1;
+            if (allowCustomerQuantity && maxStock > 0) {
+              newQuantity = Math.min(newQuantity, maxStock);
+            }
             await existingCartItem.update({ quantity: newQuantity });
           } else {
             console.error('Unique constraint error but item not found - this should not happen');
@@ -267,11 +354,10 @@ const addToCart = async (req, res) => {
     try {
       const cartItems = await Cart.findAll({
         where: { userId },
-        include: [{
-          model: Product,
-          attributes: { exclude: ['sizeStock'] },
-          required: false // Use LEFT JOIN in case product is deleted
-        }],
+        include: cartListInclude.map((inc) => ({
+          ...inc,
+          required: inc.model === Product ? false : inc.required
+        })),
         order: [['createdAt', 'ASC']]
       });
 
@@ -386,10 +472,7 @@ const updateCartItem = async (req, res) => {
     // Return updated cart
     const cartItems = await Cart.findAll({
       where: { userId },
-      include: [{
-        model: Product,
-        attributes: { exclude: ['sizeStock'] }
-      }],
+      include: cartListInclude,
       order: [['createdAt', 'ASC']]
     });
 
@@ -451,10 +534,7 @@ const removeFromCart = async (req, res) => {
     // Return updated cart
     const cartItems = await Cart.findAll({
       where: { userId },
-      include: [{
-        model: Product,
-        attributes: { exclude: ['sizeStock'] }
-      }],
+      include: cartListInclude,
       order: [['createdAt', 'ASC']]
     });
 
@@ -582,10 +662,7 @@ const syncCart = async (req, res) => {
     // Return updated cart
     const cartItems = await Cart.findAll({
       where: { userId },
-      include: [{
-        model: Product,
-        attributes: { exclude: ['sizeStock'] }
-      }],
+      include: cartListInclude,
       order: [['createdAt', 'ASC']]
     });
 

@@ -7,39 +7,30 @@ require('../models/associations');
 // Then import models from associations
 const { User, Product, Order, OrderItem } = require('../models/associations');
 
-// Helper function to check size-specific stock availability
-const checkSizeStockAvailability = (product, size, quantity) => {
-	// Products with sizes are made-to-order and always available
-	if (size && product.size && product.size.trim().length > 0) {
-		return { available: true, stock: 999 };
-	}
-	
-	// For products without sizes, check general quantity
-	return { available: product.quantity >= quantity, stock: product.quantity };
+const {
+	checkItemStockAvailability,
+	reduceItemStock,
+	restoreItemStock
+} = require('../utils/stockHelpers');
+
+const formatStockErrorMessage = (product, item) => {
+	const parts = [];
+	if (item.color) parts.push(`Color: ${item.color}`);
+	if (item.size) parts.push(`Size: ${item.size}`);
+	const suffix = parts.length ? ` (${parts.join(', ')})` : '';
+	return `Sorry, we don't have enough ${product.name}${suffix} in stock to fulfill your order. Please reduce the quantity or contact us for availability.`;
 };
 
-// Helper function to reduce size-specific stock
-const reduceSizeStock = async (product, size, quantity, transaction) => {
-	// Products with sizes are made-to-order, no stock reduction needed
-	if (size && product.size && product.size.trim().length > 0) {
-		return; // Made-to-order products don't track stock
-	}
-	
-	// For products without sizes, reduce general quantity
-	product.quantity = Math.max(0, product.quantity - quantity);
-	await product.save({ transaction });
-};
-
-// Helper function to restore size-specific stock
-const restoreSizeStock = async (product, size, quantity, transaction) => {
-	// Products with sizes are made-to-order, no stock restoration needed
-	if (size && product.size && product.size.trim().length > 0) {
-		return; // Made-to-order products don't track stock
-	}
-	
-	// For products without sizes, restore general quantity
-	product.quantity += quantity;
-	await product.save({ transaction });
+const createOrderItemRecord = async (orderId, item, transaction) => {
+	return OrderItem.create({
+		orderId,
+		productId: item.productId,
+		quantity: item.quantity,
+		unitPriceCents: item.unitPriceCents,
+		size: item.size || null,
+		color: item.color || null,
+		variantId: item.variantId || null
+	}, { transaction });
 };
 
 // List orders with pagination and filters
@@ -293,14 +284,9 @@ const createOrder = async (req, res) => {
       });
       if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
       
-      // Check size-specific stock availability
-      const stockCheck = checkSizeStockAvailability(product, item.size, item.quantity);
+      const stockCheck = await checkItemStockAvailability(product, item, item.quantity);
       if (!stockCheck.available) {
-        const sizeText = item.size ? ` (Size: ${item.size})` : '';
-        return res.status(400).json({ 
-          success: false, 
-          message: `Sorry, we don't have enough ${product.name}${sizeText} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
-        });
+        return res.status(400).json({ success: false, message: formatStockErrorMessage(product, item) });
       }
       
       merchandiseTotalCents += item.quantity * item.unitPriceCents;
@@ -330,13 +316,7 @@ const createOrder = async (req, res) => {
     }, { transaction: t });
 
     for (const item of items) {
-      await OrderItem.create({ 
-        orderId: order.id, 
-        productId: item.productId, 
-        quantity: item.quantity, 
-        unitPriceCents: item.unitPriceCents,
-        size: item.size || null
-      }, { transaction: t });
+      await createOrderItemRecord(order.id, item, t);
     }
 
     await t.commit();
@@ -381,14 +361,9 @@ const createUserOrder = async (req, res) => {
       });
       if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
       
-      // Check size-specific stock availability
-      const stockCheck = checkSizeStockAvailability(product, item.size, item.quantity);
+      const stockCheck = await checkItemStockAvailability(product, item, item.quantity);
       if (!stockCheck.available) {
-        const sizeText = item.size ? ` (Size: ${item.size})` : '';
-        return res.status(400).json({ 
-          success: false, 
-          message: `Sorry, we don't have enough ${product.name}${sizeText} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
-        });
+        return res.status(400).json({ success: false, message: formatStockErrorMessage(product, item) });
       }
       
       merchandiseTotalCents += item.quantity * item.unitPriceCents;
@@ -418,13 +393,7 @@ const createUserOrder = async (req, res) => {
     }, { transaction: t });
 
     for (const item of items) {
-      await OrderItem.create({ 
-        orderId: order.id, 
-        productId: item.productId, 
-        quantity: item.quantity, 
-        unitPriceCents: item.unitPriceCents,
-        size: item.size || null
-      }, { transaction: t });
+      await createOrderItemRecord(order.id, item, t);
     }
 
     await t.commit();
@@ -473,13 +442,9 @@ const createGuestOrder = async (req, res) => {
       if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
       
       // Check size-specific stock availability
-      const stockCheck = checkSizeStockAvailability(product, item.size, item.quantity);
+      const stockCheck = await checkItemStockAvailability(product, item, item.quantity);
       if (!stockCheck.available) {
-        const sizeText = item.size ? ` (Size: ${item.size})` : '';
-        return res.status(400).json({ 
-          success: false, 
-          message: `Sorry, we don't have enough ${product.name}${sizeText} in stock to fulfill your order. Please reduce the quantity or contact us for availability.` 
-        });
+        return res.status(400).json({ success: false, message: formatStockErrorMessage(product, item) });
       }
       
       merchandiseTotalCents += item.quantity * item.unitPriceCents;
@@ -510,13 +475,7 @@ const createGuestOrder = async (req, res) => {
     }, { transaction: t });
 
     for (const item of items) {
-      await OrderItem.create({ 
-        orderId: order.id, 
-        productId: item.productId, 
-        quantity: item.quantity, 
-        unitPriceCents: item.unitPriceCents,
-        size: item.size || null
-      }, { transaction: t });
+      await createOrderItemRecord(order.id, item, t);
     }
 
     await t.commit();
@@ -565,9 +524,9 @@ const updateOrderStatus = async (req, res) => {
           attributes: { exclude: ['sizeStock'] }
         });
         if (product) {
-          await reduceSizeStock(product, item.size, item.quantity, t);
-          const sizeText = item.size ? ` (Size: ${item.size})` : '';
-          console.log(`Stock reduced for product ${product.name}${sizeText}: ${item.quantity} units`);
+          await reduceItemStock(product, item, item.quantity, t);
+          const opts = [item.color, item.size].filter(Boolean).join(', ');
+          console.log(`Stock reduced for product ${product.name}${opts ? ` (${opts})` : ''}: ${item.quantity} units`);
         }
       }
     }
@@ -580,9 +539,9 @@ const updateOrderStatus = async (req, res) => {
           attributes: { exclude: ['sizeStock'] }
         });
         if (product) {
-          await restoreSizeStock(product, item.size, item.quantity, t);
-          const sizeText = item.size ? ` (Size: ${item.size})` : '';
-          console.log(`Stock restored for product ${product.name}${sizeText}: ${item.quantity} units`);
+          await restoreItemStock(product, item, item.quantity, t);
+          const opts = [item.color, item.size].filter(Boolean).join(', ');
+          console.log(`Stock restored for product ${product.name}${opts ? ` (${opts})` : ''}: ${item.quantity} units`);
         }
       }
     }

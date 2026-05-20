@@ -36,9 +36,12 @@ async function createAdmin() {
     await connectDB();
     console.log('✅ Database connected.\n');
 
+    const resetPassword = process.argv.includes('--reset-password');
+    const cliArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
+
     // Get email from command line args, env var, or prompt
-    let email = process.argv[2] || process.env.ADMIN_EMAIL;
-    let password = process.argv[3] || process.env.ADMIN_PASSWORD;
+    let email = cliArgs[0] || process.env.ADMIN_EMAIL;
+    let password = cliArgs[1] || process.env.ADMIN_PASSWORD;
     let firstName = process.argv[4] || process.env.ADMIN_FIRST_NAME || 'Admin';
     let lastName = process.argv[5] || process.env.ADMIN_LAST_NAME || 'User';
 
@@ -60,7 +63,16 @@ async function createAdmin() {
     if (existingUser) {
       // User exists - update to admin
       if (existingUser.isAdmin) {
-        console.log(`⚠️  User ${email} is already an admin.`);
+        if (resetPassword && password) {
+          existingUser.password = password;
+          existingUser.isEmailVerified = true;
+          existingUser.isActive = true;
+          await User.resetLoginAttempts(existingUser.id);
+          await existingUser.save();
+          console.log(`✅ Admin password reset for ${email}`);
+          process.exit(0);
+        }
+        console.log(`⚠️  User ${email} is already an admin. Use --reset-password to update the password.`);
         process.exit(0);
       }
 
@@ -147,9 +159,10 @@ async function createAdmin() {
 // Show usage if help requested
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`
-Usage: node create-admin.js [email] [password] [firstName] [lastName]
+Usage: node create-admin.js [email] [password] [firstName] [lastName] [--reset-password]
 
 Options:
+  --reset-password  Update password for an existing admin account
   email       Admin email address (required if not in env)
   password    Admin password, min 6 characters (required if not in env)
   firstName   First name (default: "Admin")

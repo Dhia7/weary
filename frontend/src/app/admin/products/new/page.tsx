@@ -4,6 +4,8 @@ import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import ImageEditor from '@/components/ImageEditor';
+import VariantEditor, { type VariantDraft } from '@/components/admin/VariantEditor';
+import ProductImagesMedia from '@/components/admin/ProductImagesMedia';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface Category {
@@ -33,9 +35,16 @@ export default function NewProductPage() {
   
   // Additional fields
   const [weightGrams, setWeightGrams] = useState<number | ''>('');
+  const [depthCm, setDepthCm] = useState<number | ''>('');
+  const [widthCm, setWidthCm] = useState<number | ''>('');
+  const [heightCm, setHeightCm] = useState<number | ''>('');
+  const [outerMaterial, setOuterMaterial] = useState('');
   const [hasSizes, setHasSizes] = useState<boolean>(false); // Always initialize as boolean
   const [sizeOptions, setSizeOptions] = useState('XS, S, M, L, XL, XXL');
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<VariantDraft[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [allowCustomerQuantity, setAllowCustomerQuantity] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   
   // Images & Media
@@ -311,11 +320,22 @@ export default function NewProductPage() {
       formData.append('quantity', quantity === '' ? '0' : quantity.toString());
       formData.append('barcode', barcode);
       formData.append('weightGrams', weightGrams === '' ? '' : weightGrams.toString());
+      formData.append('depthCm', depthCm === '' ? '' : depthCm.toString());
+      formData.append('widthCm', widthCm === '' ? '' : widthCm.toString());
+      formData.append('heightCm', heightCm === '' ? '' : heightCm.toString());
+      formData.append('outerMaterial', outerMaterial.trim());
       // If hasSizes is checked, use custom size list; otherwise empty
       formData.append('size', hasSizes ? sizeOptions.trim() : '');
       // For made-to-order products, send empty sizeStock (not tracking stock per size)
       formData.append('sizeStock', JSON.stringify({}));
+      if (hasVariants && variants.length > 0) {
+        formData.append('variants', JSON.stringify(variants));
+        const totalQty = variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+        formData.set('quantity', String(totalQty));
+        formData.append('size', '');
+      }
       formData.append('isActive', isActive.toString());
+      formData.append('allowCustomerQuantity', String(allowCustomerQuantity));
       formData.append('categoryIds', JSON.stringify(selectedCategories));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
       
@@ -406,172 +426,25 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          {/* Images & Media Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Images & Media</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Upload your high-quality images. Set the order: lead with your best model shot, followed by other angles, flat lays, and finally the video.</p>
-            
-            {/* Multiple Image Upload */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Images</label>
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  id="image-upload"
-                  multiple
-                />
-                <label htmlFor="image-upload" className="cursor-pointer">
-                  <div className="space-y-2">
-                    <div className="w-12 h-12 mx-auto bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload images</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">PNG, JPG up to 5MB each</p>
-                  </div>
-                </label>
-              </div>
-              
-              {/* Image Previews with Order Controls */}
-              {imagePreviews.length > 0 && (
-                <div className="mt-4 space-y-3">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className={`flex items-center space-x-3 p-3 border rounded-lg ${
-                      index === mainThumbnailIndex 
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
-                        : 'border-gray-200 dark:border-gray-600'
-                    }`}>
-                      <div className="flex-shrink-0 relative">
-                        <img 
-                          src={preview} 
-                          alt={`Preview ${index + 1}`} 
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                        {index === mainThumbnailIndex && (
-                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">★</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">
-                          Image {index + 1}
-                          {index === mainThumbnailIndex && (
-                            <span className="ml-2 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded">
-                              Main Thumbnail
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-500">Order: {index + 1}</p>
-                      </div>
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => setMainThumbnailIndex(index)}
-                          className={`p-1 text-xs rounded ${
-                            index === mainThumbnailIndex
-                              ? 'bg-indigo-500 text-white'
-                              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-800'
-                          }`}
-                          title="Set as main thumbnail"
-                        >
-                          ★
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingImageIndex(index);
-                            setShowImageEditor(true);
-                          }}
-                          className="p-1 text-indigo-400 hover:text-indigo-600"
-                          title="Edit image"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => moveImageUp(index)}
-                          disabled={index === 0}
-                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Move up"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => moveImageDown(index)}
-                          disabled={index === imagePreviews.length - 1}
-                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Move down"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="p-1 text-red-400 hover:text-red-600"
-                          title="Remove"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Video Upload */}
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Video (Optional)</label>
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoChange}
-                  className="hidden"
-                  id="video-upload"
-                />
-                <label htmlFor="video-upload" className="cursor-pointer">
-                  {videoPreview ? (
-                    <div className="space-y-2">
-                      <video 
-                        src={videoPreview} 
-                        className="w-full h-48 object-cover rounded-lg mx-auto"
-                        controls
-                      />
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Click to change video</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="w-12 h-12 mx-auto bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload a video</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">MP4, MOV up to 50MB</p>
-                    </div>
-                  )}
-                </label>
-                {videoPreview && (
-                  <button
-                    onClick={removeVideo}
-                    className="mt-2 px-3 py-1 text-sm text-red-600 hover:text-red-800"
-                  >
-                    Remove Video
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <ProductImagesMedia
+            imagePreviews={imagePreviews}
+            mainThumbnailIndex={mainThumbnailIndex}
+            onImageChange={handleImageChange}
+            onRemoveImage={removeImage}
+            onMoveImageUp={moveImageUp}
+            onMoveImageDown={moveImageDown}
+            onSetMainThumbnail={setMainThumbnailIndex}
+            onEditImage={(index) => {
+              setEditingImageIndex(index);
+              setShowImageEditor(true);
+            }}
+            videoPreview={videoPreview}
+            onVideoChange={handleVideoChange}
+            onRemoveVideo={removeVideo}
+            hasVariants={hasVariants}
+            variants={variants}
+            onVariantsChange={setVariants}
+          />
 
           {/* Pricing Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
@@ -652,6 +525,22 @@ export default function NewProductPage() {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter the stock level for each variant. This allows for low-stock alerts.</p>
               </div>
             </div>
+
+            <div className="mt-6 flex items-start space-x-2">
+              <input
+                id="allowCustomerQuantity"
+                type="checkbox"
+                checked={allowCustomerQuantity}
+                onChange={(e) => setAllowCustomerQuantity(e.target.checked)}
+                className="w-4 h-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              />
+              <label htmlFor="allowCustomerQuantity" className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-medium">Let customers choose quantity</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  When enabled, shoppers can pick how many to add on the product page, quick view, and cart (up to available stock).
+                </span>
+              </label>
+            </div>
             
             <div className="mt-6">
               <label htmlFor="barcode" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Barcode (Optional)</label>
@@ -663,6 +552,27 @@ export default function NewProductPage() {
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
               />
             </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <input
+                id="hasVariants"
+                type="checkbox"
+                checked={hasVariants}
+                onChange={(e) => {
+                  setHasVariants(e.target.checked);
+                  if (e.target.checked) setHasSizes(false);
+                }}
+                className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              />
+              <label htmlFor="hasVariants" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Product has color variants (and optional sizes per color)
+              </label>
+            </div>
+            {hasVariants && (
+              <VariantEditor parentSku={SKU} basePrice={price} variants={variants} onChange={setVariants} />
+            )}
           </div>
 
           {/* Additional Settings */}
@@ -701,9 +611,67 @@ export default function NewProductPage() {
                 </p>
               </div>
             </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Dimensions (cm)</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="depthCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Depth</label>
+                    <input
+                      id="depthCm"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="0"
+                      value={depthCm}
+                      onChange={(e) => setDepthCm(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="widthCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Width</label>
+                    <input
+                      id="widthCm"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="0"
+                      value={widthCm}
+                      onChange={(e) => setWidthCm(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="heightCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Height</label>
+                    <input
+                      id="heightCm"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="0"
+                      value={heightCm}
+                      onChange={(e) => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Materials</h3>
+                <label htmlFor="outerMaterial" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Outer material</label>
+                <input
+                  id="outerMaterial"
+                  placeholder="e.g. 100% cotton, leather, polyester"
+                  value={outerMaterial}
+                  onChange={(e) => setOuterMaterial(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                />
+              </div>
+            </div>
             
             {/* Made-to-Order Notice */}
-            {hasSizes && (
+            {hasSizes && !hasVariants && (
               <div className="mt-6 space-y-4">
                 <div>
                   <label htmlFor="sizeOptions" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -805,7 +773,7 @@ export default function NewProductPage() {
           {/* Action Buttons */}
           <div className="flex gap-3 pt-6 border-t">
             <button 
-              disabled={saving || !name || !slug || !SKU || !price || quantity === '' || (hasSizes && !sizeOptions.trim())} 
+              disabled={saving || !name || !slug || !SKU || !price || quantity === '' || (hasSizes && !sizeOptions.trim()) || (hasVariants && variants.length === 0)} 
               onClick={onSave} 
               className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
             >

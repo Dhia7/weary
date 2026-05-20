@@ -1,13 +1,31 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const Product = require('../models/Product');
+const ProductVariant = require('../models/ProductVariant');
 const Category = require('../models/Category');
 const User = require('../models/User');
 const path = require('path');
 const { withTimeout, TIMEOUTS, handleTimeoutError } = require('../utils/queryTimeout');
+const {
+	parseVariantsPayload,
+	syncProductVariants,
+	attachVariantSummary,
+	computeProductStockFromVariants
+} = require('../utils/variantHelpers');
 
 // Ensure associations are loaded
 require('../models/associations');
+
+const variantInclude = {
+	model: ProductVariant,
+	as: 'variants',
+	required: false,
+	order: [
+		['sortOrder', 'ASC'],
+		['color', 'ASC'],
+		['size', 'ASC']
+	]
+};
 
 // Helper function to format product data based on user role
 const formatProductForUser = (product, isAdmin = false) => {
@@ -58,9 +76,12 @@ const formatProductForUser = (product, isAdmin = false) => {
 		overallQuantity = productData.quantity;
 	}
 	
+	const variants = productData.variants || [];
+	const hasVariants = Array.isArray(variants) && variants.length > 0;
+
+	let formatted;
 	if (isAdmin) {
-		// Admin sees exact stock numbers (actual quantity even for products with sizes)
-		return {
+		formatted = {
 			...productData,
 			stockInfo: {
 				quantity: overallQuantity,
@@ -73,8 +94,7 @@ const formatProductForUser = (product, isAdmin = false) => {
 			sizeStockInfo: sizeStockInfo
 		};
 	} else {
-		// Regular users see stock status with low stock indicator
-		return {
+		formatted = {
 			...productData,
 			stockInfo: {
 				status: overallQuantity > 10 ? 'In Stock' : 
@@ -85,12 +105,69 @@ const formatProductForUser = (product, isAdmin = false) => {
 			sizeStockInfo: sizeStockInfo
 		};
 	}
+
+	if (hasVariants) {
+		return attachVariantSummary(formatted, variants, isAdmin);
+	}
+
+	return formatted;
+};
+
+const validateVariantSkus = async (variantsPayload, excludeProductId = null) => {
+	const incoming = parseVariantsPayload(variantsPayload);
+	const skus = incoming.map((v) => v.SKU).filter(Boolean);
+	if (skus.length !== new Set(skus).size) {
+		return 'Duplicate SKU within variants';
+	}
+	for (const row of incoming) {
+		if (!row.color || !String(row.color).trim()) {
+			return 'Each variant must have a color';
+		}
+	}
+	if (skus.length === 0 && incoming.length > 0) {
+		return null;
+	}
+	for (const sku of skus) {
+		const where = { SKU: sku };
+		const existing = await ProductVariant.findOne({ where });
+		if (existing && (!excludeProductId || existing.productId !== parseInt(excludeProductId, 10))) {
+			return `Variant SKU already exists: ${sku}`;
+		}
+	}
+	return null;
+};
+
+const parseOptionalDecimal = (value) => {
+	if (value === undefined || value === null || value === '') return null;
+	const parsed = parseFloat(value);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const parseSpecFields = (body) => ({
+	depthCm: parseOptionalDecimal(body.depthCm),
+	widthCm: parseOptionalDecimal(body.widthCm),
+	heightCm: parseOptionalDecimal(body.heightCm),
+	outerMaterial: body.outerMaterial?.trim() || null
+});
+
+const parseBooleanField = (value, defaultValue = false) => {
+	if (value === undefined || value === null || value === '') return defaultValue;
+	if (typeof value === 'boolean') return value;
+	return value === 'true' || value === '1' || value === 1;
+};
+
+const parseDisplayBadge = (value) => {
+	if (value === undefined) return undefined;
+	if (value === null || value === '' || value === 'none') return null;
+	if (value === 'new_arrival' || value === 'sold') return value;
+	return null;
 };
 
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, slug, description, SKU, weightGrams, isActive, categoryIds, price, compareAtPrice, quantity, barcode, size } = req.body;
+		const { name, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, allowCustomerQuantity } = req.body;
+		const specs = parseSpecFields(req.body);
 		
 		// Parse categoryIds if it's a string (from FormData)
 		let parsedCategoryIds = categoryIds;
@@ -142,7 +219,9 @@ const createProduct = async (req, res) => {
 			description, 
 			SKU, 
 			weightGrams: weightGrams ? parseInt(weightGrams) : null, 
-			isActive: isActive === 'true' || isActive === true, 
+			isActive: isActive === 'true' || isActive === true,
+			displayBadge: parseDisplayBadge(displayBadge) ?? null,
+			allowCustomerQuantity: parseBooleanField(allowCustomerQuantity, false),
 			imageUrl: imageUrls.length > 0 ? imageUrls[mainThumbnailIndex] || imageUrls[0] : null, // Use selected thumbnail as main image
 			images: imageUrls, // Store all images
 			mainThumbnailIndex: mainThumbnailIndex, // Store the selected thumbnail index
@@ -150,8 +229,8 @@ const createProduct = async (req, res) => {
 			compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
 			quantity: parseInt(quantity) || 0,
 			barcode: barcode || null,
-			size: size || null
-			// sizeStock is not included - column doesn't exist in database
+			size: size || null,
+			...specs
 		});
 
 		if (Array.isArray(parsedCategoryIds) && parsedCategoryIds.length) {
@@ -159,11 +238,26 @@ const createProduct = async (req, res) => {
 			await product.setCategories(categories);
 		}
 
+		const variantsPayload = req.body.variants;
+		if (variantsPayload) {
+			const skuError = await validateVariantSkus(variantsPayload);
+			if (skuError) {
+				await product.destroy();
+				return res.status(400).json({ success: false, message: skuError });
+			}
+			const savedVariants = await syncProductVariants(product.id, variantsPayload, SKU);
+			if (savedVariants.length > 0) {
+				product.quantity = computeProductStockFromVariants(savedVariants);
+				await product.save();
+			}
+		}
+
 		const created = await Product.findByPk(product.id, { 
-			include: [{ model: Category, as: 'categories' }],
+			include: [{ model: Category, as: 'categories' }, variantInclude],
 			attributes: { exclude: ['sizeStock'] }
 		});
-		res.status(201).json({ success: true, data: { product: created } });
+		const formatted = formatProductForUser(created, true);
+		res.status(201).json({ success: true, data: { product: formatted } });
 	} catch (error) {
 		console.error('Create product error:', error);
 		res.status(500).json({ success: false, message: 'Internal server error' });
@@ -228,7 +322,7 @@ const createProduct = async (req, res) => {
 			const result = await withTimeout(
 				Product.findAndCountAll({
 					where,
-					include,
+					include: [...include, variantInclude],
 					order: orderClause,
 					limit,
 					offset,
@@ -333,7 +427,10 @@ const getProduct = async (req, res) => {
 		// Always exclude sizeStock since column doesn't exist and we use made-to-order
 		const product = await Product.findOne({ 
 			where, 
-			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			include: [
+				{ model: Category, as: 'categories', through: { attributes: [] } },
+				variantInclude
+			],
 			attributes: { exclude: ['sizeStock'] }
 		});
 		
@@ -373,7 +470,7 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, slug, description, SKU, weightGrams, isActive, categoryIds, price, compareAtPrice, quantity, barcode, size, sizeStock } = req.body;
+		const { name, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, sizeStock, depthCm, widthCm, heightCm, outerMaterial, allowCustomerQuantity } = req.body;
 		
 		console.log('=== UPDATE PRODUCT REQUEST ===');
 		console.log('Product ID:', id);
@@ -475,6 +572,10 @@ const updateProduct = async (req, res) => {
 		if (SKU !== undefined) product.SKU = SKU;
 		if (weightGrams !== undefined) product.weightGrams = weightGrams ? parseInt(weightGrams) : null;
 		if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
+		if (displayBadge !== undefined) product.displayBadge = parseDisplayBadge(displayBadge);
+		if (allowCustomerQuantity !== undefined) {
+			product.allowCustomerQuantity = parseBooleanField(allowCustomerQuantity, false);
+		}
 		if (price !== undefined) product.price = parseFloat(price);
 		if (compareAtPrice !== undefined) product.compareAtPrice = compareAtPrice ? parseFloat(compareAtPrice) : null;
 		// For made-to-order products with sizes, sizeStock is not used
@@ -500,6 +601,10 @@ const updateProduct = async (req, res) => {
 		}
 		if (barcode !== undefined) product.barcode = barcode || null;
 		if (size !== undefined) product.size = size || null;
+		if (depthCm !== undefined) product.depthCm = parseOptionalDecimal(depthCm);
+		if (widthCm !== undefined) product.widthCm = parseOptionalDecimal(widthCm);
+		if (heightCm !== undefined) product.heightCm = parseOptionalDecimal(heightCm);
+		if (outerMaterial !== undefined) product.outerMaterial = outerMaterial?.trim() || null;
 
 		// Save product - exclude sizeStock since column doesn't exist
 		const changedFields = product.changed();
@@ -521,21 +626,45 @@ const updateProduct = async (req, res) => {
 		console.log('Setting product categories:', categories.map(c => ({ id: c.id, name: c.name })));
 		await product.setCategories(categories);
 
+		if (req.body.variants !== undefined) {
+			const skuError = await validateVariantSkus(req.body.variants, product.id);
+			if (skuError) {
+				return res.status(400).json({ success: false, message: skuError });
+			}
+			const savedVariants = await syncProductVariants(
+				product.id,
+				req.body.variants,
+				product.SKU
+			);
+			if (savedVariants.length > 0) {
+				product.quantity = computeProductStockFromVariants(savedVariants);
+				await product.save();
+			} else if (parseVariantsPayload(req.body.variants).length === 0) {
+				await ProductVariant.destroy({ where: { productId: product.id } });
+			}
+		}
+
 		// Fetch updated product - always exclude sizeStock
 		const updated = await Product.findByPk(product.id, { 
-			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			include: [
+				{ model: Category, as: 'categories', through: { attributes: [] } },
+				variantInclude
+			],
 			attributes: { exclude: ['sizeStock'] }
 		});
 		
-		// Add empty sizeStock for backward compatibility
-		if (updated) {
-			const updatedData = updated.toJSON ? updated.toJSON() : updated;
-			if (!updatedData.sizeStock) {
-				updatedData.sizeStock = {};
+		let isAdmin = false;
+		if (req.user && req.user.userId) {
+			try {
+				const user = await User.findByPk(req.user.userId, { attributes: ['isAdmin'] });
+				isAdmin = user && user.isAdmin === true;
+			} catch (error) {
+				console.error('Error checking admin status:', error);
 			}
 		}
-		
-		res.json({ success: true, message: 'Product updated', data: { product: updated } });
+
+		const formattedProduct = formatProductForUser(updated, isAdmin);
+		res.json({ success: true, message: 'Product updated', data: { product: formattedProduct } });
 	} catch (error) {
 		console.error('Update product error:', error);
 		res.status(500).json({ success: false, message: 'Internal server error' });
@@ -668,11 +797,36 @@ const searchAutocomplete = async (req, res) => {
 	}
 };
 
+// Update product display badge (admin, quick toggle from list)
+const updateProductDisplayBadge = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { displayBadge } = req.body;
+
+		const product = await Product.findByPk(id, {
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (!product) {
+			return res.status(404).json({ success: false, message: 'Product not found' });
+		}
+
+		product.displayBadge = parseDisplayBadge(displayBadge);
+		await product.save();
+
+		const formattedProduct = formatProductForUser(product, true);
+		res.json({ success: true, data: { product: formattedProduct } });
+	} catch (error) {
+		console.error('Update product display badge error:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
 module.exports = {
 	createProduct,
 	listProducts,
 	getProduct,
 	updateProduct,
+	updateProductDisplayBadge,
 	deleteProduct,
 	setProductCategories,
 	searchAutocomplete

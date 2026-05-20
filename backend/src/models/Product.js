@@ -35,6 +35,21 @@ const Product = sequelize.define('Product', {
 		type: DataTypes.BOOLEAN,
 		defaultValue: true
 	},
+	displayBadge: {
+		type: DataTypes.STRING(20),
+		allowNull: true,
+		defaultValue: null,
+		validate: {
+			isIn: [['new_arrival', 'sold']]
+		},
+		comment: 'Optional storefront badge: new_arrival, sold, or null for none'
+	},
+	allowCustomerQuantity: {
+		type: DataTypes.BOOLEAN,
+		allowNull: false,
+		defaultValue: false,
+		comment: 'When true, customers can choose quantity on the storefront'
+	},
 	imageUrl: {
 		type: DataTypes.STRING(500),
 		allowNull: true
@@ -82,6 +97,25 @@ const Product = sequelize.define('Product', {
 		type: DataTypes.STRING(50),
 		allowNull: true,
 		comment: 'Product size (e.g., XS, S, M, L, XL, XXL) - optional for products without sizes'
+	},
+	depthCm: {
+		type: DataTypes.DECIMAL(10, 2),
+		allowNull: true,
+		validate: { min: 0 }
+	},
+	widthCm: {
+		type: DataTypes.DECIMAL(10, 2),
+		allowNull: true,
+		validate: { min: 0 }
+	},
+	heightCm: {
+		type: DataTypes.DECIMAL(10, 2),
+		allowNull: true,
+		validate: { min: 0 }
+	},
+	outerMaterial: {
+		type: DataTypes.STRING(200),
+		allowNull: true
 	}
 	// sizeStock removed - column doesn't exist in database and products with sizes are made-to-order
 }, {

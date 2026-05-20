@@ -15,6 +15,7 @@ router.get('/:idOrSlug', optionalAuth, controller.getProduct);
 // Admin protected mutations
 router.post('/', protect, admin, uploadMultipleImages, controller.createProduct);
 router.put('/:id', protect, admin, uploadMultipleImages, controller.updateProduct);
+router.patch('/:id/display-badge', protect, admin, controller.updateProductDisplayBadge);
 router.delete('/:id', protect, admin, controller.deleteProduct);
 router.put('/:id/categories', protect, admin, controller.setProductCategories);
 

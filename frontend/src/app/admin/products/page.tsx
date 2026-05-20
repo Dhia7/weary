@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl } from '@/lib/utils';
+import type { ProductDisplayBadge } from '@/lib/types/product';
 
 interface Product {
   id: number;
@@ -12,6 +13,7 @@ interface Product {
   slug: string;
   SKU: string;
   isActive: boolean;
+  displayBadge?: ProductDisplayBadge;
   imageUrl?: string;
   price: number;
   compareAtPrice?: number;
@@ -26,10 +28,17 @@ interface Product {
   categories?: Array<{ id: number; name: string; slug: string; }>;
 }
 
+const BADGE_OPTIONS: Array<{ value: ProductDisplayBadge; label: string }> = [
+  { value: null, label: 'None' },
+  { value: 'new_arrival', label: 'New Arrival' },
+  { value: 'sold', label: 'Sold' },
+];
+
 export default function AdminProductsPage() {
   const fetcher = useAuthorizedFetch();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingBadgeId, setUpdatingBadgeId] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -59,6 +68,33 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetcher]); // Include fetcher in dependency array
+
+  const handleBadgeChange = async (productId: number, displayBadge: ProductDisplayBadge) => {
+    try {
+      setUpdatingBadgeId(productId);
+      const res = await fetcher(`/products/${productId}/display-badge`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayBadge }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId
+              ? { ...p, displayBadge: json.data.product.displayBadge ?? null }
+              : p
+          )
+        );
+      } else {
+        console.error('Failed to update badge:', json.message);
+      }
+    } catch (error) {
+      console.error('Error updating badge:', error);
+    } finally {
+      setUpdatingBadgeId(null);
+    }
+  };
 
   // Refresh products when page comes into focus
   useEffect(() => {
@@ -119,6 +155,9 @@ export default function AdminProductsPage() {
                       Categories
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Badge
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
@@ -173,20 +212,23 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {(() => {
-                          // Show quantity for all products (with or without sizes)
-                          const quantity = product.stockInfo?.quantity ?? product.quantity ?? 0;
-                          const isInStock = product.stockInfo?.isInStock ?? quantity > 0;
-                          const isLowStock = product.stockInfo?.isLowStock ?? (quantity > 0 && quantity <= 10);
-                          
+                          const quantity = Number(
+                            product.stockInfo?.quantity ?? product.quantity ?? 0
+                          );
+                          const isOutOfStock = quantity <= 0;
+                          const isLowStock = quantity > 0 && quantity <= 10;
+
                           return (
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              isLowStock
-                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                : isInStock 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                            }`}>
-                              {quantity} in stock
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                isOutOfStock
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  : isLowStock
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              }`}
+                            >
+                              {isOutOfStock ? 'Out of stock' : `${quantity} in stock`}
                             </span>
                           );
                         })()}
@@ -218,6 +260,27 @@ export default function AdminProductsPage() {
                         ) : (
                           <span className="text-gray-400">No categories</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          aria-label={`Badge for ${product.name}`}
+                          value={product.displayBadge ?? ''}
+                          disabled={updatingBadgeId === product.id}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            handleBadgeChange(
+                              product.id,
+                              value === '' ? null : (value as 'new_arrival' | 'sold')
+                            );
+                          }}
+                          className="block w-full min-w-[8.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                          {BADGE_OPTIONS.map((option) => (
+                            <option key={option.label} value={option.value ?? ''}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

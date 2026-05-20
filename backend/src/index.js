@@ -27,6 +27,7 @@ const dbMonitor = require('./utils/dbMonitor');
 require('./models/User');
 require('./models/Address');
 require('./models/Product');
+require('./models/ProductVariant');
 require('./models/Category');
 require('./models/ProductCategory');
 require('./models/Collection');
@@ -48,6 +49,7 @@ const categoryRoutes = require('./routes/categories');
 const cartRoutes = require('./routes/cart');
 const wishlistRoutes = require('./routes/wishlist');
 const orderRoutes = require('./routes/orders');
+const translateRoutes = require('./routes/translate');
 const healthRoutes = require('./routes/health');
 
 const app = express();
@@ -148,10 +150,17 @@ const allowedOrigins = new Set([
 
 const vercelOriginPattern = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i;
 const projectVercelPattern = /^https:\/\/weary-.*\.vercel\.app$/i;
+// Local dev: localhost, 127.0.0.1, and LAN IPs (e.g. http://192.168.x.x:3000)
+const localDevOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/i;
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
-  return allowedOrigins.has(origin) || vercelOriginPattern.test(origin) || projectVercelPattern.test(origin);
+  return (
+    allowedOrigins.has(origin) ||
+    vercelOriginPattern.test(origin) ||
+    projectVercelPattern.test(origin) ||
+    localDevOriginPattern.test(origin)
+  );
 };
 
 const corsOptions = {
@@ -280,6 +289,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/translate', translateRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -164,6 +164,11 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       >
                         <span className="line-clamp-2">{item.name}</span>
                       </Link>
+                      {item.color && (
+                        <p className="text-xs font-medium text-primary mt-0.5">
+                          {isFrench ? 'Couleur' : 'Color'}: {item.color}
+                        </p>
+                      )}
                       {item.size && (
                         <p className="text-xs font-medium text-primary mt-0.5">
                           {isFrench ? 'Taille' : 'Size'}: {item.size}
@@ -172,29 +177,34 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       <p className="mt-1 text-sm text-muted-foreground">
                         {formatPrice(item.price)}
                       </p>
-                      
-                      <div className="flex items-center gap-2 mt-3">
-                        <button
-                          onClick={() => updateQuantity(getCartItemKey(item), Math.max(1, item.quantity - 1))}
-                          disabled={item.quantity <= 1}
-                          className="inline-flex min-h-11 min-w-11 items-center justify-center border border-border rounded-md text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={isFrench ? 'Diminuer la quantite' : 'Decrease quantity'}
-                          aria-label={isFrench ? 'Diminuer la quantite' : 'Decrease quantity'}
-                        >
-                          -
-                        </button>
-                        <span className="text-sm font-semibold w-8 text-center tabular-nums" aria-live="polite">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(getCartItemKey(item), item.quantity + 1)}
-                          className="inline-flex min-h-11 min-w-11 items-center justify-center border border-border rounded-md text-sm hover:bg-muted"
-                          title={isFrench ? 'Augmenter la quantite' : 'Increase quantity'}
-                          aria-label={isFrench ? 'Augmenter la quantite' : 'Increase quantity'}
-                        >
-                          +
-                        </button>
-                      </div>
+
+                      {item.allowCustomerQuantity && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <button
+                            onClick={() => updateQuantity(getCartItemKey(item), Math.max(1, item.quantity - 1))}
+                            disabled={item.quantity <= 1}
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center border border-border rounded-md text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={isFrench ? 'Diminuer la quantite' : 'Decrease quantity'}
+                            aria-label={isFrench ? 'Diminuer la quantite' : 'Decrease quantity'}
+                          >
+                            -
+                          </button>
+                          <span className="text-sm font-semibold w-8 text-center tabular-nums" aria-live="polite">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(getCartItemKey(item), item.quantity + 1)}
+                            disabled={
+                              (item.maxStock ?? 0) > 0 && item.quantity >= (item.maxStock ?? 0)
+                            }
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center border border-border rounded-md text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={isFrench ? 'Augmenter la quantite' : 'Increase quantity'}
+                            aria-label={isFrench ? 'Augmenter la quantite' : 'Increase quantity'}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="text-right shrink-0">

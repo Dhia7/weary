@@ -12,6 +12,16 @@ const Cart = sequelize.define('Cart', {
     type: DataTypes.STRING(50),
     allowNull: true,
     comment: 'Selected size for the product (e.g., S, M, L)'
+  },
+  variantId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'ProductVariant', key: 'id' }
+  },
+  color: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+    comment: 'Selected color display name'
   }
 }, {
   timestamps: true,

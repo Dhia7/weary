@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { XMarkIcon, ShoppingBagIcon, EyeIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,36 +8,24 @@ import { useCart } from '@/lib/contexts/CartContext';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { getImageUrl } from '@/lib/utils';
 import WishlistButton from './WishlistButton';
-
-interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  SKU: string;
-  weightGrams?: number;
-  isActive: boolean;
-  imageUrl?: string;
-  images?: string[];
-  mainThumbnailIndex?: number;
-  price: number;
-  compareAtPrice?: number;
-  quantity: number;
-  size?: string | null;
-  stockInfo?: {
-    quantity?: number;
-    status: string;
-    isInStock: boolean;
-    isLowStock?: boolean;
-  };
-  categories?: Array<{
-    id: number;
-    name: string;
-    slug: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+import ColorSwatches from './ColorSwatches';
+import type { Product } from '@/lib/types/product';
+import {
+  findVariant,
+  getVariantPrice,
+  getColorPrice,
+  formatPriceTnd,
+  formatProductPriceLabel,
+  getProductMaxStock,
+} from '@/lib/types/product';
+import QuantitySelector from '@/components/product/QuantitySelector';
+import {
+  getPrimaryDisplayImage,
+  getProductDisplayImages,
+} from '@/lib/utils/productImages';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
+import { getProductTranslations, translateCategoryName } from '@/lib/i18n/product';
 
 interface QuickViewModalProps {
   isOpen: boolean;
@@ -47,21 +35,80 @@ interface QuickViewModalProps {
 
 const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('');
   const [sizeError, setSizeError] = useState<string | null>(null);
+  const [colorError, setColorError] = useState<string | null>(null);
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
+  const { isFrench } = useLanguage();
+  const t = useMemo(() => getProductTranslations(isFrench), [isFrench]);
+  const { text: productDescription, isLoading: descriptionTranslating } =
+    useTranslatedText(product?.description, isFrench);
 
   // Reset state when modal opens/closes or product changes
   useEffect(() => {
     if (isOpen && product) {
       setSelectedImageIndex(0);
-      setQuantity(1);
+      setSelectedQuantity(1);
       setSelectedSize('');
+      setSelectedColor(product.colorOptions?.[0]?.name || '');
       setSizeError(null);
+      setColorError(null);
     }
   }, [isOpen, product]);
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+    setSelectedQuantity(1);
+  }, [selectedColor, selectedSize, product?.allowCustomerQuantity]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product?.hasVariants) return undefined;
+    return findVariant(product.variants, selectedColor, selectedSize || undefined);
+  }, [product, selectedColor, selectedSize]);
+
+  const displayPrice = useMemo(() => {
+    if (!product) return 0;
+    if (selectedVariant) return getVariantPrice(selectedVariant, product);
+    if (selectedColor && product.hasVariants) {
+      const colorPrice = getColorPrice(product, selectedColor);
+      if (colorPrice != null) return colorPrice;
+    }
+    if (product.priceRange?.hasVariablePricing) return product.priceRange.min;
+    return Number(product.price);
+  }, [product, selectedVariant, selectedColor]);
+
+  const isOutOfStock = useMemo(() => {
+    if (!product) return false;
+    if (selectedVariant) {
+      return !(selectedVariant.stockInfo?.isInStock ?? selectedVariant.quantity > 0);
+    }
+    const hasSizes = product.size && product.size.trim().length > 0;
+    if (hasSizes) return false;
+    return !(product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0);
+  }, [product, selectedVariant]);
+
+  const maxPurchasableQty = useMemo(() => {
+    if (!product) return 0;
+    return getProductMaxStock(product, selectedVariant);
+  }, [product, selectedVariant]);
+
+  const showQuantitySelector = Boolean(
+    product?.allowCustomerQuantity && maxPurchasableQty > 0 && !isOutOfStock
+  );
+
+  const sizeChoices = useMemo(() => {
+    if (!product) return [] as string[];
+    if (product.hasVariants && product.availableSizes?.length) {
+      return product.availableSizes;
+    }
+    if (product.size?.trim()) {
+      return product.size.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  }, [product]);
 
   // Handle escape key
   useEffect(() => {
@@ -86,50 +133,58 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
     };
   }, [isOpen]);
 
-  // Get ordered images (main thumbnail first)
-  const getOrderedImages = useCallback((p?: Product | null) => {
-    if (!p || !p.images || p.images.length === 0) {
-      return p?.imageUrl ? [p.imageUrl] : [];
-    }
-    const images = p.images;
-    const mainIndex = typeof p.mainThumbnailIndex === 'number' ? p.mainThumbnailIndex : 0;
-    const clampedIndex = Math.max(0, Math.min(mainIndex, images.length - 1));
-    if (clampedIndex === 0) return images;
-    const main = images[clampedIndex];
-    return [main, ...images.filter((_, i) => i !== clampedIndex)];
-  }, []);
+  const displayImages = useMemo(
+    () =>
+      getProductDisplayImages(product, {
+        selectedColor,
+        selectedVariant,
+      }),
+    [product, selectedColor, selectedVariant]
+  );
 
   const handleAddToCart = async () => {
     if (product) {
-      // Validate size selection if product has sizes
-      if (product.size && product.size.trim().length > 0 && !selectedSize) {
-        setSizeError('Please select a size before adding to cart.');
-        // Scroll to size selector
+      if (product.hasVariants && !selectedColor) {
+        setColorError(t.selectColor);
+        return;
+      }
+      if (sizeChoices.length > 0 && !selectedSize) {
+        setSizeError(t.selectSizeCart);
         setTimeout(() => {
-          const sizeSelect = document.getElementById('quickview-size-select');
-          if (sizeSelect) {
-            sizeSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            sizeSelect.focus();
-          }
+          document.getElementById('quickview-size-select')?.focus();
         }, 100);
         return;
       }
-      
-      // Clear size error if size is selected
+      if (product.hasVariants && selectedVariant && isOutOfStock) {
+        setColorError(t.variantOutOfStock);
+        return;
+      }
+      if (!product.hasVariants && isOutOfStock) {
+        return;
+      }
+
       setSizeError(null);
+      setColorError(null);
       
-      const images = getOrderedImages(product);
-      const selectedImage = images.length > 0 ? images[selectedImageIndex] : product.imageUrl;
+      const selectedImage =
+        displayImages[selectedImageIndex] ||
+        getPrimaryDisplayImage(product, { selectedColor, selectedVariant }) ||
+        product.imageUrl;
       
       try {
         await addItem({ 
-          id: product.id.toString(), 
+          id: product.id.toString(),
+          productId: product.id.toString(),
           name: product.name, 
-          price: product.price,
+          price: displayPrice,
           image: selectedImage || '/placeholder-product.jpg',
           slug: product.slug,
-          size: selectedSize || undefined
-        }, quantity);
+          size: selectedSize || selectedVariant?.size || undefined,
+          color: selectedColor || selectedVariant?.color || undefined,
+          variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
+          allowCustomerQuantity: Boolean(product.allowCustomerQuantity),
+          maxStock: maxPurchasableQty,
+        }, showQuantitySelector ? selectedQuantity : 1);
         // Show success notification every time an item is added
         showAddToCart(product.name);
         onClose();
@@ -140,8 +195,6 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
     }
   };
 
-  const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
-
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -150,8 +203,10 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
   if (!isOpen || !product) return null;
 
-  const images = getOrderedImages(product);
-  const selectedImage = images.length > 0 ? images[selectedImageIndex] : product.imageUrl;
+  const selectedImage =
+    displayImages[selectedImageIndex] ||
+    getPrimaryDisplayImage(product, { selectedColor, selectedVariant }) ||
+    product.imageUrl;
 
   return (
     <div
@@ -169,7 +224,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          aria-label="Close modal"
+          aria-label={t.closeModal}
         >
           <XMarkIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
@@ -195,15 +250,15 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
             )}
 
             {/* Image Thumbnails */}
-            {images.length > 1 && (
+            {displayImages.length > 1 && (
               <div className="absolute bottom-4 left-0 right-0 px-4">
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {images.map((img, index) => (
+                  {displayImages.map((img, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImageIndex(index)}
-                      title={`View image ${index + 1}`}
-                      aria-label={`Select image ${index + 1} of ${images.length}`}
+                      title={t.viewImage(index + 1)}
+                      aria-label={t.selectImage(index + 1, displayImages.length)}
                       className={`relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${
                         selectedImageIndex === index
                           ? 'border-indigo-600 dark:border-indigo-400 ring-2 ring-indigo-200 dark:ring-indigo-800'
@@ -230,7 +285,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               {/* Category */}
               {product.categories && product.categories.length > 0 && (
                 <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
-                  {product.categories[0].name}
+                  {translateCategoryName(product.categories[0].name, isFrench)}
                 </p>
               )}
 
@@ -245,33 +300,37 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               </p>
 
               {/* Price */}
-              <div className="flex items-center gap-3">
-                <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {formatPrice(product.price)}
-                </span>
-                {product.compareAtPrice && product.compareAtPrice > product.price && (
-                  <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                    {formatPrice(product.compareAtPrice)}
+              <div className="space-y-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {formatPriceTnd(displayPrice)}
                   </span>
-                )}
+                  {(selectedVariant?.compareAtPrice ?? product.compareAtPrice) &&
+                    Number(selectedVariant?.compareAtPrice ?? product.compareAtPrice) > displayPrice && (
+                    <span className="text-lg text-red-600 dark:text-red-400 line-through">
+                      {formatPriceTnd(Number(selectedVariant?.compareAtPrice ?? product.compareAtPrice))}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Stock Status */}
-              {product.stockInfo && (
-                <div>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    product.stockInfo.isLowStock
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      : product.stockInfo.isInStock 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}>
-                    {product.stockInfo.status}
+              {product.hasVariants && product.colorOptions && product.colorOptions.length > 0 && (
+                <div className="space-y-2">
+                  <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                    {t.color} <span className="text-red-500">*</span>
                   </span>
-                  {product.stockInfo.isLowStock && (
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                      Only a few left in stock!
-                    </p>
+                  <ColorSwatches
+                    colors={product.colorOptions}
+                    selectedColor={selectedColor}
+                    onSelect={(color) => {
+                      setSelectedColor(color);
+                      setColorError(null);
+                      if (product.availableSizes?.length) setSelectedSize('');
+                    }}
+                    size="md"
+                  />
+                  {colorError && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{colorError}</p>
                   )}
                 </div>
               )}
@@ -279,17 +338,17 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               {/* Description */}
               {product.description && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-4">
-                    {product.description}
+                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-4 whitespace-pre-line">
+                    {descriptionTranslating ? '…' : productDescription}
                   </p>
                 </div>
               )}
 
               {/* Size Selector */}
-              {product.size && product.size.trim().length > 0 && (
+              {sizeChoices.length > 0 && (
                 <div className="space-y-2 pt-4">
                   <label htmlFor="quickview-size-select" className="block text-sm font-semibold text-gray-900 dark:text-white">
-                    Select Size <span className="text-red-500">*</span>
+                    {t.selectSize} <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="quickview-size-select"
@@ -309,19 +368,13 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                     required
                   >
                     <option value="" disabled>
-                      Choose your size
+                      {t.chooseSize}
                     </option>
-                    {product.size.split(',').map((sizeOption) => {
-                      const trimmedSize = sizeOption.trim();
-                      return (
-                        <option 
-                          key={trimmedSize} 
-                          value={trimmedSize}
-                        >
-                          {trimmedSize}
-                        </option>
-                      );
-                    })}
+                    {sizeChoices.map((trimmedSize) => (
+                      <option key={trimmedSize} value={trimmedSize}>
+                        {trimmedSize}
+                      </option>
+                    ))}
                   </select>
                   {sizeError && (
                     <p className="text-sm text-red-600 dark:text-red-400">
@@ -331,56 +384,39 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                   {selectedSize && !sizeError && (
                     <div className="flex items-center space-x-2">
                       <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        ✓ Selected: {selectedSize}
+                        {t.selectedSize(selectedSize)}
                       </span>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Quantity Selector */}
-              <div className="flex items-center gap-4 pt-4">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Quantity:
-                </label>
-                <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1}
-                    aria-label="Decrease quantity"
-                    title="Decrease quantity"
-                    className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    −
-                  </button>
-                  <span className="px-4 py-2 text-gray-900 dark:text-white min-w-[3rem] text-center">
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    disabled={product.quantity > 0 && quantity >= product.quantity}
-                    aria-label="Increase quantity"
-                    title="Increase quantity"
-                    className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              {showQuantitySelector && (
+                <QuantitySelector
+                  id="quickview-quantity"
+                  quantity={selectedQuantity}
+                  maxQuantity={maxPurchasableQty}
+                  onChange={setSelectedQuantity}
+                  className="pt-4"
+                />
+              )}
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
                   onClick={handleAddToCart}
-                  disabled={product.quantity === 0 || Boolean(product.size && product.size.trim().length > 0 && !selectedSize)}
+                  disabled={
+                    isOutOfStock ||
+                    (sizeChoices.length > 0 && !selectedSize)
+                  }
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
                 >
                   <ShoppingBagIcon className="w-5 h-5" />
-                  {product.quantity === 0 
-                    ? 'Out of Stock' 
-                    : Boolean(product.size && product.size.trim().length > 0 && !selectedSize)
-                    ? 'Select Size First'
-                    : 'Add to Cart'}
+                  {isOutOfStock
+                    ? t.outOfStock
+                    : sizeChoices.length > 0 && !selectedSize
+                      ? t.selectSizeFirst
+                      : t.addToCart}
                 </button>
                 <Link
                   href={`/product/${product.slug}`}
@@ -388,7 +424,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border-2 border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 font-medium rounded-lg transition-colors"
                 >
                   <EyeIcon className="w-5 h-5" />
-                  View Full Details
+                  {t.viewFullDetails}
                 </Link>
               </div>
 

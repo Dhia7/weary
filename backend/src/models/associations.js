@@ -1,4 +1,5 @@
 const Product = require('./Product');
+const ProductVariant = require('./ProductVariant');
 const Category = require('./Category');
 const Collection = require('./Collection');
 const ProductCategory = require('./ProductCategory');
@@ -20,6 +21,16 @@ OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 // Product-OrderItem associations (one-to-many)
 Product.hasMany(OrderItem, { as: 'orderItems', foreignKey: 'productId' });
 OrderItem.belongsTo(Product, { foreignKey: 'productId' });
+
+// Product-Variant associations
+Product.hasMany(ProductVariant, { as: 'variants', foreignKey: 'productId', onDelete: 'CASCADE' });
+ProductVariant.belongsTo(Product, { foreignKey: 'productId' });
+
+OrderItem.belongsTo(ProductVariant, { as: 'variant', foreignKey: 'variantId' });
+ProductVariant.hasMany(OrderItem, { as: 'orderItems', foreignKey: 'variantId' });
+
+Cart.belongsTo(ProductVariant, { as: 'variant', foreignKey: 'variantId' });
+ProductVariant.hasMany(Cart, { as: 'cartItems', foreignKey: 'variantId' });
 
 // Product-Category associations (many-to-many)
 Product.belongsToMany(Category, { 
@@ -69,6 +80,7 @@ Wishlist.belongsTo(Product, { foreignKey: 'productId' });
 
 module.exports = {
 	Product,
+	ProductVariant,
 	Category,
 	Collection,
 	ProductCategory,

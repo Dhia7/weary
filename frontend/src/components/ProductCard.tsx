@@ -10,38 +10,11 @@ import { getImageUrl } from '@/lib/utils';
 import WishlistButton from './WishlistButton';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import type { Product, ProductDisplayBadge } from '@/lib/types/product';
+import { formatProductPriceLabel } from '@/lib/types/product';
+import ColorSwatches from '@/components/ColorSwatches';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
-
-interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  SKU: string;
-  weightGrams?: number;
-  isActive: boolean;
-  imageUrl?: string;
-  images?: string[];
-  mainThumbnailIndex?: number;
-  price: number;
-  compareAtPrice?: number;
-  quantity: number;
-  size?: string | null;
-  stockInfo?: {
-    quantity?: number;
-    status: string;
-    isInStock: boolean;
-    isLowStock?: boolean;
-  };
-  categories?: Array<{
-    id: number;
-    name: string;
-    slug: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export type ProductCardVariant = 'default' | 'editorial';
 
@@ -50,11 +23,8 @@ interface ProductCardProps {
   variant?: ProductCardVariant;
 }
 
-function isNewArrival(createdAt: string) {
-  const created = new Date(createdAt).getTime();
-  if (Number.isNaN(created)) return false;
-  const days = (Date.now() - created) / (1000 * 60 * 60 * 24);
-  return days <= 30;
+function getDisplayBadge(product: Product): ProductDisplayBadge {
+  return product.displayBadge ?? null;
 }
 
 const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) => {
@@ -68,7 +38,10 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     e.preventDefault();
     e.stopPropagation();
 
-    if (product.size && product.size.trim().length > 0) {
+    if (
+      (product.hasVariants && product.colorOptions?.length) ||
+      (product.size && product.size.trim().length > 0)
+    ) {
       setIsQuickViewOpen(true);
       return;
     }
@@ -96,7 +69,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     setIsQuickViewOpen(true);
   };
 
-  const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
+  const priceLabel = formatProductPriceLabel(product, { isFrench });
 
   const getCategoryEmoji = (categories?: Array<{ name: string }>) => {
     if (!categories || categories.length === 0) return '👕';
@@ -133,7 +106,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const inStock = product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0;
 
   if (variant === 'editorial') {
-    const showNewBadge = isNewArrival(product.createdAt);
+    const badge = getDisplayBadge(product);
 
     return (
       <div className="group">
@@ -153,9 +126,14 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               </div>
             )}
           </Link>
-          {showNewBadge && (
+          {badge === 'new_arrival' && (
             <span className="absolute top-4 left-4 z-[6] bg-swisse-gold text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
               {isFrench ? 'Nouveaute' : 'New Arrival'}
+            </span>
+          )}
+          {badge === 'sold' && (
+            <span className="absolute top-4 left-4 z-[6] bg-swisse-ink/90 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
+              {isFrench ? 'Vendu' : 'Sold'}
             </span>
           )}
           <div className="absolute top-4 right-4 z-[9] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -168,7 +146,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               disabled={!inStock}
               className="w-full py-3 bg-swisse-ink text-swisse-canvas text-[10px] font-bold uppercase tracking-widest opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-swisse-gold pointer-events-auto disabled:opacity-40 disabled:cursor-not-allowed dark:bg-foreground dark:text-background dark:hover:bg-primary"
             >
-              {isFrench ? 'Ajout rapide' : 'Quick Add'}
+              {inStock ? (isFrench ? 'Ajout rapide' : 'Quick Add') : (isFrench ? 'Rupture de stock' : 'Out of Stock')}
             </button>
           </div>
         </div>
@@ -181,14 +159,19 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               <p className="text-xs text-swisse-ink/60 dark:text-muted-foreground">
                 {getCategoryName(product.categories)}
               </p>
+              {product.colorOptions && product.colorOptions.length > 1 && (
+                <ColorSwatches colors={product.colorOptions} maxVisible={4} />
+              )}
             </div>
             <div className="shrink-0 text-right">
               <span className="text-sm font-medium text-swisse-ink dark:text-foreground">
-                {formatPrice(product.price)}
+                {priceLabel}
               </span>
-              {product.compareAtPrice && product.compareAtPrice > product.price && (
+              {product.compareAtPrice &&
+                product.compareAtPrice > product.price &&
+                !product.priceRange?.hasVariablePricing && (
                 <p className="text-xs text-swisse-ink/50 line-through dark:text-muted-foreground">
-                  {formatPrice(product.compareAtPrice)}
+                  {`${Number(product.compareAtPrice).toFixed(2)} TND`}
                 </p>
               )}
             </div>
@@ -252,17 +235,18 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                 className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                {inStock
-                  ? product.size && product.size.trim().length > 0
+                {!inStock
+                  ? isFrench
+                    ? 'Rupture de stock'
+                    : 'Out of Stock'
+                  : (product.hasVariants && product.colorOptions?.length) ||
+                    (product.size && product.size.trim().length > 0)
                     ? isFrench
                       ? 'Choisir taille'
                       : 'Select Size'
                     : isFrench
                       ? 'Ajouter au panier'
-                      : 'Add to Cart'
-                  : isFrench
-                    ? 'Rupture de stock'
-                    : 'Out of Stock'}
+                      : 'Add to Cart'}
               </button>
             </div>
           </div>
@@ -273,59 +257,28 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
 
           <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{product.name}</h3>
 
+          {product.colorOptions && product.colorOptions.length > 1 && (
+            <div className="mb-2">
+              <ColorSwatches colors={product.colorOptions} maxVisible={5} />
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground/80 mb-2">
             {isFrench ? 'Ref' : 'SKU'}: {product.SKU}
           </p>
 
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2">
-              <span className="text-lg font-semibold text-foreground">{formatPrice(product.price)}</span>
-              {product.compareAtPrice && product.compareAtPrice > product.price && (
+              <span className="text-lg font-semibold text-foreground">{priceLabel}</span>
+              {product.compareAtPrice &&
+                product.compareAtPrice > product.price &&
+                !product.priceRange?.hasVariablePricing && (
                 <span className="text-sm text-muted-foreground line-through">
-                  {formatPrice(product.compareAtPrice)}
+                  {`${Number(product.compareAtPrice).toFixed(2)} TND`}
                 </span>
               )}
             </div>
           </div>
-
-          {(() => {
-            const isInStock = product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0;
-            const isLowStock =
-              product.stockInfo?.isLowStock ??
-              ((product.quantity ?? 0) > 0 && (product.quantity ?? 0) <= 10);
-            const status =
-              product.stockInfo?.status ??
-              (isInStock
-                ? isLowStock
-                  ? isFrench
-                    ? 'Stock faible'
-                    : 'Low Stock'
-                  : isFrench
-                    ? 'En stock'
-                    : 'In Stock'
-                : isFrench
-                  ? 'Rupture de stock'
-                  : 'Out of Stock');
-
-            if (product.stockInfo || product.quantity !== undefined) {
-              return (
-                <div className="mb-2">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      isLowStock
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        : isInStock
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}
-                  >
-                    {status}
-                  </span>
-                </div>
-              );
-            }
-            return null;
-          })()}
 
           {product.description && (
             <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
@@ -348,9 +301,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.imageUrl === nextProps.product.imageUrl &&
     prevProps.product.price === nextProps.product.price &&
+    prevProps.product.priceRange?.min === nextProps.product.priceRange?.min &&
+    prevProps.product.priceRange?.max === nextProps.product.priceRange?.max &&
     prevProps.product.quantity === nextProps.product.quantity &&
     prevProps.product.compareAtPrice === nextProps.product.compareAtPrice &&
     prevProps.product.stockInfo?.status === nextProps.product.stockInfo?.status &&
+    prevProps.product.displayBadge === nextProps.product.displayBadge &&
     prevProps.product.createdAt === nextProps.product.createdAt
   );
 });

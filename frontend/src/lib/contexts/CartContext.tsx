@@ -13,15 +13,22 @@ export interface CartItem {
   slug?: string;
   quantity: number;
   size?: string;
+  color?: string;
+  variantId?: string;
   cartItemId?: number; // Original cart item ID from database
+  allowCustomerQuantity?: boolean;
+  maxStock?: number;
 }
 
-export const getCartItemKey = (item: Pick<CartItem, 'id' | 'productId' | 'size' | 'cartItemId'>): string => {
+export const getCartItemKey = (item: Pick<CartItem, 'id' | 'productId' | 'size' | 'color' | 'variantId' | 'cartItemId'>): string => {
   if (item.cartItemId) {
-    return `cart-${item.cartItemId}-${item.size || 'no-size'}`;
+    return `cart-${item.cartItemId}`;
+  }
+  if (item.variantId) {
+    return `${item.productId || item.id}-v${item.variantId}`;
   }
 
-  return `${item.productId || item.id}-${item.size || 'no-size'}`;
+  return `${item.productId || item.id}-${item.color || 'no-color'}-${item.size || 'no-size'}`;
 };
 
 interface CartContextType {
@@ -237,6 +244,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, token]);
 
   const addItem = async (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
+    const allowQty = Boolean(item.allowCustomerQuantity);
+    const maxStock = item.maxStock ?? 0;
+    const addQty = allowQty
+      ? Math.max(1, Math.min(quantity, maxStock > 0 ? maxStock : quantity))
+      : 1;
     if (user && token) {
       // Add to backend for authenticated users
       try {
@@ -247,7 +259,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ productId: item.id, quantity, size: item.size }),
+          body: JSON.stringify({
+            productId: item.productId || item.id,
+            quantity: addQty,
+            size: item.size,
+            color: item.color,
+            variantId: item.variantId,
+          }),
         });
 
         if (response.ok) {
@@ -267,19 +285,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Add to local state for guest users
       // Match by product ID AND size (if size exists)
       setItems(prev => {
-        const existing = prev.find(p => 
-          p.id === item.id && 
-          ((p.size === undefined && item.size === undefined) || p.size === item.size)
+        const existing = prev.find(
+          (p) => getCartItemKey(p) === getCartItemKey({ ...item, quantity: 1 })
         );
         if (existing) {
-          return prev.map(p => 
-            (p.id === item.id && 
-             ((p.size === undefined && item.size === undefined) || p.size === item.size))
-              ? { ...p, quantity: p.quantity + quantity }
+          if (!allowQty) return prev;
+          const nextQty =
+            maxStock > 0
+              ? Math.min(existing.quantity + addQty, maxStock)
+              : existing.quantity + addQty;
+          return prev.map((p) =>
+            getCartItemKey(p) === getCartItemKey({ ...item, quantity: 1 })
+              ? { ...p, quantity: nextQty }
               : p
           );
         }
-        return [...prev, { ...item, quantity }];
+        return [...prev, { ...item, quantity: addQty }];
       });
     }
   };
@@ -297,8 +318,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(true);
         // Use productId if available, otherwise parse from id
         const productId = item.productId || item.id.split('-')[0];
-        const sizeParam = item?.size ? `?size=${encodeURIComponent(item.size)}` : '';
-        const response = await fetch(buildApiUrl(`/cart/${productId}${sizeParam}`), {
+        const params = new URLSearchParams();
+        if (item?.size) params.set('size', item.size);
+        if (item?.color) params.set('color', item.color);
+        if (item?.variantId) params.set('variantId', item.variantId);
+        const qs = params.toString();
+        const response = await fetch(buildApiUrl(`/cart/${productId}${qs ? `?${qs}` : ''}`), {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -330,6 +355,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Item not found in cart');
       return;
     }
+    if (!item.allowCustomerQuantity) return;
+
+    const maxStock = item.maxStock ?? 0;
+    const nextQty =
+      maxStock > 0
+        ? Math.max(1, Math.min(quantity, maxStock))
+        : Math.max(1, quantity);
 
     if (user && token) {
       // Update in backend for authenticated users
@@ -343,7 +375,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ productId, quantity, size: item?.size }),
+          body: JSON.stringify({
+            productId,
+            quantity: nextQty,
+            size: item?.size,
+            color: item?.color,
+            variantId: item?.variantId,
+          }),
         });
 
         if (response.ok) {
@@ -362,7 +400,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       // Update in local state for guest users
       setItems(prev => prev
-        .map(p => ((getCartItemKey(p) === id || p.id === id) ? { ...p, quantity } : p))
+        .map(p => ((getCartItemKey(p) === id || p.id === id) ? { ...p, quantity: nextQty } : p))
         .filter(p => p.quantity > 0)
       );
     }

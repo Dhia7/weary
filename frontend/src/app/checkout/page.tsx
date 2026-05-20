@@ -83,10 +83,12 @@ export default function CheckoutPage() {
 
   const payloadItems = useMemo(() =>
     items.map(i => ({ 
-      productId: i.productId || i.id.split('-')[0], // Use productId if available, otherwise parse from unique ID
+      productId: i.productId || i.id.split('-')[0],
       quantity: i.quantity, 
       unitPriceCents: Math.round(i.price * 100),
-      size: i.size || null
+      size: i.size || null,
+      color: i.color || null,
+      variantId: i.variantId ? parseInt(i.variantId, 10) : null,
     })),
   [items]);
 
@@ -258,6 +260,7 @@ export default function CheckoutPage() {
         key: getCartItemKey(i),
         name: i.name,
         size: i.size,
+        color: i.color,
         qty: i.quantity,
         price: i.price * i.quantity,
         image: i.image,

@@ -14,16 +14,21 @@ async function autoCreateAdmin() {
       return; // Silently skip if not configured
     }
 
-    // Check if any admin users already exist
-    const existingAdmins = await User.count({ where: { isAdmin: true } });
-    if (existingAdmins > 0) {
-      console.log('✅ Admin users already exist. Skipping auto-creation.');
-      return;
-    }
+    const syncPassword = process.env.ADMIN_SYNC_PASSWORD === 'true';
 
     // Check if user with this email already exists
-    const existingUser = await User.findOne({ where: { email: adminEmail } });
+    const existingUser = await User.findOne({ where: { email: adminEmail.toLowerCase() } });
     if (existingUser) {
+      if (syncPassword) {
+        existingUser.password = adminPassword;
+        existingUser.isAdmin = true;
+        existingUser.isEmailVerified = true;
+        existingUser.isActive = true;
+        await User.resetLoginAttempts(existingUser.id);
+        await existingUser.save();
+        console.log(`✅ Synced admin password from environment for ${adminEmail}`);
+        return;
+      }
       // Update existing user to admin
       existingUser.isAdmin = true;
       existingUser.isEmailVerified = true;
@@ -33,6 +38,13 @@ async function autoCreateAdmin() {
       }
       await existingUser.save();
       console.log(`✅ Updated existing user ${adminEmail} to admin.`);
+      return;
+    }
+
+    // Check if any admin users already exist
+    const existingAdmins = await User.count({ where: { isAdmin: true } });
+    if (existingAdmins > 0) {
+      console.log('✅ Admin users already exist. Skipping auto-creation.');
       return;
     }
 

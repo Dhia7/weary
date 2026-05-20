@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface User {
   id: string;
@@ -80,8 +81,6 @@ export const useAuth = () => {
   return context;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -105,8 +104,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (authToken: string) => {
     try {
-      console.log('fetchUserProfile: Fetching user profile from:', `${API_BASE_URL}/auth/me`);
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      console.log('fetchUserProfile: Fetching user profile from:', `${getApiBaseUrl()}/auth/me`);
+      const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -137,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (userData: SignupData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -212,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async (credential: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential }),
@@ -235,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resendVerificationEmail = async (email: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -280,7 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -328,7 +327,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/profile/update`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/profile/update`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -357,7 +356,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/change-password`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -399,7 +398,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/2fa`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/2fa`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -429,7 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/2fa/verify`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/2fa/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

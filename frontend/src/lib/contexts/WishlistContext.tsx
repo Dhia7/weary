@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface WishlistItem {
   id: string;
@@ -48,8 +49,6 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
   const { user, token } = useAuth();
   const isAuthenticated = !!(user && token);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
   // Fetch wishlist items
   const fetchWishlist = async () => {
     if (!isAuthenticated || !user || !token) {
@@ -61,7 +60,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/wishlist`, {
+      const response = await fetch(`${getApiBaseUrl()}/wishlist`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -112,7 +111,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/wishlist`, {
+      const response = await fetch(`${getApiBaseUrl()}/wishlist`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -146,7 +145,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/wishlist/${productId}`, {
+      const response = await fetch(`${getApiBaseUrl()}/wishlist/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -184,7 +183,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/wishlist`, {
+      const response = await fetch(`${getApiBaseUrl()}/wishlist`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

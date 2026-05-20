@@ -171,6 +171,34 @@ const connectDB = async () => {
       } catch (error) {
         console.warn('Cart constraint fix failed (non-critical):', error.message);
       }
+
+      try {
+        const addProductVariants = require('../scripts/add-product-variants');
+        await addProductVariants();
+      } catch (error) {
+        console.warn('Product variants migration failed (non-critical):', error.message);
+      }
+
+      try {
+        const addProductSpecs = require('../scripts/add-product-specs');
+        await addProductSpecs();
+      } catch (error) {
+        console.warn('Product specs migration failed (non-critical):', error.message);
+      }
+
+      try {
+        const addAllowCustomerQuantity = require('../scripts/add-allow-customer-quantity');
+        await addAllowCustomerQuantity();
+      } catch (error) {
+        console.warn('allowCustomerQuantity migration failed (non-critical):', error.message);
+      }
+
+      try {
+        const addDisplayBadge = require('../scripts/add-display-badge');
+        await addDisplayBadge();
+      } catch (error) {
+        console.warn('displayBadge migration failed (non-critical):', error.message);
+      }
       
       // Auto-create admin account from environment variables (if configured)
       try {
