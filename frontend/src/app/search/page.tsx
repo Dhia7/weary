@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
@@ -9,40 +9,13 @@ import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { Grid, List, Search } from 'lucide-react';
 import { buildApiUrl } from '@/lib/api';
-
-interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  SKU: string;
-  price: number;
-  compareAtPrice?: number;
-  quantity: number;
-  weightGrams?: number;
-  isActive: boolean;
-  imageUrl?: string;
-  images: string[];
-  mainThumbnailIndex?: number;
-  categories: Array<{
-    id: number;
-    name: string;
-    slug: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useProductSearch } from '@/lib/hooks/useProductSearch';
 
 function SearchPageContent() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('ASC');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categoryLabel, setCategoryLabel] = useState<string>('');
   const productsPerPage = 12;
@@ -50,6 +23,20 @@ function SearchPageContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const categorySlug = searchParams.get('category') || '';
+
+  const { products, pagination, loading, error, mutate } = useProductSearch({
+    q: query,
+    categoryId: categoryId ?? undefined,
+    sort: sortBy,
+    order: sortOrder,
+    page: currentPage,
+    limit: productsPerPage,
+    active: true,
+  });
+
+  const totalPages = pagination?.totalPages ?? 1;
+  const totalProducts = pagination?.totalProducts ?? 0;
+  const errorMessage = error instanceof Error ? error.message : error ? String(error) : '';
 
   useEffect(() => {
     let cancelled = false;
@@ -90,66 +77,12 @@ function SearchPageContent() {
     };
   }, [categorySlug]);
 
-  const fetchSearchResults = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      const apiUrl = buildApiUrl('/products', {
-        q: query,
-        ...(categoryId ? { categoryId } : {}),
-        sort: sortBy,
-        order: sortOrder,
-        page: currentPage,
-        limit: productsPerPage,
-        active: true
-      });
-      console.log('🔍 Searching products from:', apiUrl);
-      
-      const response = await fetch(apiUrl);
-      console.log('📡 Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('❌ Error response body:', errorText);
-        throw new Error('Failed to fetch search results');
-      }
-
-      const data = await response.json();
-      console.log('✅ Search results:', data);
-      
-      if (data.success && data.data) {
-        console.log('✅ Setting search results from API');
-        console.log('✅ Products count:', data.data.products?.length || 0);
-        console.log('✅ Pagination data:', data.data.pagination);
-        setProducts(data.data.products || []);
-        setTotalProducts(data.data.pagination?.totalProducts || 0);
-        setTotalPages(data.data.pagination?.totalPages || 1);
-      } else {
-        console.log('❌ Invalid response format');
-        throw new Error('Invalid response format');
-      }
-    } catch (err) {
-      console.error('❌ Search error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load search results');
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [query, sortBy, sortOrder, currentPage, productsPerPage, categoryId]);
-
-  useEffect(() => {
-    if (query) {
-      fetchSearchResults();
-    }
-  }, [query, fetchSearchResults]);
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (loading) {
+  if (query && loading && products.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation />
@@ -172,7 +105,7 @@ function SearchPageContent() {
     );
   }
 
-  if (error) {
+  if (query && error && products.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation />
@@ -181,9 +114,10 @@ function SearchPageContent() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Error Loading Search Results
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">{error}</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">{errorMessage}</p>
             <button
-              onClick={() => window.location.reload()}
+              type="button"
+              onClick={() => mutate()}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
             >
               Try Again
@@ -307,7 +241,10 @@ function SearchPageContent() {
                 }
               >
                 {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={(product as { id: number }).id}
+                    product={product as Parameters<typeof ProductCard>[0]['product']}
+                  />
                 ))}
               </motion.div>
             ) : (

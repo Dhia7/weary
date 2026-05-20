@@ -97,11 +97,14 @@ const FeaturedProducts = () => {
             viewport={{ once: true, margin: '-60px' }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-14 md:gap-y-16"
           >
-            {products.map((product: Product) => (
+            {products.map((item) => {
+              const product = item as Product;
+              return (
               <motion.div key={product.id} variants={itemVariants}>
                 <ProductCard product={product} variant="editorial" />
               </motion.div>
-            ))}
+              );
+            })}
           </motion.div>
         ) : (
           <p className="text-center text-swisse-ink/60 dark:text-muted-foreground text-lg py-12">

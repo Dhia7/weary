@@ -84,13 +84,48 @@ export interface Product {
   updatedAt: string;
 }
 
+/** Sized, non-variant products with qty 0 are made-to-order unless marked sold. */
+export const isMadeToOrderProduct = (
+  product: Pick<Product, 'size' | 'hasVariants' | 'displayBadge'>
+): boolean =>
+  Boolean(
+    product.size?.trim() &&
+      !product.hasVariants &&
+      product.displayBadge !== 'sold'
+  );
+
+/** True when the product cannot be purchased (sold badge or no stock). */
+export const isProductSoldOut = (
+  product: Product,
+  selectedVariant?: ProductVariant
+): boolean => {
+  if (product.displayBadge === 'sold') return true;
+
+  if (product.hasVariants && product.variants?.length) {
+    if (selectedVariant) {
+      return !(selectedVariant.stockInfo?.isInStock ?? selectedVariant.quantity > 0);
+    }
+    const anyInStock = product.variants.some(
+      (v) => v.stockInfo?.isInStock ?? v.quantity > 0
+    );
+    return !(product.stockInfo?.isInStock ?? anyInStock);
+  }
+
+  if (isMadeToOrderProduct(product)) return false;
+
+  const qty = product.stockInfo?.quantity ?? product.quantity ?? 0;
+  return !(product.stockInfo?.isInStock ?? qty > 0);
+};
+
 export const getProductMaxStock = (
-  product: Pick<Product, 'quantity' | 'size' | 'stockInfo'>,
+  product: Pick<Product, 'quantity' | 'size' | 'stockInfo' | 'hasVariants' | 'displayBadge'>,
   variant?: ProductVariant
 ): number => {
+  if (product.displayBadge === 'sold') return 0;
   if (variant) {
     return variant.stockInfo?.quantity ?? variant.quantity ?? 0;
   }
+  if (isMadeToOrderProduct(product)) return 999;
   return product.stockInfo?.quantity ?? product.quantity ?? 0;
 };
 
@@ -125,6 +160,46 @@ export const getVariantPrice = (variant: ProductVariant | undefined, product: Pr
 
 export const formatPriceTnd = (price: number | string): string =>
   `${Number(price).toFixed(2)} TND`;
+
+/** Coerce API decimal strings to a finite number, or null when absent/invalid. */
+export const toPriceNumber = (
+  value: number | string | null | undefined
+): number | null => {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+/** Lowest price shown on listings (variant min, price range, or base price). */
+export const getListingPrice = (product: Product): number => {
+  const range = product.priceRange;
+  if (range?.hasVariablePricing) return range.min;
+
+  if (product.hasVariants && product.variants?.length) {
+    const prices = product.variants.map((v) => getVariantPrice(v, product));
+    return Math.min(...prices);
+  }
+
+  return toPriceNumber(product.price) ?? 0;
+};
+
+/** Compare-at price for the current selection (variant overrides product). */
+export const getEffectiveCompareAtPrice = (
+  product: Product,
+  selectedVariant?: ProductVariant
+): number | null =>
+  toPriceNumber(selectedVariant?.compareAtPrice ?? product.compareAtPrice);
+
+/** Show strikethrough compare-at only when it is strictly higher than the active price. */
+export const shouldShowCompareAtPrice = (
+  compareAt: number | string | null | undefined,
+  currentPrice: number | string
+): boolean => {
+  const compare = toPriceNumber(compareAt);
+  const current = toPriceNumber(currentPrice);
+  if (compare == null || current == null) return false;
+  return compare > current;
+};
 
 /** Listing / card label when variants have different prices */
 export const formatProductPriceLabel = (

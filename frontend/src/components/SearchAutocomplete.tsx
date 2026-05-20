@@ -9,36 +9,11 @@ import {
   TagIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
-import { buildApiUrl } from '@/lib/api';
+import { useProductAutocomplete } from '@/lib/hooks/useProductAutocomplete';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-
-interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  imageUrl?: string;
-  price: number;
-  categories?: Array<{
-    id: number;
-    name: string;
-    slug: string;
-  }>;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-interface AutocompleteResults {
-  products: Product[];
-  categories: Category[];
-  popularProducts: Product[];
-}
 
 interface SearchAutocompleteProps {
   onSearch?: (query: string) => void;
@@ -70,11 +45,11 @@ const SearchAutocomplete = ({
   const resolvedPlaceholder =
     placeholder === 'Search for products...' && isFrench ? 'Rechercher des produits...' : placeholder;
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<AutocompleteResults | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [categorySlug, setCategorySlug] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+  const { results, loading } = useProductAutocomplete(debouncedQuery);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const router = useRouter();
@@ -108,34 +83,7 @@ const SearchAutocomplete = ({
     });
   }, []);
 
-  // Fetch autocomplete results
-  const fetchAutocomplete = useCallback(async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      setResults(null);
-      setIsOpen(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const apiUrl = buildApiUrl('/products/autocomplete', { q: searchTerm });
-      const response = await fetch(apiUrl);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setResults(data.data);
-          setIsOpen(true);
-        }
-      }
-    } catch (error) {
-      console.error('Autocomplete error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Debounced search
+  // Debounce query for SWR autocomplete
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -143,10 +91,10 @@ const SearchAutocomplete = ({
 
     if (query.trim()) {
       debounceTimerRef.current = setTimeout(() => {
-        fetchAutocomplete(query);
+        setDebouncedQuery(query.trim());
       }, 300);
     } else {
-      setResults(null);
+      setDebouncedQuery('');
       setIsOpen(recentSearches.length > 0);
     }
 
@@ -155,7 +103,13 @@ const SearchAutocomplete = ({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [query, fetchAutocomplete, recentSearches.length]);
+  }, [query, recentSearches.length]);
+
+  useEffect(() => {
+    if (debouncedQuery && results) {
+      setIsOpen(true);
+    }
+  }, [debouncedQuery, results]);
 
   // Handle search submission
   const handleSearch = useCallback((searchTerm?: string) => {

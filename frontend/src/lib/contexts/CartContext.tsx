@@ -246,6 +246,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addItem = async (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
     const allowQty = Boolean(item.allowCustomerQuantity);
     const maxStock = item.maxStock ?? 0;
+    if (maxStock <= 0) {
+      console.warn('Cannot add item with no available stock');
+      return;
+    }
     const addQty = allowQty
       ? Math.max(1, Math.min(quantity, maxStock > 0 ? maxStock : quantity))
       : 1;
@@ -436,8 +440,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const buyNow = (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
-    // Clear existing cart and add only this item
-    setItems([{ ...item, quantity }]);
+    const maxStock = item.maxStock ?? 0;
+    if (maxStock <= 0) {
+      console.warn('Cannot buy item with no available stock');
+      return;
+    }
+    const allowQty = Boolean(item.allowCustomerQuantity);
+    const qty = allowQty
+      ? Math.max(1, Math.min(quantity, maxStock > 0 ? maxStock : quantity))
+      : 1;
+    setItems([{ ...item, quantity: qty }]);
   };
 
   const totalQuantity = useMemo(() => items.reduce((sum, it) => sum + it.quantity, 0), [items]);

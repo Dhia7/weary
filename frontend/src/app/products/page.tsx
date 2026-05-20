@@ -1,105 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { Grid, List } from 'lucide-react';
-import { buildApiUrl } from '@/lib/api';
-
-interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  SKU: string;
-  price: number;
-  compareAtPrice?: number;
-  quantity: number;
-  weightGrams?: number;
-  isActive: boolean;
-  imageUrl?: string;
-  images: string[];
-  mainThumbnailIndex?: number;
-  categories: Array<{
-    id: number;
-    name: string;
-    slug: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useProducts } from '@/lib/hooks/useProducts';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('ASC');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
   const productsPerPage = 12;
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        
-        const apiUrl = buildApiUrl('/products', {
-          sort: sortBy,
-          order: sortOrder,
-          page: currentPage,
-          limit: productsPerPage,
-          active: true
-        });
-        console.log('🔍 Fetching products from:', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        console.log('📡 Response status:', response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.log('❌ Error response body:', errorText);
-          throw new Error('Failed to fetch products');
-        }
+  const { products, pagination, loading, error, mutate } = useProducts({
+    sort: sortBy,
+    order: sortOrder,
+    page: currentPage,
+    limit: productsPerPage,
+    active: true,
+  });
 
-        const data = await response.json();
-        console.log('✅ Response data:', data);
-        
-        if (data.success && data.data) {
-          console.log('✅ Setting products from API');
-          console.log('✅ Products count:', data.data.products?.length || 0);
-          console.log('✅ Pagination data:', data.data.pagination);
-          setProducts(data.data.products || []);
-          setTotalProducts(data.data.pagination?.totalProducts || 0);
-          setTotalPages(data.data.pagination?.totalPages || 1);
-        } else {
-          console.log('❌ Invalid response format');
-          throw new Error('Invalid response format');
-        }
-      } catch (err) {
-        console.error('❌ Products fetch error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load products');
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [sortBy, sortOrder, currentPage]);
-
+  const totalPages = pagination?.totalPages ?? 1;
+  const totalProducts = pagination?.totalProducts ?? 0;
+  const errorMessage = error instanceof Error ? error.message : error ? String(error) : '';
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation />
@@ -122,7 +55,7 @@ export default function ProductsPage() {
     );
   }
 
-  if (error) {
+  if (error && products.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation />
@@ -131,9 +64,10 @@ export default function ProductsPage() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Error Loading Products
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">{error}</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">{errorMessage}</p>
             <button
-              onClick={() => window.location.reload()}
+              type="button"
+              onClick={() => mutate()}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
             >
               Try Again
@@ -150,7 +84,6 @@ export default function ProductsPage() {
       <Navigation />
       
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             All Products
@@ -160,7 +93,6 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        {/* Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -174,6 +106,7 @@ export default function ProductsPage() {
                   const [newSortBy, newSortOrder] = e.target.value.split('-');
                   setSortBy(newSortBy);
                   setSortOrder(newSortOrder);
+                  setCurrentPage(1);
                 }}
                 title="Sort products"
                 className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -219,7 +152,6 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {/* Products Grid/List */}
         {products.length > 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
@@ -232,7 +164,7 @@ export default function ProductsPage() {
             }
           >
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={(product as { id: number }).id} product={product as Parameters<typeof ProductCard>[0]['product']} />
             ))}
           </motion.div>
         ) : (
@@ -243,7 +175,6 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="mt-12 flex justify-center">
             <nav className="flex items-center space-x-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingBagIcon, ArrowLeftIcon, CreditCardIcon } from '@heroicons/react/24/outline';
@@ -10,8 +10,16 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import CartPanel from '@/components/CartPanel';
 import Navigation from '@/components/Navigation';
 import WishlistButton from '@/components/WishlistButton';
-import type { Product } from '@/lib/types/product';
-import { findVariant, getVariantPrice, getColorPrice, formatPriceTnd, getProductMaxStock } from '@/lib/types/product';
+import {
+  findVariant,
+  getVariantPrice,
+  getColorPrice,
+  formatPriceTnd,
+  getEffectiveCompareAtPrice,
+  getProductMaxStock,
+  isProductSoldOut,
+  shouldShowCompareAtPrice,
+} from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
 import ColorSwatches from '@/components/ColorSwatches';
 import ProductImageGallery from '@/components/product/ProductImageGallery';
@@ -22,14 +30,14 @@ import {
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
 import { getProductTranslations, translateCategoryName } from '@/lib/i18n/product';
+import { useProduct } from '@/lib/hooks/useProduct';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params?.slug as string;
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // For product loading errors
+  const { product, loading, error: fetchError, mutate } = useProduct(slug);
+  const error = fetchError?.message ?? null;
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
@@ -62,14 +70,13 @@ export default function ProductDetailPage() {
     return Number(product.price);
   }, [product, selectedVariant, selectedColor]);
 
+  const effectiveCompareAt = product
+    ? getEffectiveCompareAtPrice(product, selectedVariant)
+    : null;
+
   const isOutOfStock = useMemo(() => {
     if (!product) return false;
-    if (selectedVariant) {
-      return !(selectedVariant.stockInfo?.isInStock ?? selectedVariant.quantity > 0);
-    }
-    const hasSizes = product.size && product.size.trim().length > 0;
-    if (hasSizes) return false;
-    return !(product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0);
+    return isProductSoldOut(product, selectedVariant);
   }, [product, selectedVariant]);
 
   const maxPurchasableQty = useMemo(() => {
@@ -118,106 +125,13 @@ export default function ProductDetailPage() {
     return undefined;
   }, [product, selectedColor, t]);
 
-  const fetchProduct = useCallback(async () => {
-    try {
-      setLoading(true);
-      // Use Next.js API proxy instead of direct backend call to avoid CORS issues
-      const cacheBuster = `?t=${Date.now()}`;
-      let apiUrl = `/api/products/${slug}${cacheBuster}`;
-      
-      // Try Next.js proxy first (works in both dev and production)
-      let response: Response;
-      
-      try {
-        response = await fetch(apiUrl, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
-      } catch (proxyError) {
-        // If proxy fails, try direct backend URL as fallback
-        const directBackendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        console.warn('Next.js proxy failed, trying direct backend URL:', proxyError);
-        
-        try {
-          apiUrl = `${directBackendUrl}/products/${slug}${cacheBuster}`;
-          response = await fetch(apiUrl, {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          });
-        } catch (directError) {
-          const errorMsg = directError instanceof Error ? directError.message : 'Failed to fetch from both proxy and direct URL';
-          throw new Error(`Network error: ${errorMsg}. Please ensure the backend server is running.`);
-        }
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to load product' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.data?.product) {
-        const productData = data.data.product;
-        console.log('Product data received:', {
-          name: productData.name,
-          quantity: productData.quantity,
-          size: productData.size,
-          sizeStock: productData.sizeStock,
-          sizeStockInfo: productData.sizeStockInfo
-        });
-        setProduct(productData);
-        setError(null); // Clear any previous errors
-        setSelectedSize('');
-        setSelectedColor(productData.colorOptions?.[0]?.name || '');
-        setColorError(null);
-      } else {
-        setError(data.message || 'Product not found');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : 'Failed to load product. Please ensure the backend server is running.';
-      setError(errorMessage);
-      console.error('Error fetching product:', err);
-      
-      // Provide helpful error message
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-        console.error('Network error detected. Check if:');
-        console.error('1. Backend server is running on http://localhost:3001');
-        console.error('2. CORS is properly configured');
-        console.error('3. Next.js rewrites are working correctly');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [slug]);
-
   useEffect(() => {
-    if (slug) {
-      fetchProduct();
+    if (product) {
+      setSelectedSize('');
+      setSelectedColor(product.colorOptions?.[0]?.name || '');
+      setColorError(null);
     }
-  }, [slug, fetchProduct]);
-
-  // Auto-refresh product data when page comes into focus (to get latest stock)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (slug && !loading) {
-        fetchProduct(); // Refresh product data
-      }
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [slug, loading, fetchProduct]);
+  }, [product]);
 
   // Clear error notification when component unmounts or route changes
   useEffect(() => {
@@ -230,6 +144,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (product) {
+      if (isOutOfStock) return;
       if (product.hasVariants && !selectedColor) {
         setColorError(t.selectColorCart);
         return;
@@ -288,6 +203,7 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = () => {
     if (product) {
+      if (isOutOfStock) return;
       if (product.hasVariants && !selectedColor) {
         setColorError(t.selectColorCheckout);
         return;
@@ -328,8 +244,10 @@ export default function ProductDetailPage() {
         size: selectedSize || selectedVariant?.size || undefined,
         color: selectedColor || selectedVariant?.color || undefined,
         variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
+        allowCustomerQuantity: Boolean(product.allowCustomerQuantity),
+        maxStock: maxPurchasableQty,
       };
-      buyNow(cartItem, 1);
+      buyNow(cartItem, showQuantitySelector ? selectedQuantity : 1);
       
       // Clear any previous errors
       clearAllErrors(); // Clear error notifications before navigating
@@ -359,7 +277,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !product) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <LoadingSpinner />
@@ -367,13 +285,22 @@ export default function ProductDetailPage() {
     );
   }
 
-  if (error || !product) {
+  if (!product) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             {error || t.productNotFound}
           </h1>
+          {error && (
+            <button
+              type="button"
+              onClick={() => mutate()}
+              className="mb-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              Try Again
+            </button>
+          )}
           <Link 
             href="/"
             className="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
@@ -429,9 +356,21 @@ export default function ProductDetailPage() {
             )}
 
             {/* Product Name */}
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {product.name}
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {product.name}
+              </h1>
+              {product.displayBadge === 'sold' && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-900 text-white dark:bg-foreground dark:text-background">
+                  {isFrench ? 'Vendu' : 'Sold'}
+                </span>
+              )}
+              {product.displayBadge === 'new_arrival' && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-600 text-white">
+                  {isFrench ? 'Nouveauté' : 'New Arrival'}
+                </span>
+              )}
+            </div>
 
             {/* SKU */}
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -444,10 +383,9 @@ export default function ProductDetailPage() {
                 <span className="text-3xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(displayPrice)}
                 </span>
-                {(selectedVariant?.compareAtPrice ?? product.compareAtPrice) &&
-                  Number(selectedVariant?.compareAtPrice ?? product.compareAtPrice) > displayPrice && (
+                {shouldShowCompareAtPrice(effectiveCompareAt, displayPrice) && (
                   <span className="text-xl text-red-600 dark:text-red-400 line-through">
-                    {formatPrice(Number(selectedVariant?.compareAtPrice ?? product.compareAtPrice))}
+                    {formatPrice(effectiveCompareAt!)}
                   </span>
                 )}
               </div>

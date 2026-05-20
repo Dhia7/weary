@@ -10,8 +10,10 @@ const {
 	parseVariantsPayload,
 	syncProductVariants,
 	attachVariantSummary,
-	computeProductStockFromVariants
+	computeProductStockFromVariants,
+	getActiveVariants
 } = require('../utils/variantHelpers');
+const { isSoldBadge, isMadeToOrderProduct } = require('../utils/productAvailability');
 
 // Ensure associations are loaded
 require('../models/associations');
@@ -28,8 +30,42 @@ const variantInclude = {
 };
 
 // Helper function to format product data based on user role
+const parsePriceField = (value) => {
+	if (value == null || value === '') return null;
+	const n = parseFloat(value);
+	return Number.isFinite(n) ? n : null;
+};
+
+const normalizeProductPrices = (productData) => {
+	if (productData.price != null) {
+		productData.price = parsePriceField(productData.price);
+	}
+	if (productData.compareAtPrice != null) {
+		const compare = parsePriceField(productData.compareAtPrice);
+		const price = parsePriceField(productData.price);
+		productData.compareAtPrice =
+			compare != null && price != null && compare > price ? compare : null;
+	}
+	if (Array.isArray(productData.variants)) {
+		productData.variants = productData.variants.map((variant) => {
+			const v = { ...variant };
+			if (v.price != null) v.price = parsePriceField(v.price);
+			if (v.compareAtPrice != null) {
+				const compare = parsePriceField(v.compareAtPrice);
+				const variantPrice = parsePriceField(v.price) ?? parsePriceField(productData.price);
+				v.compareAtPrice =
+					compare != null && variantPrice != null && compare > variantPrice
+						? compare
+						: null;
+			}
+			return v;
+		});
+	}
+	return productData;
+};
+
 const formatProductForUser = (product, isAdmin = false) => {
-	const productData = product.toJSON ? product.toJSON() : product;
+	const productData = normalizeProductPrices(product.toJSON ? product.toJSON() : product);
 	
 	// Ensure imageUrl is set from images array if missing
 	if (!productData.imageUrl && Array.isArray(productData.images) && productData.images.length > 0) {
@@ -47,14 +83,17 @@ const formatProductForUser = (product, isAdmin = false) => {
 	const sizeStock = productData.sizeStock || {};
 	const sizeStockInfo = {};
 	
-	if (productData.size && typeof sizeStock === 'object') {
+	const variants = productData.variants || [];
+	const hasVariants = getActiveVariants(variants).length > 0;
+	const madeToOrder = isMadeToOrderProduct({ ...productData, hasVariants });
+
+	if (productData.size && typeof sizeStock === 'object' && madeToOrder) {
 		const sizes = productData.size.split(',').map(s => s.trim());
 		sizes.forEach(size => {
-			// Made-to-order: all sizes are always available
 			sizeStockInfo[size] = {
-				quantity: 999, // Show as available (made-to-order)
+				quantity: 999,
 				status: 'Available',
-				isInStock: true, // Always in stock for made-to-order
+				isInStock: true,
 				isLowStock: false
 			};
 		});
@@ -64,20 +103,15 @@ const formatProductForUser = (product, isAdmin = false) => {
 	let overallQuantity = productData.quantity;
 	let overallIsInStock = productData.quantity > 0;
 	let overallIsLowStock = productData.quantity > 0 && productData.quantity <= 10;
-	
-	// If product has sizes, it's made-to-order but admins still see actual quantity
-	const hasSizes = productData.size && productData.size.trim().length > 0;
-	if (hasSizes) {
-		// For made-to-order products with sizes, always show as in stock
+
+	if (isSoldBadge(productData)) {
+		overallIsInStock = false;
+		overallIsLowStock = false;
+	} else if (madeToOrder) {
 		overallIsInStock = true;
-		// Low stock calculation still applies based on actual quantity
 		overallIsLowStock = productData.quantity > 0 && productData.quantity <= 10;
-		// Admins see actual quantity, not 999
 		overallQuantity = productData.quantity;
 	}
-	
-	const variants = productData.variants || [];
-	const hasVariants = Array.isArray(variants) && variants.length > 0;
 
 	let formatted;
 	if (isAdmin) {
@@ -107,7 +141,29 @@ const formatProductForUser = (product, isAdmin = false) => {
 	}
 
 	if (hasVariants) {
-		return attachVariantSummary(formatted, variants, isAdmin);
+		const withVariants = attachVariantSummary(formatted, variants, isAdmin);
+		if (isSoldBadge(productData)) {
+			withVariants.stockInfo = {
+				...(withVariants.stockInfo || {}),
+				isInStock: false,
+				isLowStock: false,
+				status: 'Out of Stock',
+				...(isAdmin ? { quantity: overallQuantity } : {})
+			};
+			if (Array.isArray(withVariants.variants)) {
+				withVariants.variants = withVariants.variants.map((v) => ({
+					...v,
+					stockInfo: {
+						...(v.stockInfo || {}),
+						isInStock: false,
+						isLowStock: false,
+						status: 'Out of Stock',
+						...(isAdmin ? { quantity: v.quantity } : {})
+					}
+				}));
+			}
+		}
+		return withVariants;
 	}
 
 	return formatted;
@@ -226,7 +282,14 @@ const createProduct = async (req, res) => {
 			images: imageUrls, // Store all images
 			mainThumbnailIndex: mainThumbnailIndex, // Store the selected thumbnail index
 			price: parseFloat(price),
-			compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+			compareAtPrice: (() => {
+				if (!compareAtPrice) return null;
+				const compare = parseFloat(compareAtPrice);
+				const basePrice = parseFloat(price);
+				return Number.isFinite(compare) && Number.isFinite(basePrice) && compare > basePrice
+					? compare
+					: null;
+			})(),
 			quantity: parseInt(quantity) || 0,
 			barcode: barcode || null,
 			size: size || null,
@@ -577,7 +640,14 @@ const updateProduct = async (req, res) => {
 			product.allowCustomerQuantity = parseBooleanField(allowCustomerQuantity, false);
 		}
 		if (price !== undefined) product.price = parseFloat(price);
-		if (compareAtPrice !== undefined) product.compareAtPrice = compareAtPrice ? parseFloat(compareAtPrice) : null;
+		if (compareAtPrice !== undefined) {
+			const compare = compareAtPrice ? parseFloat(compareAtPrice) : null;
+			const basePrice = price !== undefined ? parseFloat(price) : parseFloat(product.price);
+			product.compareAtPrice =
+				compare != null && Number.isFinite(compare) && Number.isFinite(basePrice) && compare > basePrice
+					? compare
+					: null;
+		}
 		// For made-to-order products with sizes, sizeStock is not used
 		// Just set empty object for compatibility (column doesn't exist anyway)
 		const finalSize = size !== undefined ? size : product.size;

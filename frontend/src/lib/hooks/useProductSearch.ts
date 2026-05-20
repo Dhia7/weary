@@ -1,16 +1,7 @@
 import useSWR from 'swr';
 import { productListConfig } from '@/lib/swr/config';
 import { productsListKey } from '@/lib/swr/fetcher';
-
-export interface UseProductsParams {
-  limit?: number;
-  active?: boolean;
-  page?: number;
-  categoryId?: number;
-  q?: string;
-  sort?: string;
-  order?: string;
-}
+import type { UseProductsParams } from '@/lib/hooks/useProducts';
 
 type ProductsListData = {
   products: unknown[];
@@ -22,16 +13,19 @@ type ProductsListData = {
   };
 };
 
-export function useProducts(params?: UseProductsParams) {
-  const key = productsListKey({
-    limit: params?.limit,
-    active: params?.active,
-    page: params?.page,
-    categoryId: params?.categoryId,
-    q: params?.q,
-    sort: params?.sort,
-    order: params?.order,
-  });
+/** Search page — list endpoint; no fetch until `q` is non-empty */
+export function useProductSearch(params: UseProductsParams & { q: string }) {
+  const key = params.q.trim()
+    ? productsListKey({
+        q: params.q,
+        limit: params.limit,
+        active: params.active ?? true,
+        page: params.page,
+        categoryId: params.categoryId,
+        sort: params.sort,
+        order: params.order,
+      })
+    : null;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data?: ProductsListData }>(
     key,

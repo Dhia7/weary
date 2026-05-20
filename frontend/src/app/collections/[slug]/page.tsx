@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useCollection } from '@/lib/hooks/useCollection';
 import Link from 'next/link';
 import { ArrowLeftIcon, ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
@@ -27,51 +28,14 @@ interface Product {
   }>;
 }
 
-interface Collection {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  imageUrl?: string;
-  isActive: boolean;
-  products: Product[];
-}
-
 export default function CollectionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params?.slug as string;
-  const [collection, setCollection] = useState<Collection | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { collection, loading, error: fetchError, mutate } = useCollection(slug);
+  const error = fetchError?.message ?? null;
   const [wishlistedItems, setWishlistedItems] = useState<Set<number>>(new Set());
   const { addItem } = useCart();
-
-  useEffect(() => {
-    if (slug) {
-      fetchCollection();
-    }
-  }, [slug]);
-
-  const fetchCollection = async () => {
-    try {
-      setLoading(true);
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${API_BASE_URL}/collections/${slug}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setCollection(data.data.collection);
-      } else {
-        setError(data.message || 'Collection not found');
-      }
-    } catch (err) {
-      setError('Failed to load collection');
-      console.error('Error fetching collection:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddToCart = (product: Product, e?: React.MouseEvent) => {
     if (e) {
@@ -127,7 +91,7 @@ export default function CollectionDetailPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !collection) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <LoadingSpinner />
@@ -135,13 +99,22 @@ export default function CollectionDetailPage() {
     );
   }
 
-  if (error || !collection) {
+  if (!collection) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             {error || 'Collection not found'}
           </h1>
+          {error && (
+            <button
+              type="button"
+              onClick={() => mutate()}
+              className="mb-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              Try Again
+            </button>
+          )}
           <Link 
             href="/"
             className="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"

@@ -15,7 +15,10 @@ import {
   getVariantPrice,
   getColorPrice,
   formatPriceTnd,
+  getEffectiveCompareAtPrice,
   getProductMaxStock,
+  isProductSoldOut,
+  shouldShowCompareAtPrice,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
 import {
@@ -79,14 +82,13 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
     return Number(product.price);
   }, [product, selectedVariant, selectedColor]);
 
+  const effectiveCompareAt = product
+    ? getEffectiveCompareAtPrice(product, selectedVariant)
+    : null;
+
   const isOutOfStock = useMemo(() => {
     if (!product) return false;
-    if (selectedVariant) {
-      return !(selectedVariant.stockInfo?.isInStock ?? selectedVariant.quantity > 0);
-    }
-    const hasSizes = product.size && product.size.trim().length > 0;
-    if (hasSizes) return false;
-    return !(product.stockInfo?.isInStock ?? (product.quantity ?? 0) > 0);
+    return isProductSoldOut(product, selectedVariant);
   }, [product, selectedVariant]);
 
   const maxPurchasableQty = useMemo(() => {
@@ -143,6 +145,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
   const handleAddToCart = async () => {
     if (product) {
+      if (isOutOfStock) return;
       if (product.hasVariants && !selectedColor) {
         setColorError(t.selectColor);
         return;
@@ -231,6 +234,11 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
         <div className="flex flex-col md:flex-row h-full max-h-[90vh] overflow-hidden">
           {/* Image Section */}
           <div className="relative w-full md:w-1/2 bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+            {product.displayBadge === 'sold' && (
+              <span className="absolute top-4 left-4 z-10 bg-gray-900/90 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
+                {isFrench ? 'Vendu' : 'Sold'}
+              </span>
+            )}
             {selectedImage ? (
               <div className="relative aspect-square w-full h-full">
                 <Image
@@ -304,10 +312,9 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                   <span className="text-3xl font-bold text-gray-900 dark:text-white">
                     {formatPriceTnd(displayPrice)}
                   </span>
-                  {(selectedVariant?.compareAtPrice ?? product.compareAtPrice) &&
-                    Number(selectedVariant?.compareAtPrice ?? product.compareAtPrice) > displayPrice && (
+                  {shouldShowCompareAtPrice(effectiveCompareAt, displayPrice) && (
                     <span className="text-lg text-red-600 dark:text-red-400 line-through">
-                      {formatPriceTnd(Number(selectedVariant?.compareAtPrice ?? product.compareAtPrice))}
+                      {formatPriceTnd(effectiveCompareAt!)}
                     </span>
                   )}
                 </div>

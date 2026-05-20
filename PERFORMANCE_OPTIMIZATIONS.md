@@ -56,21 +56,23 @@ This document outlines all the performance optimizations that have been implemen
   - Added Suspense boundaries with loading states
 - **Impact**: Faster initial page load, improved Time to Interactive (TTI)
 
-#### 7. SWR for API Caching and Request Deduplication ✅
-- **Files**: 
-  - `frontend/src/lib/hooks/useProducts.ts` (new)
-  - `frontend/src/lib/hooks/useCollections.ts` (new)
-  - `frontend/src/components/FeaturedProducts.tsx`
-  - `frontend/src/components/Collections.tsx`
-- **Changes**:
-  - Installed SWR library
-  - Created reusable hooks for products and collections
-  - Implemented request deduplication (60-second window)
-  - Automatic revalidation on reconnect
-- **Impact**: 
-  - Eliminates duplicate API calls
-  - Caches responses for faster subsequent renders
-  - Better user experience with instant data display
+#### 7. Storefront SWR — fresh + fast (stale-while-revalidate) ✅
+- **Files**:
+  - `frontend/src/lib/swr/fetcher.ts`, `frontend/src/lib/swr/config.ts`
+  - `frontend/src/components/Providers.tsx` (global `SWRConfig`)
+  - Hooks: `useProducts`, `useProduct`, `useCategoryProducts`, `useProductSearch`, `useProductAutocomplete`, `useCollection`
+  - Pages: `/products`, `/product/[slug]`, `/search`, `/category/[slug]`, `/collections/[slug]`
+  - `frontend/src/components/SearchAutocomplete.tsx`, `frontend/src/components/FeaturedProducts.tsx`
+- **Strategy**:
+  - **Lists** (`productListConfig`): 30s dedupe, `keepPreviousData`, no focus revalidation
+  - **Product detail** (`productDetailConfig`): 5s dedupe, **revalidate on focus** for stock/price
+  - **Autocomplete**: 3s dedupe, fetch only when query length ≥ 2
+  - Show cached data immediately; refresh in background when stale
+- **Admin excluded**: Admin product CRUD keeps direct fetch + cache-busters for always-fresh editor data
+- **Impact**:
+  - Shared cache across home featured, catalog, search, and PDP navigation
+  - Fewer duplicate API calls; instant repeat views
+  - Product pages stay fresh on tab return without full `no-store` refetches
 
 #### 8. Optimized Image Components ✅
 - **Files**: 

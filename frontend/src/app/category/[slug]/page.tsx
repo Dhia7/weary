@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
@@ -8,7 +8,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { SortAsc, Grid, List } from 'lucide-react';
-import { buildApiUrl } from '@/lib/api';
+import { useCategoryProducts } from '@/lib/hooks/useCategoryProducts';
 
 interface Product {
   id: number;
@@ -33,14 +33,6 @@ interface Product {
   updatedAt: string;
 }
 
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-}
-
-// Product shape as returned by API may include strings for numeric fields
 type ApiProduct = Omit<Product, 'price' | 'compareAtPrice' | 'images' | 'imageUrl' | 'quantity' | 'categories'> & {
   price: number | string;
   compareAtPrice?: number | string;
@@ -51,110 +43,70 @@ type ApiProduct = Omit<Product, 'price' | 'compareAtPrice' | 'images' | 'imageUr
   categories?: unknown;
 };
 
+function normalizeProducts(raw: unknown[]): Product[] {
+  return raw.map((p) => {
+    const item = p as ApiProduct;
+    return {
+      ...item,
+      price: typeof item.price === 'string' ? Number(item.price) : item.price,
+      compareAtPrice:
+        typeof item.compareAtPrice === 'string'
+          ? Number(item.compareAtPrice)
+          : item.compareAtPrice,
+      images: Array.isArray(item.images)
+        ? (item.images as string[])
+        : item.imageUrl
+          ? [item.imageUrl]
+          : [],
+      imageUrl:
+        item.imageUrl ||
+        (Array.isArray(item.images) && (item.images as string[])[0]) ||
+        undefined,
+      quantity:
+        typeof item.quantity === 'number' ? item.quantity : (item.stockInfo?.quantity ?? 0),
+      categories: Array.isArray(item.categories)
+        ? (item.categories as Product['categories'])
+        : [],
+    } as Product;
+  });
+}
 
 export default function CategoryPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  const [category, setCategory] = useState<Category | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('ASC');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  useEffect(() => {
-    const fetchCategoryData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        
-        const apiUrl = buildApiUrl(`/categories/${slug}/products`, {
-          sort: sortBy,
-          order: sortOrder
-        });
-        console.log('🔍 Fetching category data from:', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response ok:', response.ok);
-        console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-        
-        // Add a small delay to ensure we can see the logs
-        await new Promise(resolve => setTimeout(resolve, 100));
+  const { category: apiCategory, products: rawProducts, loading, error, mutate } =
+    useCategoryProducts(
+      slug
+        ? { slug, sort: sortBy, order: sortOrder }
+        : null
+    );
 
-        if (!response.ok) {
-          console.log('❌ Response not ok, status:', response.status);
-          const errorText = await response.text();
-          console.log('❌ Error response body:', errorText);
-          // Gracefully handle 404 by showing an empty state for unknown categories
-          if (response.status === 404) {
-            const nameFromSlug = slug
-              .replace(/-/g, ' ')
-              .replace(/\b\w/g, (c) => c.toUpperCase());
-            setCategory({ id: 0, name: nameFromSlug, slug });
-            setProducts([]);
-            setError('');
-            return;
-          }
-          throw new Error('Failed to load category');
-        }
+  const is404 = (error as (Error & { status?: number }) | undefined)?.status === 404;
 
-        const data = await response.json();
-        console.log('✅ Response data:', data);
-        
-        if (data.success && data.data) {
-          console.log('✅ Setting category and products from API');
-          console.log('✅ Category:', data.data.category);
-          console.log('✅ Products count:', data.data.products?.length || 0);
-          console.log('✅ Raw Products:', data.data.products);
-
-          // Normalize product data for UI safety
-          const normalizedProducts = (data.data.products || []).map((p: ApiProduct) => ({
-            ...p,
-            price: typeof p.price === 'string' ? Number(p.price) : p.price,
-            compareAtPrice: typeof p.compareAtPrice === 'string' ? Number(p.compareAtPrice) : p.compareAtPrice,
-            images: Array.isArray(p.images) ? (p.images as string[]) : (p.imageUrl ? [p.imageUrl] : []),
-            imageUrl: p.imageUrl || (Array.isArray(p.images) && (p.images as string[])[0]) || undefined,
-            quantity: typeof p.quantity === 'number' ? p.quantity : (p.stockInfo?.quantity ?? 0),
-            categories: Array.isArray(p.categories) ? (p.categories as Product['categories']) : [],
-          }));
-
-          console.log('✅ Normalized Products:', normalizedProducts);
-
-          setCategory(data.data.category);
-          setProducts(normalizedProducts);
-        } else {
-          console.log('❌ Invalid response format');
-          console.log('❌ Data received:', data);
-          throw new Error('Invalid response format');
-        }
-      } catch (err) {
-        console.error('❌ Category fetch error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load category');
-        setCategory(null);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (slug) {
-      fetchCategoryData();
+  const category = useMemo(() => {
+    if (apiCategory) return apiCategory;
+    if (is404 && slug) {
+      const nameFromSlug = slug
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      return { id: 0, name: nameFromSlug, slug };
     }
-  }, [slug, sortBy, sortOrder]);
+    return null;
+  }, [apiCategory, is404, slug]);
 
+  const products = useMemo(
+    () => normalizeProducts((rawProducts as unknown[]) ?? []),
+    [rawProducts]
+  );
 
-  const handleSortChange = (newSort: string) => {
-    setSortBy(newSort);
-  };
+  const errorMessage = error instanceof Error ? error.message : error ? String(error) : '';
 
-  const handleOrderChange = (newOrder: string) => {
-    setSortOrder(newOrder);
-  };
-
-  if (loading) {
+  if (loading && !category && products.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation />
@@ -166,7 +118,7 @@ export default function CategoryPage() {
     );
   }
 
-  if (error && !category) {
+  if (error && !category && !is404) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation />
@@ -175,12 +127,14 @@ export default function CategoryPage() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Error Loading Category
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {error}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
-              Please check your connection and try again.
-            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">{errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => mutate()}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              Try Again
+            </button>
           </div>
         </div>
         <Footer />
@@ -192,7 +146,6 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
       
-      {/* Category Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <motion.div
@@ -215,11 +168,9 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* Sort and View Controls */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            {/* Sort Controls - Left Side */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <SortAsc className="w-4 h-4 text-gray-500" />
@@ -228,8 +179,8 @@ export default function CategoryPage() {
                   value={`${sortBy}-${sortOrder}`}
                   onChange={(e) => {
                     const [sort, order] = e.target.value.split('-');
-                    handleSortChange(sort);
-                    handleOrderChange(order);
+                    setSortBy(sort);
+                    setSortOrder(order);
                   }}
                   title="Sort products"
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -244,9 +195,9 @@ export default function CategoryPage() {
               </div>
             </div>
 
-            {/* View Controls - Right Side */}
             <div className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-lg">
               <button
+                type="button"
                 onClick={() => setViewMode('grid')}
                 title="Grid view"
                 className={`p-2 ${viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
@@ -254,6 +205,7 @@ export default function CategoryPage() {
                 <Grid className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => setViewMode('list')}
                 title="List view"
                 className={`p-2 ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
@@ -265,7 +217,6 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {products.length === 0 ? (
           <div className="text-center py-16">
@@ -316,9 +267,7 @@ export default function CategoryPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <ProductCard
-                  product={product}
-                />
+                <ProductCard product={product} />
               </motion.div>
             ))}
           </motion.div>

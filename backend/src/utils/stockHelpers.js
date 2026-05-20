@@ -1,5 +1,6 @@
 const ProductVariant = require('../models/ProductVariant');
 const { findMatchingVariant, getActiveVariants } = require('./variantHelpers');
+const { isSoldBadge, isMadeToOrderProduct } = require('./productAvailability');
 
 const getProductVariants = async (productId, transaction) => {
 	return ProductVariant.findAll({
@@ -26,12 +27,24 @@ const resolveOrderVariant = async (product, item, transaction) => {
 };
 
 const checkItemStockAvailability = async (product, item, quantity) => {
+	if (isSoldBadge(product)) {
+		return { available: false, stock: 0, variant: null };
+	}
+
 	const variant = await resolveOrderVariant(product, item);
 	if (variant) {
 		return { available: variant.quantity >= quantity, stock: variant.quantity, variant };
 	}
 
-	if (item.size && product.size && product.size.trim().length > 0) {
+	const variants = await getProductVariants(product.id);
+	const hasVariants = getActiveVariants(variants).length > 0;
+	if (
+		item.size &&
+		product.size &&
+		product.size.trim().length > 0 &&
+		!hasVariants &&
+		isMadeToOrderProduct({ ...product.toJSON?.() ?? product, variants, hasVariants })
+	) {
 		return { available: true, stock: 999, variant: null };
 	}
 

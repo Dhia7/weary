@@ -9,6 +9,7 @@ const {
 	getVariantPrice,
 	resolveCartLinePrice
 } = require('../utils/variantHelpers');
+const { isSoldBadge, isMadeToOrderProduct } = require('../utils/productAvailability');
 
 const cartListInclude = [
 	{
@@ -20,7 +21,13 @@ const cartListInclude = [
 ];
 
 const getPurchasableStock = (product, variant) => {
+	if (isSoldBadge(product)) return 0;
 	if (variant) return Number(variant.quantity) || 0;
+	const activeVariants = getActiveVariants(product.variants || []);
+	const hasVariants = activeVariants.length > 0;
+	if (isMadeToOrderProduct({ ...product.toJSON?.() ?? product, variants: product.variants, hasVariants })) {
+		return 999;
+	}
 	return Number(product.quantity) || 0;
 };
 
@@ -167,6 +174,13 @@ const addToCart = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
+      });
+    }
+
+    if (isSoldBadge(product)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This item is sold out and is no longer available for purchase'
       });
     }
 
