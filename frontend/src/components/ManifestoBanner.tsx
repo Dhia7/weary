@@ -17,7 +17,7 @@ export default function ManifestoBanner() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="font-serif text-2xl md:text-3xl font-light italic text-swisse-ink/90 max-w-4xl mx-auto leading-relaxed"
+          className="font-serif text-2xl md:text-3xl font-normal italic text-swisse-ink/90 max-w-4xl mx-auto leading-relaxed"
         >
           {isFrench
             ? '"Nous avons supprimé les intermédiaires pour vous offrir l accès direct aux ateliers suisses — la même qualité portée à Genève, maintenant disponible à Tunis."'

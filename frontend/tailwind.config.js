@@ -63,9 +63,9 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["Satoshi", "system-ui", "sans-serif"],
-        serif: ["Zodiak", "Georgia", "ui-serif", "serif"],
-        display: ["Zodiak", "Georgia", "ui-serif", "serif"],
+        sans: ["var(--font-satoshi)", "system-ui", "sans-serif"],
+        serif: ["var(--font-zodiak)", "Georgia", "ui-serif", "serif"],
+        display: ["var(--font-zodiak)", "Georgia", "ui-serif", "serif"],
       },
       maxWidth: {
         swisse: "1440px",

@@ -1,6 +1,10 @@
-/** Home page imagery — hero from Unsplash CDN; collections/brand story use local WebP. */
+/** Home page imagery — local WebP for fast LCP. */
+/** Matches original Unsplash hero (q=80 @ 1920px); optimizer uses 90 on WebP source. */
+export const HERO_IMAGE_QUALITY = 90;
+
 export const HOME_IMAGES = {
-  hero: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=1920&auto=format&fit=crop',
+  /** High-res source (Unsplash q=80 @ 1920px); Next serves responsive WebP/AVIF. */
+  hero: '/images/hero.jpg',
   womenCollection: '/images/women-collection.webp',
   menCollection: '/images/men-collection.webp',
   brandStory: '/images/brand-story.webp',

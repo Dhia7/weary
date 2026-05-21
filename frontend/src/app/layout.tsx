@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { satoshi, zodiak } from "@/lib/fonts";
 import { CHUNK_RECOVERY_INLINE_SCRIPT } from "@/lib/chunkRecoveryInlineScript";
 import { LANGUAGE_INLINE_SCRIPT } from "@/lib/languageInlineScript";
 import { THEME_INLINE_SCRIPT } from "@/lib/themeInlineScript";
@@ -80,10 +81,6 @@ export default async function RootLayout({
   return (
     <html lang={initialLanguage} suppressHydrationWarning={true}>
       <head>
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://api.fontshare.com" />
-        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: LANGUAGE_INLINE_SCRIPT }}
@@ -96,13 +93,9 @@ export default async function RootLayout({
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_INLINE_SCRIPT }}
         />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=zodiak@400,500,700&f[]=satoshi@300,400,500,700&display=swap"
-        />
       </head>
       <body
-        className="min-h-screen bg-swisse-canvas text-swisse-ink antialiased transition-colors duration-200"
+        className={`${satoshi.variable} ${zodiak.variable} min-h-screen bg-swisse-canvas font-sans text-swisse-ink antialiased transition-colors duration-200`}
         suppressHydrationWarning={true}
       >
         <a

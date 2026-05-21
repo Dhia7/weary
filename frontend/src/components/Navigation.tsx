@@ -10,13 +10,21 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import SearchAutocomplete from './SearchAutocomplete';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCart } from '@/lib/contexts/CartContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { scrollToHomeSection } from '@/lib/homeSectionNavigation';
 
 const CartPanel = dynamic(() => import('./CartPanel'), { ssr: false });
+const SearchAutocomplete = dynamic(() => import('./SearchAutocomplete'), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="h-10 w-full rounded-md bg-swisse-mist/60 dark:bg-muted/40 animate-pulse"
+      aria-hidden
+    />
+  ),
+});
 
 type MainNavItem = {
   name: string;

@@ -7,7 +7,7 @@ import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { CartProvider } from "@/lib/contexts/CartContext";
 import { WishlistProvider } from "@/lib/contexts/WishlistContext";
 import { OrderNotificationProvider } from "@/lib/contexts/OrderNotificationContext";
-import OrderNotificationWrapper from "@/components/OrderNotificationWrapper";
+import DeferredOrderNotifications from "@/components/DeferredOrderNotifications";
 import { defaultSwrConfig } from "@/lib/swr/config";
 import { jsonFetcher } from "@/lib/swr/fetcher";
 
@@ -27,7 +27,7 @@ export function Providers({
               <WishlistProvider>
                 <OrderNotificationProvider>
                   {children}
-                  <OrderNotificationWrapper />
+                  <DeferredOrderNotifications />
                 </OrderNotificationProvider>
               </WishlistProvider>
             </CartProvider>
