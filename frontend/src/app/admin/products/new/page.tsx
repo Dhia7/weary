@@ -571,7 +571,13 @@ export default function NewProductPage() {
               </label>
             </div>
             {hasVariants && (
-              <VariantEditor parentSku={SKU} basePrice={price} variants={variants} onChange={setVariants} />
+              <VariantEditor
+                parentSku={SKU}
+                basePrice={price}
+                baseCompareAtPrice={compareAtPrice}
+                variants={variants}
+                onChange={setVariants}
+              />
             )}
           </div>
 

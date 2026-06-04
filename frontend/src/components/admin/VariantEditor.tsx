@@ -9,6 +9,7 @@ export type VariantDraft = Omit<ProductVariant, 'id' | 'productId'> & { id?: num
 interface VariantEditorProps {
   parentSku: string;
   basePrice: number | '';
+  baseCompareAtPrice?: number | '';
   variants: VariantDraft[];
   onChange: (variants: VariantDraft[]) => void;
 }
@@ -20,7 +21,13 @@ const defaultColors = [
   { name: 'Red', hex: '#c41e3a' },
 ];
 
-export default function VariantEditor({ parentSku, basePrice, variants, onChange }: VariantEditorProps) {
+export default function VariantEditor({
+  parentSku,
+  basePrice,
+  baseCompareAtPrice = '',
+  variants,
+  onChange,
+}: VariantEditorProps) {
   const [colorInput, setColorInput] = useState('');
   const [colorHex, setColorHex] = useState('#000000');
   const [sizeInput, setSizeInput] = useState('');
@@ -48,7 +55,8 @@ export default function VariantEditor({ parentSku, basePrice, variants, onChange
         size: null,
         quantity: 0,
         price: basePrice === '' ? null : Number(basePrice),
-        compareAtPrice: null,
+        compareAtPrice:
+          baseCompareAtPrice === '' ? null : Number(baseCompareAtPrice),
         imageUrl: null,
         images: [],
         isActive: true,
@@ -82,7 +90,8 @@ export default function VariantEditor({ parentSku, basePrice, variants, onChange
           size,
           quantity: 0,
           price: basePrice === '' ? null : Number(basePrice),
-          compareAtPrice: null,
+          compareAtPrice:
+            baseCompareAtPrice === '' ? null : Number(baseCompareAtPrice),
           imageUrl: null,
           images: [],
           isActive: true,
@@ -110,22 +119,43 @@ export default function VariantEditor({ parentSku, basePrice, variants, onChange
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           One style, one slug. Each color (and size for shoes) gets its own SKU, stock, and optional price.
           Leave price empty to use the product&apos;s base price, or set a different price per row (e.g. premium colors).
+          Compare-at works the same way per color — useful when a special color costs more than black or white.
         </p>
-        {basePrice !== '' && variants.length > 0 && (
-          <button
-            type="button"
-            onClick={() =>
-              onChange(
-                variants.map((v) => ({
-                  ...v,
-                  price: Number(basePrice),
-                }))
-              )
-            }
-            className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
-          >
-            Apply base price ({Number(basePrice).toFixed(2)} TND) to all variants
-          </button>
+        {variants.length > 0 && (basePrice !== '' || baseCompareAtPrice !== '') && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {basePrice !== '' && (
+              <button
+                type="button"
+                onClick={() =>
+                  onChange(
+                    variants.map((v) => ({
+                      ...v,
+                      price: Number(basePrice),
+                    }))
+                  )
+                }
+                className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
+              >
+                Apply base price ({Number(basePrice).toFixed(2)} TND) to all variants
+              </button>
+            )}
+            {baseCompareAtPrice !== '' && (
+              <button
+                type="button"
+                onClick={() =>
+                  onChange(
+                    variants.map((v) => ({
+                      ...v,
+                      compareAtPrice: Number(baseCompareAtPrice),
+                    }))
+                  )
+                }
+                className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
+              >
+                Apply compare-at ({Number(baseCompareAtPrice).toFixed(2)} TND) to all variants
+              </button>
+            )}
+          </div>
         )}
         <div className="flex flex-wrap gap-2">
           {defaultColors.map((preset) => (
@@ -203,6 +233,7 @@ export default function VariantEditor({ parentSku, basePrice, variants, onChange
                 <th className="px-3 py-2 text-left">SKU</th>
                 <th className="px-3 py-2 text-left">Qty</th>
                 <th className="px-3 py-2 text-left">Price (optional)</th>
+                <th className="px-3 py-2 text-left">Compare-at (optional)</th>
                 <th className="px-3 py-2 text-left">Hex</th>
                 <th className="px-3 py-2" />
               </tr>
@@ -219,7 +250,22 @@ export default function VariantEditor({ parentSku, basePrice, variants, onChange
                     <input type="number" min={0} value={variant.quantity} onChange={(e) => updateVariant(index, { quantity: parseInt(e.target.value, 10) || 0 })} className="w-20 border rounded px-2 py-1 text-xs dark:bg-gray-700" />
                   </td>
                   <td className="px-3 py-2">
-                    <input type="number" min={0} step="0.01" value={variant.price ?? ''} onChange={(e) => updateVariant(index, { price: e.target.value === '' ? null : parseFloat(e.target.value) })} placeholder={String(basePrice)} className="w-24 border rounded px-2 py-1 text-xs dark:bg-gray-700" />
+                    <input type="number" min={0} step="0.01" value={variant.price ?? ''} onChange={(e) => updateVariant(index, { price: e.target.value === '' ? null : parseFloat(e.target.value) })} placeholder={basePrice === '' ? 'Base' : String(basePrice)} className="w-24 border rounded px-2 py-1 text-xs dark:bg-gray-700" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={variant.compareAtPrice ?? ''}
+                      onChange={(e) =>
+                        updateVariant(index, {
+                          compareAtPrice: e.target.value === '' ? null : parseFloat(e.target.value),
+                        })
+                      }
+                      placeholder={baseCompareAtPrice === '' ? 'Base' : String(baseCompareAtPrice)}
+                      className="w-24 border rounded px-2 py-1 text-xs dark:bg-gray-700"
+                    />
                   </td>
                   <td className="px-3 py-2">
                     <input type="color" value={variant.colorHex || '#000000'} onChange={(e) => updateVariant(index, { colorHex: e.target.value })} className="w-10 h-8" />

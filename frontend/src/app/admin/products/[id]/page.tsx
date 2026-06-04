@@ -808,6 +808,7 @@ export default function EditProductPage() {
                 <VariantEditor
                   parentSku={productData.SKU}
                   basePrice={productData.price}
+                  baseCompareAtPrice={productData.compareAtPrice}
                   variants={variants}
                   onChange={setVariants}
                 />
