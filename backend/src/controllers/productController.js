@@ -219,6 +219,20 @@ const parseDisplayBadge = (value) => {
 	return null;
 };
 
+/** FormData may send duplicate `size` fields as an array; DB column is STRING. */
+const normalizeSizeField = (size) => {
+	if (size === undefined || size === null || size === '') return null;
+	if (Array.isArray(size)) {
+		const parts = size.map((s) => String(s).trim()).filter(Boolean);
+		return parts.length > 0 ? parts.join(', ') : null;
+	}
+	if (typeof size === 'string') {
+		const trimmed = size.trim();
+		return trimmed.length > 0 ? trimmed : null;
+	}
+	return null;
+};
+
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
@@ -292,7 +306,7 @@ const createProduct = async (req, res) => {
 			})(),
 			quantity: parseInt(quantity) || 0,
 			barcode: barcode || null,
-			size: size || null,
+			size: normalizeSizeField(size),
 			...specs
 		});
 
@@ -650,8 +664,8 @@ const updateProduct = async (req, res) => {
 		}
 		// For made-to-order products with sizes, sizeStock is not used
 		// Just set empty object for compatibility (column doesn't exist anyway)
-		const finalSize = size !== undefined ? size : product.size;
-		const hasSizes = finalSize && finalSize.trim().length > 0;
+		const finalSize = size !== undefined ? normalizeSizeField(size) : product.size;
+		const hasSizes = finalSize && String(finalSize).trim().length > 0;
 		
 		// Set empty sizeStock (not used for made-to-order, column doesn't exist)
 		product.sizeStock = {};
@@ -670,7 +684,7 @@ const updateProduct = async (req, res) => {
 			}
 		}
 		if (barcode !== undefined) product.barcode = barcode || null;
-		if (size !== undefined) product.size = size || null;
+		if (size !== undefined) product.size = normalizeSizeField(size);
 		if (depthCm !== undefined) product.depthCm = parseOptionalDecimal(depthCm);
 		if (widthCm !== undefined) product.widthCm = parseOptionalDecimal(widthCm);
 		if (heightCm !== undefined) product.heightCm = parseOptionalDecimal(heightCm);

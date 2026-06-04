@@ -332,7 +332,7 @@ export default function NewProductPage() {
         formData.append('variants', JSON.stringify(variants));
         const totalQty = variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
         formData.set('quantity', String(totalQty));
-        formData.append('size', '');
+        formData.set('size', '');
       }
       formData.append('isActive', isActive.toString());
       formData.append('allowCustomerQuantity', String(allowCustomerQuantity));
