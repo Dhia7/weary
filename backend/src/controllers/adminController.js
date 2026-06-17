@@ -5,6 +5,110 @@ const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
+const { verifyAdminPassword } = require('../utils/adminAuth');
+
+const getUserOrderStats = async (userIds) => {
+  if (!userIds.length) {
+    return {};
+  }
+
+  const counts = await Order.findAll({
+    attributes: [
+      'userId',
+      [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount'],
+      [
+        sequelize.fn(
+          'SUM',
+          sequelize.literal(`CASE WHEN status = 'delivered' THEN 1 ELSE 0 END`)
+        ),
+        'deliveredOrderCount',
+      ],
+    ],
+    where: { userId: { [Op.in]: userIds } },
+    group: ['userId'],
+    raw: true,
+  });
+
+  return Object.fromEntries(
+    counts.map((row) => [
+      row.userId,
+      {
+        orderCount: parseInt(row.orderCount, 10) || 0,
+        deliveredOrderCount: parseInt(row.deliveredOrderCount, 10) || 0,
+      },
+    ])
+  );
+};
+
+const enrichUsers = async (users) => {
+  const userIds = users.map((user) => user.id);
+  const orderStatsMap = await getUserOrderStats(userIds);
+
+  return users.map((user) => {
+    const plain = user.toJSON();
+    const stats = orderStatsMap[user.id] || { orderCount: 0, deliveredOrderCount: 0 };
+
+    return {
+      ...plain,
+      orderCount: stats.orderCount,
+      deliveredOrderCount: stats.deliveredOrderCount,
+      isFake: !plain.isAdmin && !plain.isEmailVerified && stats.orderCount === 0,
+    };
+  });
+};
+
+const buildUserFilterClause = async (filter) => {
+  const whereClause = {};
+
+  if (filter === 'admin') {
+    whereClause.isAdmin = true;
+  } else if (filter === 'verified') {
+    whereClause.isEmailVerified = true;
+  } else if (filter === 'unverified') {
+    whereClause.isEmailVerified = false;
+  } else if (filter === 'active') {
+    whereClause.isActive = true;
+  } else if (filter === 'inactive') {
+    whereClause.isActive = false;
+  } else if (filter === 'fake') {
+    whereClause.isAdmin = false;
+    whereClause.isEmailVerified = false;
+
+    const usersWithOrders = await Order.findAll({
+      attributes: ['userId'],
+      where: { userId: { [Op.ne]: null } },
+      group: ['userId'],
+      raw: true,
+    });
+    const idsWithOrders = usersWithOrders.map((row) => row.userId).filter(Boolean);
+
+    if (idsWithOrders.length > 0) {
+      whereClause.id = { [Op.notIn]: idsWithOrders };
+    }
+  }
+
+  return whereClause;
+};
+
+const deleteUserAndRelations = async (user) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const orders = await Order.findAll({ where: { userId: user.id }, transaction: t });
+
+    for (const order of orders) {
+      await OrderItem.destroy({ where: { orderId: order.id }, transaction: t });
+      await order.destroy({ transaction: t });
+    }
+
+    await Address.destroy({ where: { userId: user.id }, transaction: t });
+    await user.destroy({ transaction: t });
+    await t.commit();
+  } catch (error) {
+    await t.rollback();
+    throw error;
+  }
+};
 
 // @desc    Get all users with pagination and filtering
 // @route   GET /api/admin/users
@@ -15,31 +119,7 @@ const getAllUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     
-    // Build where clause based on filters
-    const whereClause = {};
-    
-    // Filter by admin status
-    if (req.query.filter === 'admin') {
-      whereClause.isAdmin = true;
-    }
-    
-    // Filter by verification status
-    if (req.query.filter === 'verified') {
-      whereClause.isEmailVerified = true;
-    }
-    
-    if (req.query.filter === 'unverified') {
-      whereClause.isEmailVerified = false;
-    }
-    
-    // Filter by active status
-    if (req.query.filter === 'active') {
-      whereClause.isActive = true;
-    }
-    
-    if (req.query.filter === 'inactive') {
-      whereClause.isActive = false;
-    }
+    const whereClause = await buildUserFilterClause(req.query.filter);
     
     const { count, rows: users } = await User.findAndCountAll({
       where: whereClause,
@@ -59,11 +139,12 @@ const getAllUsers = async (req, res) => {
     });
 
     const totalPages = Math.ceil(count / limit);
+    const enrichedUsers = await enrichUsers(users);
 
     res.json({
       success: true,
       data: {
-        users,
+        users: enrichedUsers,
         pagination: {
           currentPage: page,
           totalPages,
@@ -150,6 +231,21 @@ const updateUser = async (req, res) => {
       });
     }
 
+    const sensitiveFieldsChanging =
+      (isActive !== undefined && isActive !== user.isActive) ||
+      (isEmailVerified !== undefined && isEmailVerified !== user.isEmailVerified) ||
+      (isAdmin !== undefined && isAdmin !== user.isAdmin);
+
+    if (sensitiveFieldsChanging) {
+      const passwordCheck = await verifyAdminPassword(req);
+      if (!passwordCheck.valid) {
+        return res.status(passwordCheck.status).json({
+          success: false,
+          message: passwordCheck.message
+        });
+      }
+    }
+
     // Update allowed fields
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
@@ -196,6 +292,14 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const passwordCheck = await verifyAdminPassword(req);
+    if (!passwordCheck.valid) {
+      return res.status(passwordCheck.status).json({
+        success: false,
+        message: passwordCheck.message
+      });
+    }
     
     const user = await User.findByPk(id);
     if (!user) {
@@ -205,11 +309,21 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    // Delete associated addresses first
-    await Address.destroy({ where: { userId: id } });
-    
-    // Delete user
-    await user.destroy();
+    if (user.isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete admin users'
+      });
+    }
+
+    if (user.id === req.user.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own account'
+      });
+    }
+
+    await deleteUserAndRelations(user);
 
     res.json({
       success: true,
@@ -723,26 +837,8 @@ const searchUsers = async (req, res) => {
       ]
     };
 
-    // Add filter conditions
-    if (filter === 'admin') {
-      whereClause.isAdmin = true;
-    }
-    
-    if (filter === 'verified') {
-      whereClause.isEmailVerified = true;
-    }
-    
-    if (filter === 'unverified') {
-      whereClause.isEmailVerified = false;
-    }
-    
-    if (filter === 'active') {
-      whereClause.isActive = true;
-    }
-    
-    if (filter === 'inactive') {
-      whereClause.isActive = false;
-    }
+    const filterClause = await buildUserFilterClause(filter);
+    Object.assign(whereClause, filterClause);
 
     const { count, rows: users } = await User.findAndCountAll({
       where: whereClause,
@@ -762,11 +858,12 @@ const searchUsers = async (req, res) => {
     });
 
     const totalPages = Math.ceil(count / limit);
+    const enrichedUsers = await enrichUsers(users);
 
     res.json({
       success: true,
       data: {
-        users,
+        users: enrichedUsers,
         pagination: {
           currentPage: parseInt(page),
           totalPages,
@@ -785,6 +882,70 @@ const searchUsers = async (req, res) => {
   }
 };
 
+// @desc    Bulk delete users
+// @route   DELETE /api/admin/users/bulk
+// @access  Admin only
+const bulkDeleteUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    const passwordCheck = await verifyAdminPassword(req);
+    if (!passwordCheck.valid) {
+      return res.status(passwordCheck.status).json({
+        success: false,
+        message: passwordCheck.message
+      });
+    }
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No users selected for deletion'
+      });
+    }
+
+    const adminId = req.user.userId;
+    const uniqueIds = [...new Set(userIds.map((id) => parseInt(id, 10)).filter((id) => !Number.isNaN(id)))];
+
+    const users = await User.findAll({
+      where: { id: { [Op.in]: uniqueIds } }
+    });
+
+    const deleted = [];
+    const skipped = [];
+
+    for (const user of users) {
+      if (user.id === adminId) {
+        skipped.push({ id: user.id, email: user.email, reason: 'Cannot delete your own account' });
+        continue;
+      }
+
+      if (user.isAdmin) {
+        skipped.push({ id: user.id, email: user.email, reason: 'Cannot delete admin users' });
+        continue;
+      }
+
+      await deleteUserAndRelations(user);
+      deleted.push({ id: user.id, email: user.email });
+    }
+
+    res.json({
+      success: true,
+      message: `Deleted ${deleted.length} user(s)${skipped.length ? `, skipped ${skipped.length}` : ''}`,
+      data: {
+        deleted,
+        skipped
+      }
+    });
+  } catch (error) {
+    console.error('Bulk delete users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // @desc    Toggle admin status for a user
 // @route   PUT /api/admin/users/:id/admin
 // @access  Admin only
@@ -792,6 +953,14 @@ const toggleUserAdmin = async (req, res) => {
   try {
     const { id } = req.params;
     const { isAdmin } = req.body;
+
+    const passwordCheck = await verifyAdminPassword(req);
+    if (!passwordCheck.valid) {
+      return res.status(passwordCheck.status).json({
+        success: false,
+        message: passwordCheck.message
+      });
+    }
     
     const user = await User.findByPk(id);
     if (!user) {
@@ -883,6 +1052,7 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  bulkDeleteUsers,
   getUserAddresses,
   addUserAddress,
   updateUserAddress,

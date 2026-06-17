@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl } from '@/lib/utils';
-import { ShoppingBag, Package, Calendar, MapPin, CreditCard, X } from 'lucide-react';
+import { ShoppingBag, Package, Calendar, MapPin, CreditCard, X, Hash } from 'lucide-react';
 import Link from 'next/link';
 
 interface OrderItem { 
@@ -238,7 +238,13 @@ export default function OrdersTab() {
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Hash className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="font-mono text-xs break-all text-gray-900 dark:text-white">
+                      {order.id}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     <span>{formatDate(order.createdAt)}</span>
@@ -299,8 +305,8 @@ export default function OrdersTab() {
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                   {getProductNamesDisplay(selectedOrder.items || [])}
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Order #{selectedOrder.id.slice(0, 8)}
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-mono break-all">
+                  Order ID: {selectedOrder.id}
                 </p>
               </div>
               <button

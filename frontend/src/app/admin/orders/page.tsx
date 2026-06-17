@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl, markOrderAsSeen, isOrderSeen } from '@/lib/utils';
+import { Trash2 } from 'lucide-react';
+import AdminPasswordConfirmModal from '@/components/admin/AdminPasswordConfirmModal';
 
 interface OrderItem { 
   Product: { 
@@ -99,6 +101,17 @@ export default function AdminOrdersPage() {
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [passwordModal, setPasswordModal] = useState<{
+    action: 'delete' | 'bulkDelete';
+    orderId?: string;
+    orderIds?: string[];
+    title: string;
+    description: string;
+    confirmLabel: string;
+  } | null>(null);
+  const [passwordModalError, setPasswordModalError] = useState('');
+  const [passwordActionLoading, setPasswordActionLoading] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -134,6 +147,43 @@ export default function AdminOrdersPage() {
       }
     })();
   }, [fetcher, currentPage, perPage, searchQuery]); // Include search query in dependency array
+
+  useEffect(() => {
+    setSelectedOrderIds([]);
+  }, [currentPage, perPage, searchQuery]);
+
+  const allOrdersSelected =
+    orders.length > 0 && orders.every((order) => selectedOrderIds.includes(order.id));
+
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId)
+        ? prev.filter((id) => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const toggleSelectAllOnPage = () => {
+    if (allOrdersSelected) {
+      const pageIds = new Set(orders.map((order) => order.id));
+      setSelectedOrderIds((prev) => prev.filter((id) => !pageIds.has(id)));
+      return;
+    }
+
+    const pageIds = orders.map((order) => order.id);
+    setSelectedOrderIds((prev) => [...new Set([...prev, ...pageIds])]);
+  };
+
+  const refreshOrdersAfterDelete = (deletedIds: string[]) => {
+    setOrders((prevOrders) => prevOrders.filter((order) => !deletedIds.includes(order.id)));
+    setTotalOrders((prev) => Math.max(0, prev - deletedIds.length));
+    setSelectedOrderIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+
+    if (selectedOrder && deletedIds.includes(selectedOrder.id)) {
+      setShowDetails(false);
+      setSelectedOrder(null);
+    }
+  };
 
   // Listen for orderSeen events to force re-render and update highlighting
   useEffect(() => {
@@ -207,42 +257,98 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const deleteOrder = async (orderId: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete Order #${orderId}? This action cannot be undone and will permanently remove the order and all its items.`
-    );
-    
-    if (!confirmed) return;
+  const promptDeleteOrder = (orderId: string) => {
+    setPasswordModalError('');
+    setPasswordModal({
+      action: 'delete',
+      orderId,
+      title: 'Delete order',
+      description: `This will permanently delete order #${orderId} and all its items. Enter your password to confirm.`,
+      confirmLabel: 'Delete order',
+    });
+  };
 
+  const promptBulkDeleteOrders = () => {
+    if (selectedOrderIds.length === 0) {
+      return;
+    }
+
+    setPasswordModalError('');
+    setPasswordModal({
+      action: 'bulkDelete',
+      orderIds: selectedOrderIds,
+      title: 'Delete selected orders',
+      description: `You are about to permanently delete ${selectedOrderIds.length} order(s). Enter your password to confirm.`,
+      confirmLabel: `Delete ${selectedOrderIds.length} order(s)`,
+    });
+  };
+
+  const executeDeleteOrder = async (orderId: string, password: string) => {
     setDeletingOrder(orderId);
     try {
       const res = await fetcher(`/admin/orders/${orderId}`, {
         method: 'DELETE',
+        body: JSON.stringify({ password }),
       });
-      
+
+      const data = await res.json();
+
       if (res.ok) {
-        // Remove the order from the local state
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
-        
-        // Close the modal if the deleted order was selected
-        if (selectedOrder && selectedOrder.id === orderId) {
-          setShowDetails(false);
-          setSelectedOrder(null);
-        }
-        
-        // Update total orders count
-        setTotalOrders(prev => prev - 1);
-        
-        alert('Order deleted successfully');
+        setPasswordModal(null);
+        refreshOrdersAfterDelete([orderId]);
       } else {
-        const error = await res.json();
-        alert(`Failed to delete order: ${error.message || 'Unknown error'}`);
+        setPasswordModalError(data.message || 'Failed to delete order');
       }
     } catch (error) {
       console.error('Error deleting order:', error);
-      alert('Failed to delete order');
+      setPasswordModalError('Failed to delete order');
     } finally {
       setDeletingOrder(null);
+    }
+  };
+
+  const executeBulkDeleteOrders = async (orderIds: string[], password: string) => {
+    try {
+      const res = await fetcher('/admin/orders/bulk', {
+        method: 'DELETE',
+        body: JSON.stringify({ orderIds, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPasswordModal(null);
+        const deletedIds = (data.data?.deleted || []).map((item: { id: string }) => item.id);
+        refreshOrdersAfterDelete(deletedIds);
+
+        if (data.data?.skipped?.length) {
+          alert(`${data.message}\n\nSkipped:\n${data.data.skipped.map((s: { id: string; reason: string }) => `- ${s.id}: ${s.reason}`).join('\n')}`);
+        }
+      } else {
+        setPasswordModalError(data.message || 'Failed to delete selected orders');
+      }
+    } catch (error) {
+      console.error('Error bulk deleting orders:', error);
+      setPasswordModalError('Failed to delete selected orders');
+    }
+  };
+
+  const handlePasswordConfirm = async (password: string) => {
+    if (!passwordModal) {
+      return;
+    }
+
+    setPasswordActionLoading(true);
+    setPasswordModalError('');
+
+    try {
+      if (passwordModal.action === 'delete' && passwordModal.orderId) {
+        await executeDeleteOrder(passwordModal.orderId, password);
+      } else if (passwordModal.action === 'bulkDelete' && passwordModal.orderIds?.length) {
+        await executeBulkDeleteOrders(passwordModal.orderIds, password);
+      }
+    } finally {
+      setPasswordActionLoading(false);
     }
   };
 
@@ -343,7 +449,7 @@ export default function AdminOrdersPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label htmlFor="searchInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Search Customers
+                Search Orders & Customers
               </label>
               <div className="flex gap-2">
                 <input
@@ -352,7 +458,7 @@ export default function AdminOrdersPage() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyPress={handleSearchKeyPress}
-                  placeholder="Search customers..."
+                  placeholder="Order ID, name, email, phone, or customer ID..."
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <button
@@ -379,6 +485,29 @@ export default function AdminOrdersPage() {
           )}
           
         </div>
+
+        {selectedOrderIds.length > 0 && (
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-950">
+            <p className="text-sm text-red-900 dark:text-red-200">
+              {selectedOrderIds.length} order{selectedOrderIds.length !== 1 ? 's' : ''} selected
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedOrderIds([])}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Clear selection
+              </button>
+              <button
+                onClick={promptBulkDeleteOrders}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                Delete selected
+              </button>
+            </div>
+          </div>
+        )}
         
         {loading ? (
           <div className="flex justify-center items-center py-8">
@@ -390,6 +519,17 @@ export default function AdminOrdersPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
+                    <th className="p-2 text-left">
+                      <input
+                        type="checkbox"
+                        checked={allOrdersSelected}
+                        onChange={toggleSelectAllOnPage}
+                        disabled={orders.length === 0}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                        aria-label="Select all orders on this page"
+                        title="Select all orders on this page"
+                      />
+                    </th>
                     <th className="text-left p-2">Order ID</th>
                     <th className="text-left p-2">Customer Place</th>
                     <th className="text-left p-2">Items</th>
@@ -410,6 +550,18 @@ export default function AdminOrdersPage() {
                         ? 'bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700' 
                         : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}>
+                      {/* Selection */}
+                      <td className="p-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedOrderIds.includes(o.id)}
+                          onChange={() => toggleOrderSelection(o.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          aria-label={`Select order ${o.id}`}
+                          title={`Select order ${o.id}`}
+                        />
+                      </td>
+
                       {/* Order ID */}
                       <td className="p-2">
                         <div className="flex items-center gap-2">
@@ -521,7 +673,7 @@ export default function AdminOrdersPage() {
                           ? 'bg-gray-100 dark:bg-gray-700/50' 
                           : 'bg-gray-50 dark:bg-gray-800'
                       }`}>
-                        <td colSpan={8} className="p-4">
+                        <td colSpan={9} className="p-4">
                           <div className="space-y-3">
                             <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Order Items:</h4>
                             <div className="grid gap-3">
@@ -619,12 +771,12 @@ export default function AdminOrdersPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No customers found</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No orders found</h3>
                     <p className="text-gray-500 dark:text-gray-400 mb-4">
-                      No customers found matching &quot;{searchQuery}&quot;
+                      No orders found matching &quot;{searchQuery}&quot;
                     </p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
-                      Try searching with a different name, email, or phone number.
+                      Try searching with an order ID, customer name, email, phone number, or customer ID.
                     </p>
                     <button
                       onClick={handleClearSearch}
@@ -814,8 +966,8 @@ export default function AdminOrdersPage() {
                     {/* Delete Order Button */}
                     <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
                       <button
-                        onClick={() => deleteOrder(selectedOrder.id)}
-                        disabled={deletingOrder === selectedOrder.id}
+                        onClick={() => promptDeleteOrder(selectedOrder.id)}
+                        disabled={deletingOrder === selectedOrder.id || passwordActionLoading}
                         className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                       >
                         {deletingOrder === selectedOrder.id ? 'Deleting...' : 'Delete Order'}
@@ -1217,6 +1369,22 @@ export default function AdminOrdersPage() {
             </div>
           </div>
         )}
+
+        <AdminPasswordConfirmModal
+          isOpen={passwordModal !== null}
+          title={passwordModal?.title ?? ''}
+          description={passwordModal?.description ?? ''}
+          confirmLabel={passwordModal?.confirmLabel}
+          isLoading={passwordActionLoading || deletingOrder !== null}
+          error={passwordModalError}
+          onClose={() => {
+            if (!passwordActionLoading && deletingOrder === null) {
+              setPasswordModal(null);
+              setPasswordModalError('');
+            }
+          }}
+          onConfirm={handlePasswordConfirm}
+        />
       </div>
     </AdminGuard>
   );

@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 function ConfirmationFallback() {
@@ -25,8 +26,21 @@ function ConfirmationFallback() {
 function CheckoutConfirmationContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const { user } = useAuth();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  const [copied, setCopied] = useState(false);
+
+  const copyOrderId = async () => {
+    if (!orderId) return;
+    try {
+      await navigator.clipboard.writeText(orderId);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   return (
     <main className="pt-24 md:pt-28 pb-20 px-6 md:px-8 max-w-swisse mx-auto w-full">
@@ -68,12 +82,41 @@ function CheckoutConfirmationContent() {
         </p>
 
         {orderId && (
-          <p className="mt-6 text-xs uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground">
-            {isFrench ? 'Numéro de commande' : 'Order ID'}: <span className="font-bold">{orderId}</span>
-          </p>
+          <div className="mt-8 rounded-md border border-swisse-gold/20 bg-swisse-canvas/50 dark:bg-muted/30 px-5 py-5 text-left">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-swisse-ink/50 dark:text-muted-foreground">
+              {isFrench ? 'Numéro de commande' : 'Order number'}
+            </p>
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="font-mono text-sm md:text-base font-bold break-all text-swisse-ink dark:text-foreground">
+                {orderId}
+              </p>
+              <button
+                type="button"
+                onClick={copyOrderId}
+                className="shrink-0 px-4 py-2 border border-swisse-gold/30 text-[10px] font-bold uppercase tracking-[0.22em] text-swisse-ink hover:border-swisse-gold hover:text-swisse-gold dark:text-foreground transition-colors"
+              >
+                {copied
+                  ? (isFrench ? 'Copié' : 'Copied')
+                  : (isFrench ? 'Copier' : 'Copy')}
+              </button>
+            </div>
+            <p className="mt-4 text-xs text-swisse-ink/60 dark:text-muted-foreground leading-relaxed">
+              {isFrench
+                ? 'Conservez ce numéro pour suivre votre commande ou contacter notre équipe.'
+                : 'Keep this number to track your order or contact our team.'}
+            </p>
+          </div>
         )}
 
-        <div className="mt-10 flex justify-center">
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          {user && (
+            <Link
+              href="/account?tab=orders"
+              className="inline-block px-10 py-5 border border-swisse-gold/30 text-swisse-ink dark:text-foreground text-[10px] font-bold uppercase tracking-[0.3em] hover:border-swisse-gold hover:text-swisse-gold transition-colors"
+            >
+              {isFrench ? 'Voir mes commandes' : 'View my orders'}
+            </Link>
+          )}
           <Link
             href="/"
             className="inline-block px-10 py-5 bg-swisse-gold text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-swisse-ink dark:hover:bg-primary transition-colors"

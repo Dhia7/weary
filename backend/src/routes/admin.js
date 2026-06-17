@@ -15,6 +15,8 @@ router.get('/users', adminController.getAllUsers);
 // User search and filtering (must be before /users/:id route)
 router.get('/users/search', adminController.searchUsers);
 
+router.delete('/users/bulk', adminController.bulkDeleteUsers);
+
 router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
@@ -36,6 +38,7 @@ router.get('/orders', orderController.listOrders);
 router.get('/orders/count/new', orderController.countNewOrders);
 router.get('/orders/:id', orderController.getOrderById);
 router.put('/orders/:id/status', orderController.updateOrderStatus);
+router.delete('/orders/bulk', orderController.bulkDeleteOrders);
 router.delete('/orders/:id', orderController.deleteOrder);
 
 // Categories management

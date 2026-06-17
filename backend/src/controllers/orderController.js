@@ -12,6 +12,7 @@ const {
 	reduceItemStock,
 	restoreItemStock
 } = require('../utils/stockHelpers');
+const { verifyAdminPassword } = require('../utils/adminAuth');
 
 const formatStockErrorMessage = (product, item) => {
 	const parts = [];
@@ -52,9 +53,12 @@ const listOrders = async (req, res) => {
     if (q) {
       console.log('Search query received:', q);
       const searchTerm = q.trim();
-      
-      // Enhanced search for both registered and guest orders
-      where[Op.or] = [
+      const searchConditions = [
+        // Search by order ID (full or partial UUID)
+        sequelize.where(
+          sequelize.cast(sequelize.col('id'), 'TEXT'),
+          { [Op.iLike]: `%${searchTerm}%` }
+        ),
         // Registered users with matching user data
         sequelize.and(
           { customerType: 'registered' },
@@ -113,6 +117,12 @@ const listOrders = async (req, res) => {
           )
         )
       ];
+
+      if (/^\d+$/.test(searchTerm)) {
+        searchConditions.push({ userId: Number(searchTerm) });
+      }
+
+      where[Op.or] = searchConditions;
     }
 
     // Use findAll instead of findAndCountAll to avoid issues with includes
@@ -556,19 +566,91 @@ const updateOrderStatus = async (req, res) => {
 };
 
 // Delete order (admin)
+const deleteOrderById = async (orderId, transaction) => {
+  const order = await Order.findByPk(orderId, { transaction });
+  if (!order) {
+    return null;
+  }
+
+  await OrderItem.destroy({ where: { orderId }, transaction });
+  await order.destroy({ transaction });
+  return order;
+};
+
 const deleteOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const order = await Order.findByPk(id);
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    await OrderItem.destroy({ where: { orderId: id }, transaction: t });
-    await order.destroy({ transaction: t });
+
+    const passwordCheck = await verifyAdminPassword(req);
+    if (!passwordCheck.valid) {
+      await t.rollback();
+      return res.status(passwordCheck.status).json({
+        success: false,
+        message: passwordCheck.message
+      });
+    }
+
+    const deletedOrder = await deleteOrderById(id, t);
+    if (!deletedOrder) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
     await t.commit();
     res.json({ success: true, message: 'Order deleted' });
   } catch (error) {
     await t.rollback();
     console.error('Delete order error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Bulk delete orders (admin)
+const bulkDeleteOrders = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { orderIds } = req.body;
+
+    const passwordCheck = await verifyAdminPassword(req);
+    if (!passwordCheck.valid) {
+      await t.rollback();
+      return res.status(passwordCheck.status).json({
+        success: false,
+        message: passwordCheck.message
+      });
+    }
+
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'No orders selected for deletion'
+      });
+    }
+
+    const uniqueIds = [...new Set(orderIds.map((id) => String(id).trim()).filter(Boolean))];
+    const deleted = [];
+    const skipped = [];
+
+    for (const orderId of uniqueIds) {
+      const deletedOrder = await deleteOrderById(orderId, t);
+      if (deletedOrder) {
+        deleted.push({ id: orderId });
+      } else {
+        skipped.push({ id: orderId, reason: 'Order not found' });
+      }
+    }
+
+    await t.commit();
+    res.json({
+      success: true,
+      message: `Deleted ${deleted.length} order(s)${skipped.length ? `, skipped ${skipped.length}` : ''}`,
+      data: { deleted, skipped }
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error('Bulk delete orders error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -729,6 +811,7 @@ module.exports = {
   createGuestOrder,
   updateOrderStatus,
   deleteOrder,
+  bulkDeleteOrders,
   createPersonalizedTShirtOrder,
   countNewOrders
 };

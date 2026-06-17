@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuthorizedFetch } from '@/lib/admin';
 import { Search, Eye, Trash2, Plus, Shield, ShieldCheck } from 'lucide-react';
+import AdminPasswordConfirmModal from '@/components/admin/AdminPasswordConfirmModal';
 
 interface User {
   id: number;
@@ -11,6 +12,9 @@ interface User {
   lastName: string;
   isEmailVerified: boolean;
   isAdmin: boolean;
+  isFake?: boolean;
+  orderCount?: number;
+  deliveredOrderCount?: number;
   createdAt: string;
   addresses: Address[];
 }
@@ -48,6 +52,18 @@ export default function AdminUsersPage() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
+  const [passwordModal, setPasswordModal] = useState<{
+    action: 'toggleAdmin' | 'delete' | 'bulkDelete';
+    userId?: number;
+    userIds?: number[];
+    currentAdminStatus?: boolean;
+    title: string;
+    description: string;
+    confirmLabel: string;
+  } | null>(null);
+  const [passwordModalError, setPasswordModalError] = useState('');
+  const [passwordActionLoading, setPasswordActionLoading] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -74,6 +90,48 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
+  useEffect(() => {
+    setSelectedUserIds([]);
+  }, [currentPage, usersPerPage, filter]);
+
+  const selectableUsers = useMemo(
+    () => users.filter((user) => !user.isAdmin),
+    [users]
+  );
+
+  const fakeUsersOnPage = useMemo(
+    () => users.filter((user) => user.isFake),
+    [users]
+  );
+
+  const allSelectableSelected =
+    selectableUsers.length > 0 &&
+    selectableUsers.every((user) => selectedUserIds.includes(user.id));
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleSelectAllOnPage = () => {
+    if (allSelectableSelected) {
+      const pageIds = new Set(selectableUsers.map((user) => user.id));
+      setSelectedUserIds((prev) => prev.filter((id) => !pageIds.has(id)));
+      return;
+    }
+
+    const pageIds = selectableUsers.map((user) => user.id);
+    setSelectedUserIds((prev) => [...new Set([...prev, ...pageIds])]);
+  };
+
+  const selectFakeUsersOnPage = () => {
+    const fakeIds = fakeUsersOnPage.map((user) => user.id);
+    setSelectedUserIds((prev) => [...new Set([...prev, ...fakeIds])]);
+  };
+
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
       fetchUsers();
@@ -98,16 +156,25 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteUser = (userId: number) => {
+    setPasswordModalError('');
+    setPasswordModal({
+      action: 'delete',
+      userId,
+      title: 'Delete user',
+      description: 'This action cannot be undone and will also delete all orders for this user. Enter your password to confirm deleting this user.',
+      confirmLabel: 'Delete user',
+    });
+  };
 
+  const executeDeleteUser = async (userId: number, password: string) => {
     try {
-      const res = await fetcher(`/admin/users/${userId}`, { method: 'DELETE' });
+      const res = await fetcher(`/admin/users/${userId}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ password }),
+      });
       if (res.ok) {
-        // Refresh the current page after deletion
-        // If this was the last user on the page and we're not on page 1, go to previous page
+        setPasswordModal(null);
         if (users.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         } else {
@@ -115,50 +182,118 @@ export default function AdminUsersPage() {
         }
       } else {
         const error = await res.json();
-        alert(`Error deleting user: ${error.message}`);
+        setPasswordModalError(error.message || 'Error deleting user');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Error deleting user');
+      setPasswordModalError('Error deleting user');
     }
   };
 
-  const handleToggleAdmin = async (userId: number, currentAdminStatus: boolean) => {
+  const handleToggleAdmin = (userId: number, currentAdminStatus: boolean) => {
     const newAdminStatus = !currentAdminStatus;
     const action = newAdminStatus ? 'grant' : 'remove';
-    
-    if (!confirm(`Are you sure you want to ${action} admin privileges for this user?`)) {
-      return;
-    }
+
+    setPasswordModalError('');
+    setPasswordModal({
+      action: 'toggleAdmin',
+      userId,
+      currentAdminStatus,
+      title: newAdminStatus ? 'Grant admin privileges' : 'Remove admin privileges',
+      description: `Enter your password to confirm you want to ${action} admin privileges for this user.`,
+      confirmLabel: newAdminStatus ? 'Grant admin' : 'Remove admin',
+    });
+  };
+
+  const executeToggleAdmin = async (userId: number, currentAdminStatus: boolean, password: string) => {
+    const newAdminStatus = !currentAdminStatus;
 
     try {
       const res = await fetcher(`/admin/users/${userId}/admin`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isAdmin: newAdminStatus }),
+        body: JSON.stringify({ isAdmin: newAdminStatus, password }),
       });
 
       if (res.ok) {
-        // Update the user in the local state
-        setUsers(users.map(user => 
-          user.id === userId 
+        setPasswordModal(null);
+        setUsers(users.map(user =>
+          user.id === userId
             ? { ...user, isAdmin: newAdminStatus }
             : user
         ));
-        
-        // Update selected user if it's the same user
+
         if (selectedUser && selectedUser.id === userId) {
           setSelectedUser({ ...selectedUser, isAdmin: newAdminStatus });
         }
       } else {
         const error = await res.json();
-        alert(`Error updating admin status: ${error.message}`);
+        setPasswordModalError(error.message || 'Error updating admin status');
       }
     } catch (error) {
       console.error('Error toggling admin status:', error);
-      alert('Error updating admin status');
+      setPasswordModalError('Error updating admin status');
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedUserIds.length === 0) {
+      return;
+    }
+
+    setPasswordModalError('');
+    setPasswordModal({
+      action: 'bulkDelete',
+      userIds: selectedUserIds,
+      title: 'Delete selected users',
+      description: `You are about to permanently delete ${selectedUserIds.length} user(s) and all of their orders. Enter your password to confirm.`,
+      confirmLabel: `Delete ${selectedUserIds.length} user(s)`,
+    });
+  };
+
+  const executeBulkDelete = async (userIds: number[], password: string) => {
+    try {
+      const res = await fetcher('/admin/users/bulk', {
+        method: 'DELETE',
+        body: JSON.stringify({ userIds, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPasswordModal(null);
+        setSelectedUserIds([]);
+        fetchUsers();
+
+        if (data.data?.skipped?.length) {
+          alert(`${data.message}\n\nSkipped:\n${data.data.skipped.map((s: { email: string; reason: string }) => `- ${s.email}: ${s.reason}`).join('\n')}`);
+        }
+      } else {
+        setPasswordModalError(data.message || 'Error deleting selected users');
+      }
+    } catch (error) {
+      console.error('Error bulk deleting users:', error);
+      setPasswordModalError('Error deleting selected users');
+    }
+  };
+
+  const handlePasswordConfirm = async (password: string) => {
+    if (!passwordModal) {
+      return;
+    }
+
+    setPasswordActionLoading(true);
+    setPasswordModalError('');
+
+    try {
+      if (passwordModal.action === 'delete' && passwordModal.userId !== undefined) {
+        await executeDeleteUser(passwordModal.userId, password);
+      } else if (passwordModal.action === 'toggleAdmin' && passwordModal.userId !== undefined && passwordModal.currentAdminStatus !== undefined) {
+        await executeToggleAdmin(passwordModal.userId, passwordModal.currentAdminStatus, password);
+      } else if (passwordModal.action === 'bulkDelete' && passwordModal.userIds?.length) {
+        await executeBulkDelete(passwordModal.userIds, password);
+      }
+    } finally {
+      setPasswordActionLoading(false);
     }
   };
 
@@ -231,6 +366,7 @@ export default function AdminUsersPage() {
             <option value="unverified">Unverified</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
+            <option value="fake">Fake Users</option>
           </select>
           <button
             onClick={handleSearch}
@@ -240,6 +376,37 @@ export default function AdminUsersPage() {
           </button>
         </div>
       </div>
+
+      {selectedUserIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-md border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-800 dark:bg-indigo-950">
+          <p className="text-sm text-indigo-900 dark:text-indigo-200">
+            {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''} selected
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {fakeUsersOnPage.length > 0 && (
+              <button
+                onClick={selectFakeUsersOnPage}
+                className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-white border border-indigo-300 rounded-md hover:bg-indigo-100 dark:bg-gray-800 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-gray-700"
+              >
+                Select fake users on page ({fakeUsersOnPage.length})
+              </button>
+            )}
+            <button
+              onClick={() => setSelectedUserIds([])}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Clear selection
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              Delete selected
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Users Table */}
       {loading ? (
@@ -254,11 +421,25 @@ export default function AdminUsersPage() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
+                    <th className="px-4 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={allSelectableSelected}
+                        onChange={toggleSelectAllOnPage}
+                        disabled={selectableUsers.length === 0}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                        aria-label="Select all users on this page"
+                        title="Select all users on this page"
+                      />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       User
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Delivered Orders
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Addresses
@@ -274,6 +455,17 @@ export default function AdminUsersPage() {
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.includes(user.id)}
+                          onChange={() => toggleUserSelection(user.id)}
+                          disabled={user.isAdmin}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                          aria-label={`Select ${user.email}`}
+                          title={user.isAdmin ? 'Admin users cannot be bulk deleted' : `Select ${user.email}`}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
@@ -310,6 +502,27 @@ export default function AdminUsersPage() {
                           }`}>
                             {user.isEmailVerified ? 'Verified' : 'Unverified'}
                           </span>
+                          {user.isFake && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                              Fake
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className={`text-sm font-semibold ${
+                            (user.deliveredOrderCount ?? 0) > 0
+                              ? 'text-emerald-700 dark:text-emerald-300'
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            {user.deliveredOrderCount ?? 0}
+                          </span>
+                          {(user.orderCount ?? 0) > 0 && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {user.orderCount} total
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
@@ -469,6 +682,22 @@ export default function AdminUsersPage() {
         </>
       )}
 
+      <AdminPasswordConfirmModal
+        isOpen={passwordModal !== null}
+        title={passwordModal?.title ?? ''}
+        description={passwordModal?.description ?? ''}
+        confirmLabel={passwordModal?.confirmLabel}
+        isLoading={passwordActionLoading}
+        error={passwordModalError}
+        onClose={() => {
+          if (!passwordActionLoading) {
+            setPasswordModal(null);
+            setPasswordModalError('');
+          }
+        }}
+        onConfirm={handlePasswordConfirm}
+      />
+
       {/* User Details Modal */}
       {showUserModal && selectedUser && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -518,6 +747,18 @@ export default function AdminUsersPage() {
                       {selectedUser.isEmailVerified ? 'Verified' : 'Unverified'}
                     </span>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Orders</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {selectedUser.deliveredOrderCount ?? 0} delivered
+                    {(selectedUser.orderCount ?? 0) > 0 && (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        {' '}· {selectedUser.orderCount} total
+                      </span>
+                    )}
+                  </p>
                 </div>
                 
                 <div>

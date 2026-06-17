@@ -240,11 +240,10 @@ export default function CheckoutPage() {
         return;
       }
       clearCart();
-      
-      // Show success notification with order ID if available
-      showOrderSuccess(data.orderId || data.id);
-      
-      const orderId = data.orderId || data.id;
+
+      const orderId = data.data?.order?.id ?? data.orderId ?? data.id;
+      showOrderSuccess(orderId ? String(orderId) : undefined);
+
       const qs = orderId ? `?orderId=${encodeURIComponent(String(orderId))}` : '';
       router.push(`/checkout/confirmation${qs}`);
   } catch {
