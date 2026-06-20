@@ -16,8 +16,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
 const ALLOWED_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
 type AllowedSize = typeof ALLOWED_SIZES[number];
 const ALLOWED_CATEGORIES = ['men', 'women', 'kids', 'accessories', 'shoes'] as const;
@@ -36,7 +34,6 @@ const profileSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters').max(50, 'First name must be less than 50 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters').max(50, 'Last name must be less than 50 characters'),
   phone: z.string().optional(),
-  isAdmin: z.boolean().optional(),
   preferences: z.object({
     sizePreference: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']),
     newsletter: z.boolean(),
@@ -78,7 +75,6 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       firstName: user?.firstName || '',
       lastName: user?.lastName || '',
       phone: user?.phone || '',
-      isAdmin: user?.isAdmin || false,
       preferences: {
         sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user?.preferences?.sizePreference as string) || '')
           ? (user?.preferences?.sizePreference as AllowedSize)
@@ -108,7 +104,6 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         phone: user.phone || '',
-        isAdmin: user.isAdmin || false,
         preferences: {
           sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user.preferences?.sizePreference as string) || '')
             ? (user.preferences?.sizePreference as AllowedSize)
@@ -144,66 +139,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       });
 
       if (result.success) {
-        // Handle admin status changes if needed
-        if (data.isAdmin !== user?.isAdmin) {
-          console.log('ProfileEditForm: Admin status changed, updating...');
-          try {
-            const token = localStorage.getItem('token');
-            
-            if (data.isAdmin && !user?.isAdmin) {
-              // User is requesting admin privileges - use the auth endpoint
-              console.log('ProfileEditForm: Requesting admin privileges...');
-              const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-              const adminResponse = await fetch(`${API_BASE_URL}/auth/users/${user?.id}/request-admin`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                }
-              });
-
-              const adminData = await adminResponse.json();
-              console.log('ProfileEditForm: Admin response:', adminData);
-              
-              if (adminData.success) {
-                console.log('ProfileEditForm: Admin privileges granted:', adminData.message);
-              } else {
-                console.error('ProfileEditForm: Failed to get admin privileges:', adminData.message);
-                setError(`Failed to update admin status: ${adminData.message}`);
-                return;
-              }
-            } else if (!data.isAdmin && user?.isAdmin) {
-              // User is removing admin privileges - use the admin endpoint
-              console.log('ProfileEditForm: Removing admin privileges...');
-              const adminResponse = await fetch(`${API_BASE_URL}/admin/users/${user?.id}/admin`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ isAdmin: false })
-              });
-
-              const adminData = await adminResponse.json();
-              console.log('ProfileEditForm: Admin removal response:', adminData);
-              
-              if (!adminData.success) {
-                console.error('ProfileEditForm: Failed to remove admin status:', adminData.message);
-                setError(`Failed to update admin status: ${adminData.message}`);
-                return;
-              }
-            }
-          } catch (adminError) {
-            console.error('ProfileEditForm: Error updating admin status:', adminError);
-            setError('Failed to update admin status. Please try again.');
-            return;
-          }
-        }
-        
-        // Refresh user data to reflect any changes
-        console.log('ProfileEditForm: Refreshing user data...');
         await refreshUser();
-        console.log('ProfileEditForm: User data refreshed, calling onSuccess');
         onSuccess();
       } else {
         setError(result.message);
@@ -339,35 +275,23 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Admin Status
-                </label>
-                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Crown className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {user?.isAdmin ? 'Administrator' : 'Regular User'}
-                    </span>
-                    {user?.isAdmin && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                        Admin
-                      </span>
-                    )}
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      {...register('isAdmin')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+              {user?.isAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Account role
                   </label>
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <Crown className="w-4 h-4 text-purple-500" />
+                    <span className="text-gray-700 dark:text-gray-300">Administrator</span>
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                      Admin
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Admin access is managed by existing administrators only.
+                  </p>
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Toggle admin privileges for this account
-                </p>
-              </div>
+              )}
             </div>
           </div>
 

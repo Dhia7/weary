@@ -66,6 +66,12 @@ const Product = sequelize.define('Product', {
 		defaultValue: 0,
 		comment: 'Index of the main thumbnail image in the images array'
 	},
+	defaultDisplayColor: {
+		type: DataTypes.STRING(100),
+		allowNull: true,
+		defaultValue: null,
+		comment: 'Variant color shown first on featured products and listings'
+	},
 	price: {
 		type: DataTypes.DECIMAL(12, 2),
 		allowNull: false,

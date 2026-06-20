@@ -1,11 +1,13 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { translateText } = require('../services/translateService');
+const { translateLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
 router.post(
   '/',
+  translateLimiter,
   body('text').isString().trim().notEmpty().isLength({ max: 10_000 }),
   body('target').optional().isIn(['fr', 'en']),
   async (req, res) => {

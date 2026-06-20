@@ -199,6 +199,20 @@ const connectDB = async () => {
       } catch (error) {
         console.warn('displayBadge migration failed (non-critical):', error.message);
       }
+
+      try {
+        const addDefaultDisplayColor = require('../scripts/add-default-display-color');
+        await addDefaultDisplayColor();
+      } catch (error) {
+        console.warn('defaultDisplayColor migration failed (non-critical):', error.message);
+      }
+
+      try {
+        const { addUserRoleColumn } = require('../scripts/add-user-role-column');
+        await addUserRoleColumn();
+      } catch (error) {
+        console.warn('User role migration failed (non-critical):', error.message);
+      }
       
       // Auto-create admin account from environment variables (if configured)
       try {

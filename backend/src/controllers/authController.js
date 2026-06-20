@@ -1,18 +1,28 @@
 const User = require('../models/User');
 const Address = require('../models/Address');
-const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { hasMailTransport, sendVerificationEmail } = require('../utils/mail');
+const { hasMailTransport, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mail');
 const { verifyGoogleIdToken } = require('../utils/google');
+const { signAccessToken } = require('../utils/jwt');
+const { resolveUserRole } = require('../config/roles');
+const { generateTwoFactorSecret, verifyTotpCode } = require('../utils/totp');
+
+const formatAuthUser = (user) => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  fullName: user.getFullName(),
+  isEmailVerified: user.isEmailVerified,
+  isAdmin: user.isAdmin,
+  role: resolveUserRole(user),
+  preferences: user.preferences,
+});
 
 // Generate JWT Token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure_for_development_only', {
-    expiresIn: '7d'
-  });
-};
+const generateToken = (userId) => signAccessToken(userId);
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -115,7 +125,7 @@ const login = async (req, res) => {
       });
     }
 
-    const { email, password } = req.body;
+    const { email, password, twoFactorCode } = req.body;
 
     // Find user by email
     const user = await User.findOne({ where: { email: email.toLowerCase() } });
@@ -137,13 +147,31 @@ const login = async (req, res) => {
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      // Handle failed login attempt
       await User.handleFailedLogin(user.id);
-      
+
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
+    }
+
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        return res.status(403).json({
+          success: false,
+          code: 'TWO_FACTOR_REQUIRED',
+          message: 'Two-factor authentication code is required'
+        });
+      }
+
+      const isValidCode = verifyTotpCode(user.twoFactorSecret, twoFactorCode);
+      if (!isValidCode) {
+        await User.handleFailedLogin(user.id);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
     }
 
     // Reset login attempts on successful login
@@ -171,16 +199,7 @@ const login = async (req, res) => {
       success: true,
       message: 'Login successful',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.getFullName(),
-          isEmailVerified: user.isEmailVerified,
-          isAdmin: user.isAdmin,
-          preferences: user.preferences
-        },
+        user: formatAuthUser(user),
         token
       }
     });
@@ -316,16 +335,7 @@ const googleAuth = async (req, res) => {
       success: true,
       message: 'Login successful',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.getFullName(),
-          isEmailVerified: user.isEmailVerified,
-          isAdmin: user.isAdmin,
-          preferences: user.preferences
-        },
+        user: formatAuthUser(user),
         token
       }
     });
@@ -470,6 +480,7 @@ const getMe = async (req, res) => {
           addresses: user.addresses || [],
           isEmailVerified: user.isEmailVerified,
           isAdmin: user.isAdmin,
+          role: resolveUserRole(user),
           preferences: user.preferences,
           createdAt: user.createdAt
         }
@@ -643,33 +654,42 @@ const updateProfileComprehensive = async (req, res) => {
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    const genericMessage =
+      'If an account exists for that email, password reset instructions will be sent.';
 
     const user = await User.findOne({ where: { email: email.toLowerCase() } });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
+      return res.json({
+        success: true,
+        message: genericMessage
       });
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.passwordResetToken = crypto
       .createHash('sha256')
       .update(resetToken)
       .digest('hex');
-    user.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    user.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     await user.save();
 
-    // TODO: Send email with reset token
-    // For now, just return the token (in production, send via email)
+    const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const resetUrl = `${frontendBase}/auth/reset-password?token=${resetToken}`;
+
+    try {
+      if (hasMailTransport()) {
+        await sendPasswordResetEmail(user.email, resetUrl, user.firstName);
+      } else if (process.env.NODE_ENV === 'development') {
+        console.log('[dev] Password reset URL (no mail transport):', resetUrl);
+      }
+    } catch (err) {
+      console.error('Failed to send password reset email:', err.message || err);
+    }
+
     res.json({
       success: true,
-      message: 'Password reset email sent',
-      data: {
-        resetToken // Remove this in production
-      }
+      message: genericMessage
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -818,18 +838,17 @@ const toggleTwoFactorAuth = async (req, res) => {
     }
 
     if (enable) {
-      // Generate 2FA secret (in production, use a proper 2FA library like speakeasy)
-      const twoFactorSecret = crypto.randomBytes(20).toString('hex');
-      user.twoFactorSecret = twoFactorSecret;
+      const secret = generateTwoFactorSecret(user.email);
+      user.twoFactorSecret = secret.base32;
       user.twoFactorEnabled = true;
-      
+
       await user.save();
 
       res.json({
         success: true,
         message: 'Two-factor authentication enabled',
         data: {
-          secret: twoFactorSecret, // In production, show QR code instead
+          otpauthUrl: secret.otpauth_url,
           backupCodes: generateBackupCodes()
         }
       });
@@ -884,9 +903,7 @@ const verifyTwoFactorCode = async (req, res) => {
       });
     }
 
-    // In production, verify the TOTP code using a library like speakeasy
-    // For now, we'll use a simple verification (replace with proper TOTP verification)
-    const isValidCode = verifyTOTPCode(user.twoFactorSecret, code);
+    const isValidCode = verifyTotpCode(user.twoFactorSecret, code);
     
     if (!isValidCode) {
       return res.status(400).json({
@@ -915,73 +932,6 @@ const generateBackupCodes = () => {
     codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
   }
   return codes;
-};
-
-// Helper function to verify TOTP code (simplified for demo)
-const verifyTOTPCode = (secret, code) => {
-  // In production, use a proper TOTP library
-  // This is a simplified verification for demo purposes
-  return code.length === 6 && /^\d{6}$/.test(code);
-};
-
-// @desc    Request admin privileges (for self-promotion)
-// @route   PUT /api/auth/users/:id/request-admin
-// @access  Private (authenticated user can request for themselves)
-const requestAdminPrivileges = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const requestingUserId = req.user.userId;
-    
-    console.log('requestAdminPrivileges: Requested ID:', id, 'Type:', typeof id);
-    console.log('requestAdminPrivileges: User ID from token:', requestingUserId, 'Type:', typeof requestingUserId);
-    
-    // Users can only request admin privileges for themselves
-    if (String(id) !== String(requestingUserId)) {
-      console.log('requestAdminPrivileges: ID mismatch - rejecting request');
-      return res.status(403).json({
-        success: false,
-        message: 'You can only request admin privileges for yourself'
-      });
-    }
-    
-    const user = await User.findByPk(id);
-    if (!user) {
-      console.log('requestAdminPrivileges: User not found with ID:', id);
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    console.log('requestAdminPrivileges: Found user:', user.email, 'Current isAdmin:', user.isAdmin);
-
-    // For now, we'll grant admin privileges directly
-    // In a real application, this might require approval from other admins
-    user.isAdmin = true;
-    await user.save();
-
-    console.log('requestAdminPrivileges: Updated user isAdmin to:', user.isAdmin);
-
-    res.json({
-      success: true,
-      message: 'Admin privileges granted successfully',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          isAdmin: user.isAdmin
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Request admin privileges error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
 };
 
 // @desc    Logout user
@@ -1018,6 +968,5 @@ module.exports = {
   verifyTwoFactorCode,
   forgotPassword,
   resetPassword,
-  requestAdminPrivileges,
   logout
 };

@@ -16,8 +16,10 @@ import {
   getColorPrice,
   formatPriceTnd,
   getEffectiveCompareAtPrice,
+  getProductHref,
   getProductMaxStock,
   isProductSoldOut,
+  resolveProductColor,
   shouldShowCompareAtPrice,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
@@ -55,7 +57,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
       setSelectedImageIndex(0);
       setSelectedQuantity(1);
       setSelectedSize('');
-      setSelectedColor(product.colorOptions?.[0]?.name || '');
+      setSelectedColor(resolveProductColor(product));
       setSizeError(null);
       setColorError(null);
     }
@@ -425,7 +427,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                       : t.addToCart}
                 </button>
                 <Link
-                  href={`/product/${product.slug}`}
+                  href={getProductHref(product.slug, selectedColor || undefined)}
                   onClick={onClose}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border-2 border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 font-medium rounded-lg transition-colors"
                 >

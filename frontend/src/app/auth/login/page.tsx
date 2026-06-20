@@ -27,6 +27,9 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [verifyGateEmail, setVerifyGateEmail] = useState<string | null>(null);
+  const [twoFactorStep, setTwoFactorStep] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string } | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const { login, resendVerificationEmail, loginWithGoogle } = useAuth();
@@ -53,6 +56,32 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
+  const completeLogin = (
+    result: { success: boolean; message: string; user?: { isAdmin?: boolean; firstName?: string; fullName?: string }; code?: string },
+    emailForVerification?: string
+  ) => {
+    if (result.success && result.user) {
+      if (result.user.isAdmin) {
+        router.push('/admin');
+      } else {
+        const userName = result.user.firstName || result.user.fullName;
+        const params = new URLSearchParams();
+        params.set('loginSuccess', 'true');
+        if (userName) {
+          params.set('userName', userName);
+        }
+        router.push(`/?${params.toString()}`);
+      }
+      return true;
+    }
+
+    setError(result.message);
+    if (result.code === 'EMAIL_NOT_VERIFIED') {
+      setVerifyGateEmail(emailForVerification || pendingCredentials?.email || '');
+    }
+    return false;
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setError('');
@@ -61,26 +90,37 @@ export default function LoginPage() {
 
     try {
       const result = await login(data.email, data.password);
-      
-      if (result.success) {
-        // Redirect admin users to admin dashboard, regular users to main page with success notification
-        if (result.user?.isAdmin) {
-          router.push('/admin');
-        } else {
-          // Redirect to main page with login success parameters
-          const userName = result.user?.firstName || result.user?.fullName;
-          const params = new URLSearchParams();
-          params.set('loginSuccess', 'true');
-          if (userName) {
-            params.set('userName', userName);
-          }
-          router.push(`/?${params.toString()}`);
-        }
-      } else {
-        setError(result.message);
-        if (result.code === 'EMAIL_NOT_VERIFIED') {
-          setVerifyGateEmail(data.email);
-        }
+
+      if (result.code === 'TWO_FACTOR_REQUIRED') {
+        setPendingCredentials({ email: data.email, password: data.password });
+        setTwoFactorStep(true);
+        setError('');
+        return;
+      }
+
+      completeLogin(result, data.email);
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSubmitTwoFactor = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!pendingCredentials || twoFactorCode.length !== 6) return;
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const result = await login(
+        pendingCredentials.email,
+        pendingCredentials.password,
+        twoFactorCode
+      );
+      if (!completeLogin(result)) {
+        setTwoFactorCode('');
       }
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -163,7 +203,7 @@ export default function LoginPage() {
           transition={{ delay: 0.3 }}
           className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8"
         >
-          {hasGoogleSignIn && (
+          {hasGoogleSignIn && !twoFactorStep && (
             <>
               <div className="flex flex-col items-stretch gap-2">
                 <div className="flex w-full justify-center">
@@ -197,6 +237,52 @@ export default function LoginPage() {
               </div>
             </>
           )}
+          {twoFactorStep ? (
+            <form onSubmit={onSubmitTwoFactor} className="space-y-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Enter the 6-digit code from your authenticator app.
+              </p>
+              <div>
+                <label htmlFor="twoFactorCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Authentication code
+                </label>
+                <input
+                  id="twoFactorCode"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent tracking-widest text-center text-lg"
+                  placeholder="000000"
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={isLoading || twoFactorCode.length !== 6}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>{isLoading ? 'Verifying…' : 'Verify and sign in'}</span>
+              </motion.button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTwoFactorStep(false);
+                  setPendingCredentials(null);
+                  setTwoFactorCode('');
+                  setError('');
+                }}
+                className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              >
+                Back to sign in
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {infoMessage && (
               <motion.div
@@ -318,6 +404,7 @@ export default function LoginPage() {
               )}
             </motion.button>
           </form>
+          )}
 
           {/* Links */}
           <div className="mt-6 text-center space-y-3">

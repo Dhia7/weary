@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getApiBaseUrl } from '@/lib/api';
+import { getApiBaseUrl, getApiErrorMessage } from '@/lib/api';
 
 interface User {
   id: string;
@@ -12,6 +12,7 @@ interface User {
   phone?: string;
   isEmailVerified: boolean;
   isAdmin?: boolean;
+  role?: 'customer' | 'staff' | 'admin';
   twoFactorEnabled?: boolean;
   preferences?: {
     newsletter: boolean;
@@ -25,7 +26,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string; user?: User; code?: string }>;
+  login: (email: string, password: string, twoFactorCode?: string) => Promise<{ success: boolean; message: string; user?: User; code?: string }>;
   signup: (userData: SignupData) => Promise<{
     success: boolean;
     message: string;
@@ -134,14 +135,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, twoFactorCode?: string) => {
     try {
       const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          ...(twoFactorCode ? { twoFactorCode } : {}),
+        }),
       });
 
       const data = await response.json();
@@ -156,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         return {
           success: false,
-          message: data.message || 'Login failed',
+          message: getApiErrorMessage(response, data),
           code: data.code,
         };
       }
@@ -201,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emailSent: payload?.emailSent,
         };
       } else {
-        return { success: false, message: data.message || 'Registration failed' };
+        return { success: false, message: getApiErrorMessage(response, data) };
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -225,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return { success: true, message: data.message, user: data.data.user };
       }
-      return { success: false, message: data.message || 'Google sign-in failed' };
+      return { success: false, message: getApiErrorMessage(response, data) };
     } catch (error) {
       console.error('Google login error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -243,7 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.ok) {
         return { success: true, message: data.message || 'Request processed.' };
       }
-      return { success: false, message: data.message || 'Could not send verification email.' };
+      return { success: false, message: getApiErrorMessage(response, data) };
     } catch (error) {
       console.error('Resend verification error:', error);
       return { success: false, message: 'Network error. Please try again.' };

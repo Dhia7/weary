@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -74,12 +75,26 @@ const Navigation = () => {
   });
 
   return (
-    <nav aria-label={isFrench ? 'Navigation principale' : 'Primary navigation'} className="fixed top-0 left-0 right-0 z-50 border-b border-swisse-gold/15 bg-swisse-canvas/95 backdrop-blur-md dark:bg-background/95 dark:border-border">
+    <nav aria-label={isFrench ? 'Navigation principale' : 'Primary navigation'} className="fixed top-0 left-0 right-0 z-50 border-b border-swisse-gold/15 bg-swisse-canvas dark:bg-background dark:border-border">
       <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-[4.25rem]">
-          <div className="flex-shrink-0">
-            <Link href="/" className="font-serif text-xl sm:text-2xl tracking-[0.2em] uppercase text-swisse-ink dark:text-foreground">
-              Swissé
+          <div className="flex-shrink-0 h-16 md:h-[4.25rem]">
+            <Link
+              href="/"
+              aria-label={isFrench ? 'Swissé — Accueil' : 'Swissé — Home'}
+              className="inline-flex h-full items-center"
+            >
+              <Image
+                src="/images/logo.png"
+                alt="Swissé"
+                width={256}
+                height={256}
+                className="h-full w-auto dark:hidden"
+                priority
+              />
+              <span className="hidden dark:block font-serif text-xl sm:text-2xl tracking-[0.2em] uppercase text-foreground">
+                Swissé
+              </span>
             </Link>
           </div>
 

@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { withTimeout, TIMEOUTS } = require('../utils/queryTimeout');
+const { verifyAccessToken } = require('../utils/jwt');
+const { userIsAdmin } = require('../config/roles');
 
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
@@ -13,7 +15,7 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure_for_development_only');
+      const decoded = verifyAccessToken(token);
 
       // Get user from token with timeout
       const user = await withTimeout(
@@ -76,7 +78,7 @@ const optionalAuth = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here_make_it_long_and_secure_for_development_only');
+      const decoded = verifyAccessToken(token);
       
       const user = await withTimeout(
         User.findByPk(decoded.userId, {
@@ -108,7 +110,7 @@ const admin = async (req, res, next) => {
       });
     }
 
-    if (!req.userData.isAdmin) {
+    if (!userIsAdmin(req.userData)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized as admin'
@@ -128,5 +130,6 @@ const admin = async (req, res, next) => {
 module.exports = {
   protect,
   optionalAuth,
-  admin
+  admin,
+  ...require('./permissions'),
 };

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const { authenticatedWriteLimiter } = require('../middleware/rateLimit');
 const {
   getUserWishlist,
   addToWishlist,
@@ -11,6 +12,7 @@ const {
 
 // All routes require authentication
 router.use(protect);
+router.use(authenticatedWriteLimiter);
 
 // GET /api/wishlist - Get user's wishlist
 router.get('/', getUserWishlist);

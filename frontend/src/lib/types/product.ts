@@ -54,6 +54,7 @@ export interface Product {
   imageUrl?: string;
   images?: string[];
   mainThumbnailIndex?: number;
+  defaultDisplayColor?: string | null;
   price: number;
   compareAtPrice?: number;
   quantity: number;
@@ -201,13 +202,37 @@ export const shouldShowCompareAtPrice = (
   return compare > current;
 };
 
+/** Price for a color before size is chosen (min across sizes for that color) */
+export const getColorPrice = (
+  product: Product,
+  colorName: string
+): number | undefined => {
+  const option = product.colorOptions?.find(
+    (c) => c.name.toLowerCase() === colorName.trim().toLowerCase()
+  );
+  if (option?.price != null) return option.price;
+  if (!product.variants?.length) return undefined;
+  const matches = product.variants.filter(
+    (v) => v.color.trim().toLowerCase() === colorName.trim().toLowerCase()
+  );
+  if (!matches.length) return undefined;
+  return Math.min(...matches.map((v) => getVariantPrice(v, product)));
+};
+
 /** Listing / card label when variants have different prices */
 export const formatProductPriceLabel = (
   product: Product,
-  options?: { selectedVariant?: ProductVariant; isFrench?: boolean }
+  options?: { selectedVariant?: ProductVariant; selectedColor?: string; isFrench?: boolean }
 ): string => {
   if (options?.selectedVariant) {
     return formatPriceTnd(getVariantPrice(options.selectedVariant, product));
+  }
+
+  if (options?.selectedColor?.trim() && product.hasVariants) {
+    const colorPrice = getColorPrice(product, options.selectedColor);
+    if (colorPrice != null) {
+      return formatPriceTnd(colorPrice);
+    }
   }
 
   const range = product.priceRange;
@@ -229,19 +254,31 @@ export const formatProductPriceLabel = (
   return formatPriceTnd(product.price);
 };
 
-/** Price for a color before size is chosen (min across sizes for that color) */
-export const getColorPrice = (
-  product: Product,
-  colorName: string
-): number | undefined => {
-  const option = product.colorOptions?.find(
-    (c) => c.name.toLowerCase() === colorName.trim().toLowerCase()
-  );
-  if (option?.price != null) return option.price;
-  if (!product.variants?.length) return undefined;
-  const matches = product.variants.filter(
-    (v) => v.color.trim().toLowerCase() === colorName.trim().toLowerCase()
-  );
-  if (!matches.length) return undefined;
-  return Math.min(...matches.map((v) => getVariantPrice(v, product)));
+/** Match a URL/query color param to a product color option, or fall back to admin default / first. */
+export const resolveProductColor = (
+  product: Pick<Product, 'colorOptions' | 'defaultDisplayColor'>,
+  colorParam?: string | null
+): string => {
+  const options = product.colorOptions;
+  if (!options?.length) return '';
+  if (colorParam?.trim()) {
+    const match = options.find(
+      (c) => c.name.trim().toLowerCase() === colorParam.trim().toLowerCase()
+    );
+    if (match) return match.name;
+  }
+  if (product.defaultDisplayColor?.trim()) {
+    const match = options.find(
+      (c) =>
+        c.name.trim().toLowerCase() === product.defaultDisplayColor!.trim().toLowerCase()
+    );
+    if (match) return match.name;
+  }
+  return options[0]?.name || '';
+};
+
+export const getProductHref = (slug: string, color?: string | null): string => {
+  const base = `/product/${slug}`;
+  if (!color?.trim()) return base;
+  return `${base}?color=${encodeURIComponent(color.trim())}`;
 };

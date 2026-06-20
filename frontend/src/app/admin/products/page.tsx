@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl } from '@/lib/utils';
-import type { ProductDisplayBadge } from '@/lib/types/product';
+import type { ColorOption, ProductDisplayBadge } from '@/lib/types/product';
 
 interface Product {
   id: number;
@@ -14,6 +14,9 @@ interface Product {
   SKU: string;
   isActive: boolean;
   displayBadge?: ProductDisplayBadge;
+  defaultDisplayColor?: string | null;
+  hasVariants?: boolean;
+  colorOptions?: ColorOption[];
   imageUrl?: string;
   price: number;
   compareAtPrice?: number;
@@ -39,6 +42,7 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingBadgeId, setUpdatingBadgeId] = useState<number | null>(null);
+  const [updatingColorId, setUpdatingColorId] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -96,6 +100,39 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleDefaultDisplayColorChange = async (
+    productId: number,
+    defaultDisplayColor: string | null
+  ) => {
+    try {
+      setUpdatingColorId(productId);
+      const res = await fetcher(`/products/${productId}/default-display-color`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultDisplayColor }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId
+              ? {
+                  ...p,
+                  defaultDisplayColor: json.data.product.defaultDisplayColor ?? null,
+                }
+              : p
+          )
+        );
+      } else {
+        console.error('Failed to update featured color:', json.message);
+      }
+    } catch (error) {
+      console.error('Error updating featured color:', error);
+    } finally {
+      setUpdatingColorId(null);
+    }
+  };
+
   // Refresh products when page comes into focus
   useEffect(() => {
     const handleFocus = () => {
@@ -111,7 +148,7 @@ export default function AdminProductsPage() {
 
   return (
     <AdminGuard>
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Products</h1>
           <Link 
@@ -153,6 +190,9 @@ export default function AdminProductsPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Categories
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Featured color
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Badge
@@ -259,6 +299,31 @@ export default function AdminProductsPage() {
                           </div>
                         ) : (
                           <span className="text-gray-400">No categories</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {product.hasVariants && product.colorOptions && product.colorOptions.length > 0 ? (
+                          <select
+                            aria-label={`Featured color for ${product.name}`}
+                            value={
+                              product.defaultDisplayColor ??
+                              product.colorOptions[0]?.name ??
+                              ''
+                            }
+                            disabled={updatingColorId === product.id}
+                            onChange={(e) => {
+                              handleDefaultDisplayColorChange(product.id, e.target.value || null);
+                            }}
+                            className="block w-full min-w-[8.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                          >
+                            {product.colorOptions.map((option) => (
+                              <option key={option.name} value={option.name}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>

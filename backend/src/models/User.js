@@ -105,10 +105,15 @@ const User = sequelize.define('User', {
     defaultValue: true
   },
   
-  // Admin role
+  // Admin role (kept in sync with isAdmin via model hooks)
   isAdmin: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  role: {
+    type: DataTypes.ENUM('customer', 'staff', 'admin'),
+    defaultValue: 'customer',
+    allowNull: false
   },
   
   // Two-factor authentication
@@ -142,10 +147,19 @@ const User = sequelize.define('User', {
   timestamps: true,
   hooks: {
     beforeSave: async (user) => {
-      // Only hash the password if it has been modified
       if (user.changed('password')) {
         const hashedPassword = await bcrypt.hash(user.password, 12);
         user.password = hashedPassword;
+      }
+
+      if (user.changed('role')) {
+        user.isAdmin = user.role === 'admin';
+      } else if (user.changed('isAdmin')) {
+        if (user.isAdmin) {
+          user.role = 'admin';
+        } else if (user.role === 'admin') {
+          user.role = 'customer';
+        }
       }
     }
   }

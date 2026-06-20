@@ -37,6 +37,7 @@ interface Product {
   imageUrl: string | null;
   images?: string[];
   mainThumbnailIndex?: number;
+  defaultDisplayColor?: string | null;
   categories: Category[];
 }
 
@@ -68,6 +69,7 @@ export default function EditProductPage() {
     imageUrl: null,
     images: [],
     mainThumbnailIndex: 0,
+    defaultDisplayColor: null,
     categories: []
   });
 
@@ -89,6 +91,7 @@ export default function EditProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [mainThumbnailIndex, setMainThumbnailIndex] = useState<number>(0);
+  const [defaultDisplayColor, setDefaultDisplayColor] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [showImageEditor, setShowImageEditor] = useState(false);
@@ -169,6 +172,7 @@ export default function EditProductPage() {
               imageUrl: p.imageUrl || null,
               images: p.images || [],
               mainThumbnailIndex: p.mainThumbnailIndex || 0,
+              defaultDisplayColor: p.defaultDisplayColor || null,
               categories: p.categories || []
             });
             // Check if product has sizes (ensure boolean)
@@ -211,6 +215,7 @@ export default function EditProductPage() {
                 console.log('Setting image preview URLs:', imageUrls);
                 setImagePreviews(imageUrls);
                 setMainThumbnailIndex(p.mainThumbnailIndex || 0);
+                setDefaultDisplayColor(p.defaultDisplayColor || null);
               }
             } else if (p.imageUrl) {
               // Fallback to single imageUrl for backward compatibility
@@ -503,6 +508,7 @@ export default function EditProductPage() {
       console.log('Saving with category IDs:', categoryIdsToSend);
       formData.append('categoryIds', JSON.stringify(categoryIdsToSend));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
+      formData.append('defaultDisplayColor', defaultDisplayColor || '');
       // Include currently kept existing image paths (server-relative) so backend can remove others
       // Keep both local uploads and Cloudinary URLs
       const remainingExisting = imagePreviews
@@ -672,6 +678,8 @@ export default function EditProductPage() {
             hasVariants={hasVariants}
             variants={variants}
             onVariantsChange={setVariants}
+            defaultDisplayColor={defaultDisplayColor}
+            onDefaultDisplayColorChange={setDefaultDisplayColor}
           />
 
           {/* Pricing Section */}

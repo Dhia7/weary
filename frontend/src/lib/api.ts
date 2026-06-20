@@ -35,6 +35,48 @@ export const buildApiUrl = (endpoint: string, params?: Record<string, string | n
   return url.toString();
 };
 
+type ApiErrorPayload = {
+  message?: string;
+};
+
+/** Build a user-facing message; enriches 429 responses with retry timing when headers allow. */
+export function getApiErrorMessage(
+  response: Response,
+  data?: ApiErrorPayload
+): string {
+  const base = data?.message || `Request failed (${response.status})`;
+
+  if (response.status !== 429) {
+    return base;
+  }
+
+  const retryAfter = response.headers.get('Retry-After');
+  if (retryAfter) {
+    const seconds = Number.parseInt(retryAfter, 10);
+    if (!Number.isNaN(seconds) && seconds > 0) {
+      if (seconds < 60) {
+        return `${base} Try again in about ${seconds} second${seconds === 1 ? '' : 's'}.`;
+      }
+      const minutes = Math.ceil(seconds / 60);
+      return `${base} Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+    }
+  }
+
+  const rateLimitReset = response.headers.get('RateLimit-Reset');
+  if (rateLimitReset) {
+    const resetEpoch = Number.parseInt(rateLimitReset, 10);
+    if (!Number.isNaN(resetEpoch)) {
+      const secondsLeft = Math.max(0, resetEpoch - Math.floor(Date.now() / 1000));
+      if (secondsLeft > 0 && secondsLeft < 3600) {
+        const minutes = Math.ceil(secondsLeft / 60);
+        return `${base} Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+      }
+    }
+  }
+
+  return base;
+}
+
 // Common API endpoints
 export const API_ENDPOINTS = {
   // Auth

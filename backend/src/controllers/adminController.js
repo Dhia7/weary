@@ -6,6 +6,7 @@ const OrderItem = require('../models/OrderItem');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { verifyAdminPassword } = require('../utils/adminAuth');
+const { ROLES } = require('../config/roles');
 
 const getUserOrderStats = async (userIds) => {
   if (!userIds.length) {
@@ -252,7 +253,10 @@ const updateUser = async (req, res) => {
     if (phone !== undefined) user.phone = phone;
     if (isActive !== undefined) user.isActive = isActive;
     if (isEmailVerified !== undefined) user.isEmailVerified = isEmailVerified;
-    if (isAdmin !== undefined) user.isAdmin = isAdmin;
+    if (isAdmin !== undefined) {
+      user.isAdmin = isAdmin;
+      user.role = isAdmin ? ROLES.ADMIN : (user.role === ROLES.ADMIN ? ROLES.CUSTOMER : user.role);
+    }
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
     }
@@ -972,6 +976,7 @@ const toggleUserAdmin = async (req, res) => {
 
     // Update admin status
     user.isAdmin = isAdmin;
+    user.role = isAdmin ? ROLES.ADMIN : ROLES.CUSTOMER;
     await user.save();
 
     res.json({
@@ -996,57 +1001,6 @@ const toggleUserAdmin = async (req, res) => {
   }
 };
 
-// @desc    Request admin privileges (for self-promotion)
-// @route   PUT /api/admin/users/:id/request-admin
-// @access  Authenticated user (can request for themselves)
-const requestAdminPrivileges = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const requestingUserId = req.user.id;
-    
-    // Users can only request admin privileges for themselves
-    if (id !== requestingUserId) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only request admin privileges for yourself'
-      });
-    }
-    
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // For now, we'll grant admin privileges directly
-    // In a real application, this might require approval from other admins
-    user.isAdmin = true;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Admin privileges granted successfully',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          isAdmin: user.isAdmin
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Request admin privileges error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-};
-
 module.exports = {
   getAllUsers,
   getUserById,
@@ -1060,5 +1014,4 @@ module.exports = {
   getDashboardStats,
   searchUsers,
   toggleUserAdmin,
-  requestAdminPrivileges
 };

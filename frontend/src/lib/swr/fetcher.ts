@@ -1,4 +1,4 @@
-import { buildApiUrl } from '@/lib/api';
+import { buildApiUrl, getApiErrorMessage } from '@/lib/api';
 
 export type ApiResponse<T> = {
   success: boolean;
@@ -19,7 +19,7 @@ export async function jsonFetcher<T = unknown>(key: string): Promise<ApiResponse
   const data = (await res.json()) as ApiResponse<T>;
 
   if (!res.ok) {
-    const err = new Error(data.message || `Request failed (${res.status})`) as Error & {
+    const err = new Error(getApiErrorMessage(res, data)) as Error & {
       status?: number;
     };
     err.status = res.status;

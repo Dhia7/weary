@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 
@@ -81,9 +82,19 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <Link
               href="/"
-              className="font-serif text-2xl tracking-[0.2em] uppercase text-swisse-ink dark:text-foreground inline-block mb-6"
+              aria-label={isFrench ? 'Swissé — Accueil' : 'Swissé — Home'}
+              className="inline-block mb-6"
             >
-              Swissé
+              <Image
+                src="/images/logo.png"
+                alt="Swissé"
+                width={256}
+                height={256}
+                className="h-32 w-auto sm:h-40 dark:hidden"
+              />
+              <span className="hidden dark:block font-serif text-2xl tracking-[0.2em] uppercase text-foreground">
+                Swissé
+              </span>
             </Link>
             <p className="text-swisse-ink/70 dark:text-muted-foreground mb-8 max-w-md leading-relaxed text-sm">
               {isFrench

@@ -219,6 +219,19 @@ const parseDisplayBadge = (value) => {
 	return null;
 };
 
+/** Resolve default listing color against variant color names (case-insensitive). */
+const parseDefaultDisplayColor = (value, variantRows = []) => {
+	if (value === undefined) return undefined;
+	const trimmed = value != null ? String(value).trim() : '';
+	if (!trimmed) return null;
+	const normalized = trimmed.toLowerCase();
+	for (const row of variantRows) {
+		const color = row?.color != null ? String(row.color).trim() : '';
+		if (color && color.toLowerCase() === normalized) return color;
+	}
+	return null;
+};
+
 /** FormData may send duplicate `size` fields as an array; DB column is STRING. */
 const normalizeSizeField = (size) => {
 	if (size === undefined || size === null || size === '') return null;
@@ -281,6 +294,12 @@ const createProduct = async (req, res) => {
 
 		// Get main thumbnail index from request body
 		const mainThumbnailIndex = parseInt(req.body.mainThumbnailIndex) || 0;
+		const variantsPayload = req.body.variants;
+		const parsedVariants = parseVariantsPayload(variantsPayload);
+		const defaultDisplayColor = parseDefaultDisplayColor(
+			req.body.defaultDisplayColor,
+			parsedVariants
+		);
 
 		// Note: sizeStock column doesn't exist in database, so we don't include it in create
 		const product = await Product.create({ 
@@ -295,6 +314,7 @@ const createProduct = async (req, res) => {
 			imageUrl: imageUrls.length > 0 ? imageUrls[mainThumbnailIndex] || imageUrls[0] : null, // Use selected thumbnail as main image
 			images: imageUrls, // Store all images
 			mainThumbnailIndex: mainThumbnailIndex, // Store the selected thumbnail index
+			defaultDisplayColor: defaultDisplayColor ?? null,
 			price: parseFloat(price),
 			compareAtPrice: (() => {
 				if (!compareAtPrice) return null;
@@ -315,7 +335,6 @@ const createProduct = async (req, res) => {
 			await product.setCategories(categories);
 		}
 
-		const variantsPayload = req.body.variants;
 		if (variantsPayload) {
 			const skuError = await validateVariantSkus(variantsPayload);
 			if (skuError) {
@@ -689,6 +708,16 @@ const updateProduct = async (req, res) => {
 		if (widthCm !== undefined) product.widthCm = parseOptionalDecimal(widthCm);
 		if (heightCm !== undefined) product.heightCm = parseOptionalDecimal(heightCm);
 		if (outerMaterial !== undefined) product.outerMaterial = outerMaterial?.trim() || null;
+		if (req.body.defaultDisplayColor !== undefined) {
+			const variantRows =
+				req.body.variants !== undefined
+					? parseVariantsPayload(req.body.variants)
+					: (product.variants || []);
+			product.defaultDisplayColor = parseDefaultDisplayColor(
+				req.body.defaultDisplayColor,
+				variantRows
+			);
+		}
 
 		// Save product - exclude sizeStock since column doesn't exist
 		const changedFields = product.changed();
@@ -725,6 +754,23 @@ const updateProduct = async (req, res) => {
 				await product.save();
 			} else if (parseVariantsPayload(req.body.variants).length === 0) {
 				await ProductVariant.destroy({ where: { productId: product.id } });
+				product.defaultDisplayColor = null;
+				await product.save({ fields: ['defaultDisplayColor'] });
+			}
+		}
+
+		if (product.defaultDisplayColor) {
+			const activeVariants = await ProductVariant.findAll({
+				where: { productId: product.id },
+				attributes: ['color']
+			});
+			const resolved = parseDefaultDisplayColor(
+				product.defaultDisplayColor,
+				activeVariants
+			);
+			if (resolved !== product.defaultDisplayColor) {
+				product.defaultDisplayColor = resolved;
+				await product.save({ fields: ['defaultDisplayColor'] });
 			}
 		}
 
@@ -905,12 +951,56 @@ const updateProductDisplayBadge = async (req, res) => {
 	}
 };
 
+// Update default listing color (admin, quick toggle from list)
+const updateProductDefaultDisplayColor = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { defaultDisplayColor } = req.body;
+
+		const product = await Product.findByPk(id, {
+			include: [variantInclude],
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (!product) {
+			return res.status(404).json({ success: false, message: 'Product not found' });
+		}
+
+		const variantRows = product.variants || [];
+		if (!getActiveVariants(variantRows).length) {
+			return res.status(400).json({
+				success: false,
+				message: 'Product has no color variants'
+			});
+		}
+
+		product.defaultDisplayColor = parseDefaultDisplayColor(
+			defaultDisplayColor,
+			variantRows
+		);
+		await product.save({ fields: ['defaultDisplayColor'] });
+
+		const refreshed = await Product.findByPk(id, {
+			include: [
+				{ model: Category, as: 'categories', through: { attributes: [] } },
+				variantInclude
+			],
+			attributes: { exclude: ['sizeStock'] }
+		});
+		const formattedProduct = formatProductForUser(refreshed, true);
+		res.json({ success: true, data: { product: formattedProduct } });
+	} catch (error) {
+		console.error('Update product default display color error:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
 module.exports = {
 	createProduct,
 	listProducts,
 	getProduct,
 	updateProduct,
 	updateProductDisplayBadge,
+	updateProductDefaultDisplayColor,
 	deleteProduct,
 	setProductCategories,
 	searchAutocomplete

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, memo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,13 +13,17 @@ import { useLanguage } from '@/lib/contexts/LanguageContext';
 import type { Product, ProductDisplayBadge } from '@/lib/types/product';
 import {
   formatProductPriceLabel,
+  getColorPrice,
   getListingPrice,
+  getProductHref,
   getProductMaxStock,
   isProductSoldOut,
+  resolveProductColor,
   shouldShowCompareAtPrice,
   toPriceNumber,
 } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
+import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
 
@@ -37,6 +41,16 @@ function getDisplayBadge(product: Product): ProductDisplayBadge {
 const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(() => resolveProductColor(product));
+
+  useEffect(() => {
+    setSelectedColor(resolveProductColor(product));
+  }, [product.id, product.colorOptions, product.defaultDisplayColor]);
+
+  const productHref = getProductHref(product.slug, selectedColor || undefined);
+  const displayImage =
+    getPrimaryDisplayImage(product, { selectedColor: selectedColor || undefined }) ||
+    product.imageUrl;
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
@@ -80,11 +94,32 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     setIsQuickViewOpen(true);
   };
 
-  const priceLabel = formatProductPriceLabel(product, { isFrench });
-  const listingPrice = getListingPrice(product);
-  const showCompareAt =
-    shouldShowCompareAtPrice(product.compareAtPrice, listingPrice) &&
-    !product.priceRange?.hasVariablePricing;
+  const priceLabel = useMemo(
+    () =>
+      formatProductPriceLabel(product, {
+        isFrench,
+        selectedColor: selectedColor || undefined,
+      }),
+    [product, selectedColor, isFrench]
+  );
+  const displayPrice = useMemo(() => {
+    if (selectedColor && product.hasVariants) {
+      return getColorPrice(product, selectedColor) ?? getListingPrice(product);
+    }
+    return getListingPrice(product);
+  }, [product, selectedColor]);
+  const showCompareAt = useMemo(() => {
+    const hasColorSpecificPrice =
+      Boolean(
+        selectedColor &&
+          product.hasVariants &&
+          getColorPrice(product, selectedColor) != null
+      );
+    if (product.priceRange?.hasVariablePricing && !hasColorSpecificPrice) {
+      return false;
+    }
+    return shouldShowCompareAtPrice(product.compareAtPrice, displayPrice);
+  }, [product, selectedColor, displayPrice]);
 
   const getCategoryEmoji = (categories?: Array<{ name: string }>) => {
     if (!categories || categories.length === 0) return '👕';
@@ -127,10 +162,10 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     return (
       <div className="group">
         <div className="relative aspect-[3/4] overflow-hidden mb-6 bg-swisse-mist dark:bg-muted">
-          <Link href={`/product/${product.slug}`} className="absolute inset-0 z-0 block">
-            {product.imageUrl ? (
+          <Link href={productHref} className="absolute inset-0 z-0 block">
+            {displayImage ? (
               <Image
-                src={getImageUrl(product.imageUrl) || ''}
+                src={getImageUrl(displayImage) || ''}
                 alt={product.name}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -166,7 +201,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             </button>
           </div>
         </div>
-        <Link href={`/product/${product.slug}`} className="block">
+        <Link href={productHref} className="block">
           <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
               <h3 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
@@ -176,7 +211,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                 {getCategoryName(product.categories)}
               </p>
               {product.colorOptions && product.colorOptions.length > 1 && (
-                <ColorSwatches colors={product.colorOptions} maxVisible={4} />
+                <ColorSwatches
+                  colors={product.colorOptions}
+                  selectedColor={selectedColor}
+                  onSelect={setSelectedColor}
+                  maxVisible={4}
+                />
               )}
             </div>
             <div className="shrink-0 text-right">
@@ -208,11 +248,11 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link href={`/product/${product.slug}`} className="block">
+      <Link href={productHref} className="block">
         <div className="aspect-square bg-muted relative overflow-hidden">
-          {product.imageUrl ? (
+          {displayImage ? (
             <Image
-              src={getImageUrl(product.imageUrl) || ''}
+              src={getImageUrl(displayImage) || ''}
               alt={product.name}
               fill
               className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
@@ -285,7 +325,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
 
           {product.colorOptions && product.colorOptions.length > 1 && (
             <div className="mb-2">
-              <ColorSwatches colors={product.colorOptions} maxVisible={5} />
+              <ColorSwatches
+                colors={product.colorOptions}
+                selectedColor={selectedColor}
+                onSelect={setSelectedColor}
+                maxVisible={5}
+              />
             </div>
           )}
 

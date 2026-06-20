@@ -51,6 +51,7 @@ export default function NewProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [mainThumbnailIndex, setMainThumbnailIndex] = useState<number>(0);
+  const [defaultDisplayColor, setDefaultDisplayColor] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [showImageEditor, setShowImageEditor] = useState(false);
@@ -338,6 +339,7 @@ export default function NewProductPage() {
       formData.append('allowCustomerQuantity', String(allowCustomerQuantity));
       formData.append('categoryIds', JSON.stringify(selectedCategories));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
+      formData.append('defaultDisplayColor', defaultDisplayColor || '');
       
       // Add multiple images (either original files or edited images)
       for (let index = 0; index < imagePreviews.length; index++) {
@@ -444,6 +446,8 @@ export default function NewProductPage() {
             hasVariants={hasVariants}
             variants={variants}
             onVariantsChange={setVariants}
+            defaultDisplayColor={defaultDisplayColor}
+            onDefaultDisplayColorChange={setDefaultDisplayColor}
           />
 
           {/* Pricing Section */}

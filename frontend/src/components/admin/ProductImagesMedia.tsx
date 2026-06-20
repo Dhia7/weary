@@ -35,6 +35,8 @@ export interface ProductImagesMediaProps {
   hasVariants: boolean;
   variants: VariantDraft[];
   onVariantsChange: (variants: VariantDraft[]) => void;
+  defaultDisplayColor?: string | null;
+  onDefaultDisplayColorChange?: (color: string | null) => void;
 }
 
 export default function ProductImagesMedia({
@@ -54,8 +56,19 @@ export default function ProductImagesMedia({
   hasVariants,
   variants,
   onVariantsChange,
+  defaultDisplayColor = null,
+  onDefaultDisplayColorChange,
 }: ProductImagesMediaProps) {
   const uniqueColors = useMemo(() => getUniqueVariantColors(variants), [variants]);
+  const activeDefaultColor =
+    defaultDisplayColor &&
+    uniqueColors.some(
+      (c) => c.trim().toLowerCase() === defaultDisplayColor.trim().toLowerCase()
+    )
+      ? uniqueColors.find(
+          (c) => c.trim().toLowerCase() === defaultDisplayColor!.trim().toLowerCase()
+        ) ?? null
+      : null;
 
   const sharedGalleryHttpUrls = useMemo(
     () =>
@@ -235,6 +248,70 @@ export default function ProductImagesMedia({
       {/* Per-color images */}
       {hasVariants && uniqueColors.length > 0 && (
         <section className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
+            Featured &amp; listing color
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Choose which color shoppers see first on featured products, category grids, and search
+            results. They can still switch colors on the product card.
+          </p>
+
+          {onDefaultDisplayColorChange && (
+            <div className="mb-8 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-800 dark:text-indigo-200 mb-3">
+                Show this color first
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {uniqueColors.map((colorName) => {
+                  const hex = colorHexForName(variants, colorName);
+                  const isSelected = activeDefaultColor === colorName;
+                  const previewUrl = getVariantImagesForColor(variants, colorName)[0];
+
+                  return (
+                    <button
+                      key={`featured-${colorName}`}
+                      type="button"
+                      onClick={() => onDefaultDisplayColorChange(colorName)}
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                        isSelected
+                          ? 'border-indigo-500 bg-white dark:bg-gray-800 ring-2 ring-indigo-500/30'
+                          : 'border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 hover:border-indigo-300'
+                      }`}
+                    >
+                      <span
+                        className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-500 shrink-0"
+                        style={{ backgroundColor: hex || '#e5e7eb' }}
+                      />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{colorName}</span>
+                      {previewUrl && (
+                        <img
+                          src={getImageUrl(previewUrl) || previewUrl}
+                          alt=""
+                          className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-600"
+                        />
+                      )}
+                      {isSelected && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+                          Default
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {activeDefaultColor && (
+                <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                  Featured preview uses{' '}
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {activeDefaultColor}
+                  </span>
+                  {getVariantImagesForColor(variants, activeDefaultColor).length === 0 &&
+                    ' (no dedicated color images yet — shared gallery will be used)'}
+                </p>
+              )}
+            </div>
+          )}
+
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
             Images by color
           </h3>

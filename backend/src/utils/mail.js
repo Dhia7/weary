@@ -83,8 +83,17 @@ async function sendVerificationEmail(to, verifyUrl, firstName) {
   await sendEmail({ to, subject, text, html });
 }
 
+async function sendPasswordResetEmail(to, resetUrl, firstName) {
+  const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
+  const subject = 'Reset your Wear password';
+  const text = `${greeting}\n\nReset your password by opening this link (valid for 10 minutes):\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`;
+  const html = `<p>${greeting}</p><p>Reset your password by clicking below (link valid for 10 minutes):</p><p><a href="${resetUrl}">Reset password</a></p><p style="word-break:break-all">${resetUrl}</p><p>If you did not request this, you can ignore this email.</p>`;
+  await sendEmail({ to, subject, text, html });
+}
+
 module.exports = {
   hasMailTransport,
   sendEmail,
   sendVerificationEmail,
+  sendPasswordResetEmail,
 };

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const { authenticatedWriteLimiter } = require('../middleware/rateLimit');
 const {
   getCart,
   addToCart,
@@ -12,6 +13,7 @@ const {
 
 // All cart routes require authentication
 router.use(protect);
+router.use(authenticatedWriteLimiter);
 
 // GET /api/cart - Get user's cart items
 router.get('/', getCart);

@@ -4,11 +4,20 @@ const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
+const { globalLimiter, isRateLimitEnabled } = require('./middleware/rateLimit');
 
 // NOTE: This application only creates HTTP servers
 // SSL/HTTPS is handled by the deployment platform (Render) at the load balancer level
 require('dotenv').config();
+
+const { assertJwtConfigured } = require('./utils/jwt');
+
+try {
+  assertJwtConfigured();
+} catch (error) {
+  console.error(`❌ ${error.message}`);
+  process.exit(1);
+}
 
 // Explicitly prevent HTTPS server creation in production
 if (process.env.NODE_ENV === 'production') {
@@ -106,22 +115,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// Rate limiting (skip preflight OPTIONS)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More lenient in dev
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS'
-});
-
-// Apply rate limiting only in production or when explicitly enabled
-if (process.env.NODE_ENV === 'production' || process.env.ENABLE_RATE_LIMIT === 'true') {
-  app.use('/api/', limiter);
+// Global API rate limiting (route-specific limiters applied in route modules)
+if (isRateLimitEnabled()) {
+  app.use('/api/', globalLimiter);
 }
 
 // Body parsing middleware

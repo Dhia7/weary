@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingBagIcon, ArrowLeftIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import { useCart } from '@/lib/contexts/CartContext';
@@ -18,6 +18,7 @@ import {
   getEffectiveCompareAtPrice,
   getProductMaxStock,
   isProductSoldOut,
+  resolveProductColor,
   shouldShowCompareAtPrice,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
@@ -35,7 +36,9 @@ import { useProduct } from '@/lib/hooks/useProduct';
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params?.slug as string;
+  const colorParam = searchParams.get('color');
   const { product, loading, error: fetchError, mutate } = useProduct(slug);
   const error = fetchError?.message ?? null;
   const [selectedQuantity, setSelectedQuantity] = useState(1);
@@ -128,10 +131,10 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (product) {
       setSelectedSize('');
-      setSelectedColor(product.colorOptions?.[0]?.name || '');
+      setSelectedColor(resolveProductColor(product, colorParam));
       setColorError(null);
     }
-  }, [product]);
+  }, [product, colorParam]);
 
   // Clear error notification when component unmounts or route changes
   useEffect(() => {

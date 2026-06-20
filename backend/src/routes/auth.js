@@ -2,6 +2,11 @@ const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const {
+  authLimiter,
+  emailLimiter,
+  resetPasswordLimiter,
+} = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -37,7 +42,13 @@ const loginValidation = [
     .normalizeEmail(),
   body('password')
     .notEmpty()
-    .withMessage('Password is required')
+    .withMessage('Password is required'),
+  body('twoFactorCode')
+    .optional()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Two-factor code must be 6 digits')
+    .matches(/^\d{6}$/)
+    .withMessage('Two-factor code must contain only numbers')
 ];
 
 const updateProfileValidation = [
@@ -185,17 +196,18 @@ const verifyTwoFactorValidation = [
 ];
 
 // Routes
-router.post('/register', registerValidation, authController.register);
-router.post('/login', loginValidation, authController.login);
-router.post('/google', authController.googleAuth);
+router.post('/register', authLimiter, registerValidation, authController.register);
+router.post('/login', authLimiter, loginValidation, authController.login);
+router.post('/google', authLimiter, authController.googleAuth);
 router.get('/verify-email', authController.verifyEmail);
 router.post(
   '/resend-verification',
+  emailLimiter,
   resendVerificationValidation,
   authController.resendVerification
 );
-router.post('/forgot-password', forgotPasswordValidation, authController.forgotPassword);
-router.post('/reset-password', resetPasswordValidation, authController.resetPassword);
+router.post('/forgot-password', emailLimiter, forgotPasswordValidation, authController.forgotPassword);
+router.post('/reset-password', resetPasswordLimiter, resetPasswordValidation, authController.resetPassword);
 
 // Protected routes
 router.get('/me', protect, authController.getMe);
@@ -205,9 +217,6 @@ router.put('/change-password', protect, changePasswordValidation, authController
 router.put('/2fa', protect, toggleTwoFactorValidation, authController.toggleTwoFactorAuth);
 router.post('/2fa/verify', protect, verifyTwoFactorValidation, authController.verifyTwoFactorCode);
 router.post('/logout', protect, authController.logout);
-
-// Admin privilege request (accessible to authenticated users)
-router.put('/users/:id/request-admin', protect, authController.requestAdminPrivileges);
 
 module.exports = router;
 

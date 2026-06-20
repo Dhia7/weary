@@ -7,14 +7,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft } from 'lucide-react';
+import { getApiBaseUrl, getApiErrorMessage } from '@/lib/api';
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
 
 type FormData = z.infer<typeof schema>;
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +33,7 @@ export default function ForgotPasswordPage() {
     setMessage('');
     setIsError(false);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      const res = await fetch(`${getApiBaseUrl()}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email.trim().toLowerCase() }),
@@ -43,18 +42,12 @@ export default function ForgotPasswordPage() {
       if (res.ok) {
         setMessage(
           body.message ||
-            'If an account exists for that email, password reset instructions will be sent when email delivery is enabled.'
+            'If an account exists for that email, password reset instructions will be sent.'
         );
         setIsError(false);
       } else {
         setIsError(true);
-        if (res.status === 404) {
-          setMessage(
-            'No account was found for that email. Check the address or create an account.'
-          );
-        } else {
-          setMessage(body.message || 'Something went wrong. Please try again.');
-        }
+        setMessage(getApiErrorMessage(res, body));
       }
     } catch {
       setIsError(true);
