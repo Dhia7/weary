@@ -4,6 +4,7 @@ const { protect, admin } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
 const orderController = require('../controllers/orderController');
 const categoryController = require('../controllers/categoryController');
+const contactController = require('../controllers/contactController');
 
 // Admin routes - all require authentication and admin privileges
 router.use(protect);
@@ -47,6 +48,15 @@ router.get('/categories/:id', categoryController.getCategory);
 router.post('/categories', categoryController.createCategory);
 router.put('/categories/:id', categoryController.updateCategory);
 router.delete('/categories/:id', categoryController.deleteCategory);
+
+// Contact messages management
+router.get('/messages', contactController.listMessages);
+router.get('/messages/count/new', contactController.countNewMessages);
+router.delete('/messages/bulk', contactController.bulkDeleteMessages);
+router.patch('/messages/bulk/status', contactController.bulkUpdateMessageStatus);
+router.get('/messages/:id', contactController.getMessageById);
+router.patch('/messages/:id/status', contactController.updateMessageStatus);
+router.delete('/messages/:id', contactController.deleteMessage);
 
 module.exports = router;
 

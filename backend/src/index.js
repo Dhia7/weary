@@ -45,6 +45,7 @@ require('./models/Order');
 require('./models/OrderItem');
 require('./models/Cart');
 require('./models/Wishlist');
+require('./models/ContactMessage');
 
 // Import associations
 require('./models/associations');
@@ -59,6 +60,7 @@ const cartRoutes = require('./routes/cart');
 const wishlistRoutes = require('./routes/wishlist');
 const orderRoutes = require('./routes/orders');
 const translateRoutes = require('./routes/translate');
+const contactRoutes = require('./routes/contact');
 const healthRoutes = require('./routes/health');
 
 const app = express();
@@ -286,6 +288,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/contact', contactRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

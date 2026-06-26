@@ -6,7 +6,7 @@ import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 
 export default function HomeUrlNotifications() {
   const searchParams = useSearchParams();
-  const { showOrderSuccess, showLoginSuccess } = useOrderNotification();
+  const { showOrderSuccess, showLoginSuccess, showLogoutSuccess } = useOrderNotification();
 
   useEffect(() => {
     const orderSuccess = searchParams.get('orderSuccess');
@@ -32,7 +32,21 @@ export default function HomeUrlNotifications() {
       url.searchParams.delete('userName');
       window.history.replaceState({}, '', url.toString());
     }
-  }, [searchParams, showOrderSuccess, showLoginSuccess]);
+
+    const loggedOut = searchParams.get('loggedOut');
+    const loggedOutUserName = searchParams.get('userName');
+
+    if (loggedOut === '1') {
+      showLogoutSuccess(loggedOutUserName || undefined);
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete('loggedOut');
+      if (loggedOutUserName) {
+        url.searchParams.delete('userName');
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams, showOrderSuccess, showLoginSuccess, showLogoutSuccess]);
 
   return null;
 }

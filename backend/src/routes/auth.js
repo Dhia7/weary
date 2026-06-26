@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const { uploadAvatarImage } = require('../middleware/upload');
 const {
   authLimiter,
   emailLimiter,
@@ -213,6 +214,7 @@ router.post('/reset-password', resetPasswordLimiter, resetPasswordValidation, au
 router.get('/me', protect, authController.getMe);
 router.put('/profile', protect, updateProfileValidation, authController.updateProfile);
 router.put('/profile/update', protect, updateProfileComprehensiveValidation, authController.updateProfileComprehensive);
+router.post('/profile/avatar', protect, uploadAvatarImage, authController.uploadAvatar);
 router.put('/change-password', protect, changePasswordValidation, authController.changePassword);
 router.put('/2fa', protect, toggleTwoFactorValidation, authController.toggleTwoFactorAuth);
 router.post('/2fa/verify', protect, verifyTwoFactorValidation, authController.verifyTwoFactorCode);

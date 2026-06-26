@@ -135,6 +135,10 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  avatarUrl: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   loginAttempts: {
     type: DataTypes.INTEGER,
     defaultValue: 0

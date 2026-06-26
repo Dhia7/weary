@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { uploadMultipleToCloudinary, isCloudinaryConfigured } = require('../utils/cloudinary');
+const { uploadMultipleToCloudinary, uploadBufferToCloudinary, uploadToCloudinary, isCloudinaryConfigured } = require('../utils/cloudinary');
 
 // Ensure uploads directory exists (for fallback/local storage)
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -88,4 +88,60 @@ const uploadMultipleImages = async (req, res, next) => {
   });
 };
 
-module.exports = { upload, uploadMultipleImages };
+const uploadAvatarImage = async (req, res, next) => {
+  const uploadHandler = upload.single('avatar');
+
+  uploadHandler(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload error'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    try {
+      if (isCloudinaryConfigured()) {
+        if (req.file.buffer) {
+          req.uploadedImageUrl = await uploadBufferToCloudinary(
+            req.file.buffer,
+            req.file.originalname,
+            'wear/avatars'
+          );
+        } else if (req.file.path) {
+          req.uploadedImageUrl = await uploadToCloudinary(req.file.path, 'wear/avatars');
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        }
+      }
+
+      if (!req.uploadedImageUrl) {
+        if (req.file.buffer && !req.file.path) {
+          const filename = `avatar-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+          const filePath = path.join(uploadsDir, filename);
+          fs.writeFileSync(filePath, req.file.buffer);
+          req.uploadedImageUrl = `/uploads/${filename}`;
+        } else {
+          req.uploadedImageUrl = `/uploads/${req.file.filename}`;
+        }
+      }
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload profile image'
+      });
+    }
+
+    next();
+  });
+};
+
+module.exports = { upload, uploadMultipleImages, uploadAvatarImage };

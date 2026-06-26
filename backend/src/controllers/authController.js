@@ -9,17 +9,37 @@ const { signAccessToken } = require('../utils/jwt');
 const { resolveUserRole } = require('../config/roles');
 const { generateTwoFactorSecret, verifyTotpCode } = require('../utils/totp');
 
-const formatAuthUser = (user) => ({
+const { deleteFromCloudinary } = require('../utils/cloudinary');
+
+const formatAddress = (address) => ({
+  id: address.id,
+  type: address.type,
+  street: address.street,
+  city: address.city,
+  state: address.state,
+  zipCode: address.zipCode,
+  country: address.country,
+  isDefault: address.isDefault,
+});
+
+const formatUserProfile = (user, addresses = user.addresses || []) => ({
   id: user.id,
   email: user.email,
   firstName: user.firstName,
   lastName: user.lastName,
   fullName: user.getFullName(),
+  phone: user.phone || null,
+  avatarUrl: user.avatarUrl || null,
   isEmailVerified: user.isEmailVerified,
   isAdmin: user.isAdmin,
+  twoFactorEnabled: !!user.twoFactorEnabled,
   role: resolveUserRole(user),
   preferences: user.preferences,
+  createdAt: user.createdAt,
+  addresses: Array.isArray(addresses) ? addresses.map(formatAddress) : [],
 });
+
+const formatAuthUser = (user) => formatUserProfile(user, []);
 
 // Generate JWT Token
 const generateToken = (userId) => signAccessToken(userId);
@@ -289,6 +309,10 @@ const googleAuth = async (req, res) => {
         user.lastName = fn;
       }
 
+      if (payload.picture && typeof payload.picture === 'string') {
+        user.avatarUrl = payload.picture;
+      }
+
       await user.save();
     } else {
       const gn = payload.given_name?.trim();
@@ -309,7 +333,8 @@ const googleAuth = async (req, res) => {
         firstName,
         lastName,
         isEmailVerified: true,
-        password: crypto.randomBytes(32).toString('hex')
+        password: crypto.randomBytes(32).toString('hex'),
+        avatarUrl: typeof payload.picture === 'string' ? payload.picture : null,
       });
     }
 
@@ -457,8 +482,13 @@ const resendVerification = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    // Use the user data that was already fetched in the middleware
-    const user = req.userData;
+    const user = await User.findByPk(req.user.userId, {
+      attributes: { exclude: ['password'] },
+      include: [{
+        model: Address,
+        as: 'addresses'
+      }]
+    });
     
     if (!user) {
       return res.status(404).json({
@@ -470,20 +500,7 @@ const getMe = async (req, res) => {
     res.json({
       success: true,
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.getFullName(),
-          phone: user.phone,
-          addresses: user.addresses || [],
-          isEmailVerified: user.isEmailVerified,
-          isAdmin: user.isAdmin,
-          role: resolveUserRole(user),
-          preferences: user.preferences,
-          createdAt: user.createdAt
-        }
+        user: formatUserProfile(user)
       }
     });
   } catch (error) {
@@ -625,18 +642,7 @@ const updateProfileComprehensive = async (req, res) => {
       success: true,
       message: 'Profile updated successfully',
       data: {
-        user: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          firstName: updatedUser.firstName,
-          lastName: updatedUser.lastName,
-          fullName: updatedUser.getFullName(),
-          phone: updatedUser.phone,
-          addresses: updatedUser.addresses || [],
-          isEmailVerified: updatedUser.isEmailVerified,
-          preferences: updatedUser.preferences,
-          createdAt: updatedUser.createdAt
-        }
+        user: formatUserProfile(updatedUser)
       }
     });
   } catch (error) {
@@ -849,6 +855,7 @@ const toggleTwoFactorAuth = async (req, res) => {
         message: 'Two-factor authentication enabled',
         data: {
           otpauthUrl: secret.otpauth_url,
+          secret: secret.base32,
           backupCodes: generateBackupCodes()
         }
       });
@@ -934,6 +941,57 @@ const generateBackupCodes = () => {
   return codes;
 };
 
+// @desc    Upload profile avatar
+// @route   POST /api/auth/profile/avatar
+// @access  Private
+const uploadAvatar = async (req, res) => {
+  try {
+    const imageUrl = req.uploadedImageUrl;
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    const user = await User.findByPk(req.user.userId, {
+      attributes: { exclude: ['password'] },
+      include: [{
+        model: Address,
+        as: 'addresses'
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.avatarUrl && user.avatarUrl.includes('res.cloudinary.com')) {
+      await deleteFromCloudinary(user.avatarUrl);
+    }
+
+    user.avatarUrl = imageUrl;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile image updated successfully',
+      data: {
+        user: formatUserProfile(user)
+      }
+    });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile image'
+    });
+  }
+};
+
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
@@ -968,5 +1026,6 @@ module.exports = {
   verifyTwoFactorCode,
   forgotPassword,
   resetPassword,
-  logout
+  logout,
+  uploadAvatar
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
@@ -19,15 +19,44 @@ import {
   ShoppingBag,
   Home,
   ArrowLeft,
-  Crown
+  Crown,
+  MapPin
 } from 'lucide-react';
 import ProfileEditForm from '@/components/ProfileEditForm';
+import ProfileAvatar from '@/components/ProfileAvatar';
 import SecuritySettings from '@/components/SecuritySettings';
 import WishlistTab from '@/components/WishlistTab';
 import OrdersTab from '@/components/OrdersTab';
 
+function formatMemberSince(createdAt?: string) {
+  if (!createdAt) return '—';
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function ProfileFieldValue({ value, emptyLabel = 'Not added' }: { value?: string | null; emptyLabel?: string }) {
+  const hasValue = Boolean(value?.trim());
+  return (
+    <span className={hasValue ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500 italic'}>
+      {hasValue ? value : emptyLabel}
+    </span>
+  );
+}
+
+function formatAddressLine(address: {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}) {
+  return `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`;
+}
+
 function AccountPageContent() {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, refreshUser } = useAuth();
+  const hasRefreshedProfile = useRef(false);
   const { wishlistCount } = useWishlist();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,6 +69,13 @@ function AccountPageContent() {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (user && !hasRefreshedProfile.current) {
+      hasRefreshedProfile.current = true;
+      refreshUser();
+    }
+  }, [user, refreshUser]);
 
   useEffect(() => {
     // Check for tab parameter in URL
@@ -65,9 +101,15 @@ function AccountPageContent() {
     }
   }, [searchParams, showOrderSuccess]);
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/auth/login');
+  const handleLogout = () => {
+    const userName = user?.firstName;
+    logout();
+    const params = new URLSearchParams();
+    params.set('loggedOut', '1');
+    if (userName) {
+      params.set('userName', userName);
+    }
+    router.push(`/auth/login?${params.toString()}`);
   };
 
   const handleEditSuccess = () => {
@@ -144,10 +186,14 @@ function AccountPageContent() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               {/* User Info */}
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-white" />
-                  </div>
+                <div className="flex flex-col items-center text-center gap-3">
+                  <ProfileAvatar
+                    firstName={user.firstName}
+                    lastName={user.lastName}
+                    avatarUrl={user.avatarUrl}
+                    size="lg"
+                    editable
+                  />
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">
                       {user.firstName} {user.lastName}
@@ -292,19 +338,47 @@ function AccountPageContent() {
                         </div>
                       </div>
 
-                      {user.phone && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Phone Number
-                          </label>
-                          <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                            <Phone className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-900 dark:text-white">
-                              {user.phone}
-                            </span>
-                          </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Phone Number
+                        </label>
+                        <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <Phone className="w-4 h-4 text-gray-400" />
+                          <ProfileFieldValue value={user.phone} />
                         </div>
-                      )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Addresses
+                        </label>
+                        {user.addresses && user.addresses.length > 0 ? (
+                          <div className="space-y-2">
+                            {user.addresses.map((address, index) => (
+                              <div
+                                key={address.id ?? index}
+                                className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                              >
+                                <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                                    {address.type}
+                                    {address.isDefault ? ' (Default)' : ''}
+                                  </p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                                    {formatAddressLine(address)}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <ProfileFieldValue value={null} emptyLabel="No address added" />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-4">
@@ -314,10 +388,7 @@ function AccountPageContent() {
                         </label>
                         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <span className="text-gray-900 dark:text-white">
-                            {(() => {
-                              const createdAt = (user as unknown as Record<string, unknown>).createdAt;
-                              return typeof createdAt === 'string' ? new Date(createdAt).toLocaleDateString() : '';
-                            })()}
+                            {formatMemberSince(user.createdAt)}
                           </span>
                         </div>
                       </div>

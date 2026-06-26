@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
-import { getSeenOrderIds } from '@/lib/utils';
+import { getSeenOrderIds, getSeenMessageIds } from '@/lib/utils';
 import { 
   Users, 
   Package, 
@@ -13,7 +13,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  Mail
 } from 'lucide-react';
 
 const navigation = [
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+  { name: 'Messages', href: '/admin/messages', icon: Mail },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
@@ -31,13 +33,13 @@ export default function AdminLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
   const pathname = usePathname();
   const fetcher = useAuthorizedFetch();
 
-  // Calculate unseen new orders count
-  const calculateUnseenCount = (orderIds: string[]) => {
-    const seenIds = getSeenOrderIds();
-    return orderIds.filter(id => !seenIds.has(id)).length;
+  const calculateUnseenCount = (ids: string[], getSeenIds: () => Set<string>) => {
+    const seenIds = getSeenIds();
+    return ids.filter(id => !seenIds.has(id)).length;
   };
 
   // Fetch new orders count
@@ -49,7 +51,7 @@ export default function AdminLayout({
           const json = await res.json();
           if (json.success) {
             const orderIds = json.data.orderIds || [];
-            const unseenCount = calculateUnseenCount(orderIds);
+            const unseenCount = calculateUnseenCount(orderIds, getSeenOrderIds);
             setNewOrdersCount(unseenCount);
           }
         }
@@ -76,6 +78,47 @@ export default function AdminLayout({
     };
   }, [fetcher]);
 
+  useEffect(() => {
+    const fetchNewMessagesCount = async () => {
+      try {
+        const res = await fetcher('/admin/messages/count/new');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            const messageIds = json.data.messageIds || [];
+            const unseenCount = calculateUnseenCount(messageIds, getSeenMessageIds);
+            setNewMessagesCount(unseenCount);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching new messages count:', error);
+      }
+    };
+
+    fetchNewMessagesCount();
+
+    const handleMessageSeen = () => {
+      fetchNewMessagesCount();
+    };
+
+    window.addEventListener('messageSeen', handleMessageSeen);
+    window.addEventListener('messageStatusChanged', handleMessageSeen);
+
+    const interval = setInterval(fetchNewMessagesCount, 30000);
+
+    return () => {
+      window.removeEventListener('messageSeen', handleMessageSeen);
+      window.removeEventListener('messageStatusChanged', handleMessageSeen);
+      clearInterval(interval);
+    };
+  }, [fetcher]);
+
+  const getBadgeCount = (itemName: string) => {
+    if (itemName === 'Orders') return newOrdersCount;
+    if (itemName === 'Messages') return newMessagesCount;
+    return 0;
+  };
+
   return (
     <AdminGuard>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -96,7 +139,8 @@ export default function AdminLayout({
             <nav className="flex-1 space-y-1 px-2 py-4">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
-                const showBadge = item.name === 'Orders' && newOrdersCount > 0;
+                const showBadge = getBadgeCount(item.name) > 0;
+                const badgeCount = getBadgeCount(item.name);
                 return (
                   <Link
                     key={item.name}
@@ -112,7 +156,7 @@ export default function AdminLayout({
                     <span className="flex-1">{item.name}</span>
                     {showBadge && (
                       <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
-                        {newOrdersCount > 99 ? '99+' : newOrdersCount}
+                        {badgeCount > 99 ? '99+' : badgeCount}
                       </span>
                     )}
                   </Link>
@@ -131,7 +175,8 @@ export default function AdminLayout({
             <nav className="flex-1 space-y-1 px-2 py-4">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
-                const showBadge = item.name === 'Orders' && newOrdersCount > 0;
+                const showBadge = getBadgeCount(item.name) > 0;
+                const badgeCount = getBadgeCount(item.name);
                 return (
                   <Link
                     key={item.name}
@@ -146,7 +191,7 @@ export default function AdminLayout({
                     <span className="flex-1">{item.name}</span>
                     {showBadge && (
                       <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
-                        {newOrdersCount > 99 ? '99+' : newOrdersCount}
+                        {badgeCount > 99 ? '99+' : badgeCount}
                       </span>
                     )}
                   </Link>

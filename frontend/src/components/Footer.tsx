@@ -26,7 +26,6 @@ const Footer = () => {
       { name: 'Help Center', href: '/help' },
       { name: 'Returns & Exchanges', href: '/returns' },
       { name: 'Size Guide', href: '/size-guide' },
-      { name: 'Shipping Info', href: '/shipping' },
     ],
     company: [
       { name: 'About Us', href: '/about' },
@@ -57,7 +56,6 @@ const Footer = () => {
           { name: 'Centre d aide', href: '/help' },
           { name: 'Retours et echanges', href: '/returns' },
           { name: 'Guide des tailles', href: '/size-guide' },
-          { name: 'Infos livraison', href: '/shipping' },
         ],
         company: [
           { name: 'A propos', href: '/about' },

@@ -87,7 +87,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
             ) as AllowedCategory[])
           : []
       },
-      addresses: ((user as unknown as { addresses?: AddressForm[] })?.addresses as AddressForm[]) || []
+      addresses: user?.addresses || []
     }
   });
 
@@ -116,7 +116,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
               ) as AllowedCategory[])
             : []
         },
-        addresses: ((user as unknown as { addresses?: AddressForm[] })?.addresses as AddressForm[]) || []
+        addresses: user?.addresses || []
       });
     }
   }, [user, reset]);
@@ -158,7 +158,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       city: '',
       state: '',
       zipCode: '',
-      country: 'United States',
+      country: 'Tunisia',
       isDefault: false
     });
   };
@@ -265,7 +265,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
                     {...register('phone')}
                     type="tel"
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+216 20 123 456"
                   />
                 </div>
                 {errors.phone && (
@@ -464,8 +464,8 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
                       <input
                         {...register(`addresses.${index}.country`)}
                         type="text"
+                        placeholder="Tunisia"
                         className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        defaultValue="United States"
                       />
                     </div>
                   </div>

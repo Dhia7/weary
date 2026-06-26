@@ -3,6 +3,7 @@
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import OrderSuccessNotification from './OrderSuccessNotification';
 import LoginSuccessNotification from './LoginSuccessNotification';
+import LogoutSuccessNotification from './LogoutSuccessNotification';
 import AddToCartNotification from './AddToCartNotification';
 import AddToWishlistNotification from './AddToWishlistNotification';
 import ErrorNotification from './ErrorNotification';
@@ -32,6 +33,14 @@ export default function OrderNotificationWrapper() {
           case 'loginSuccess':
             return (
               <LoginSuccessNotification
+                key={notification.id}
+                {...commonProps}
+                userName={notification.data?.userName}
+              />
+            );
+          case 'logoutSuccess':
+            return (
+              <LogoutSuccessNotification
                 key={notification.id}
                 {...commonProps}
                 userName={notification.data?.userName}

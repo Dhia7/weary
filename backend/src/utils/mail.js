@@ -91,9 +91,48 @@ async function sendPasswordResetEmail(to, resetUrl, firstName) {
   await sendEmail({ to, subject, text, html });
 }
 
+function getAdminNotifyEmail() {
+  return process.env.ADMIN_NOTIFY_EMAIL || process.env.MAIL_FROM || process.env.SMTP_USER;
+}
+
+async function sendContactNotificationEmail({ name, email, subject, message }) {
+  const adminEmail = getAdminNotifyEmail();
+  if (!adminEmail) {
+    console.warn('Contact notification skipped: no ADMIN_NOTIFY_EMAIL configured');
+    return;
+  }
+
+  const emailSubject = `[Wear Contact] ${subject}`;
+  const text = `New contact message from ${name} (${email})\n\nSubject: ${subject}\n\n${message}`;
+  const html = `
+    <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
+    <p><strong>Subject:</strong> ${subject}</p>
+    <hr />
+    <p style="white-space:pre-wrap">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+  `;
+
+  await sendEmail({ to: adminEmail, subject: emailSubject, text, html });
+}
+
+async function sendContactConfirmationEmail({ name, email, subject }) {
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+  const emailSubject = 'We received your message — Wear';
+  const text = `${greeting}\n\nThank you for contacting Wear. We have received your message regarding "${subject}".\n\nOur team will get back to you at ${email} as soon as possible.\n\nIf you did not send this message, you can ignore this email.`;
+  const html = `
+    <p>${greeting}</p>
+    <p>Thank you for contacting <strong>Wear</strong>. We have received your message regarding <strong>${subject.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong>.</p>
+    <p>Our team will get back to you at <a href="mailto:${email}">${email}</a> as soon as possible.</p>
+    <p>If you did not send this message, you can ignore this email.</p>
+  `;
+
+  await sendEmail({ to: email, subject: emailSubject, text, html });
+}
+
 module.exports = {
   hasMailTransport,
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
+  sendContactNotificationEmail,
+  sendContactConfirmationEmail,
 };

@@ -3,17 +3,31 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getApiBaseUrl, getApiErrorMessage } from '@/lib/api';
 
+interface UserAddress {
+  id?: number;
+  type: 'home' | 'work' | 'other';
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
+}
+
 interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   fullName: string;
-  phone?: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
   isEmailVerified: boolean;
   isAdmin?: boolean;
   role?: 'customer' | 'staff' | 'admin';
   twoFactorEnabled?: boolean;
+  createdAt?: string;
+  addresses?: UserAddress[];
   preferences?: {
     newsletter: boolean;
     marketingEmails: boolean;
@@ -38,6 +52,7 @@ interface AuthContextType {
   loginWithGoogle: (credential: string) => Promise<{ success: boolean; message: string; user?: User }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  uploadAvatar: (file: File) => Promise<{ success: boolean; message: string }>;
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean; message: string }>;
   updateProfileComprehensive: (data: {
     firstName?: string;
@@ -60,7 +75,7 @@ interface AuthContextType {
     }>;
   }) => Promise<{ success: boolean; message: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  toggleTwoFactorAuth: (enable: boolean, password: string) => Promise<{ success: boolean; message: string; data?: { secret?: string; backupCodes?: string[] } }>; 
+  toggleTwoFactorAuth: (enable: boolean, password: string) => Promise<{ success: boolean; message: string; data?: { otpauthUrl?: string; secret?: string; backupCodes?: string[] } }>; 
   verifyTwoFactorCode: (code: string) => Promise<{ success: boolean; message: string }>;
 }
 
@@ -278,6 +293,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const uploadAvatar = async (file: File) => {
+    if (!token) {
+      return { success: false, message: 'Not authenticated' };
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await fetch(`${getApiBaseUrl()}/auth/profile/avatar`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        setUser(responseData.data.user);
+        return { success: true, message: responseData.message };
+      }
+
+      return { success: false, message: responseData.message || 'Failed to upload profile image' };
+    } catch (error) {
+      console.error('Upload avatar error:', error);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
   const updateProfile = async (data: Partial<User>) => {
     if (!token) {
       return { success: false, message: 'Not authenticated' };
@@ -415,8 +461,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const responseData = await response.json();
 
       if (response.ok) {
-        // Update user state with 2FA status
-        setUser(prev => prev ? { ...prev, twoFactorEnabled: enable } : null);
+        if (!enable) {
+          await refreshUser();
+        } else {
+          setUser(prev => prev ? { ...prev, twoFactorEnabled: true } : null);
+        }
         return { success: true, message: responseData.message, data: responseData.data };
       } else {
         return { success: false, message: responseData.message || '2FA toggle failed' };
@@ -445,6 +494,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const responseData = await response.json();
 
       if (response.ok) {
+        await refreshUser();
         return { success: true, message: responseData.message };
       } else {
         return { success: false, message: responseData.message || '2FA verification failed' };
@@ -465,6 +515,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loginWithGoogle,
     logout,
     refreshUser,
+    uploadAvatar,
     updateProfile,
     updateProfileComprehensive,
     changePassword,

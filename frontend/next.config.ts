@@ -83,6 +83,11 @@ const nextConfig: NextConfig = {
         hostname: 'images.unsplash.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**',
+      },
     ],
     // Enable image optimization for better performance
     // Cloudinary images will be optimized via Cloudinary's own optimization

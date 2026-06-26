@@ -80,3 +80,37 @@ export function clearSeenOrders(): void {
     console.error('Error clearing seen orders:', error);
   }
 }
+
+// Admin message seen tracking
+const SEEN_MESSAGES_KEY = 'admin_seen_messages';
+
+export function getSeenMessageIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(SEEN_MESSAGES_KEY);
+    if (stored) {
+      const ids = JSON.parse(stored) as string[];
+      return new Set(ids);
+    }
+  } catch (error) {
+    console.error('Error reading seen messages from localStorage:', error);
+  }
+  return new Set();
+}
+
+export function markMessageAsSeen(messageId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const seenIds = getSeenMessageIds();
+    seenIds.add(messageId);
+    localStorage.setItem(SEEN_MESSAGES_KEY, JSON.stringify(Array.from(seenIds)));
+    window.dispatchEvent(new CustomEvent('messageSeen', { detail: { messageId } }));
+  } catch (error) {
+    console.error('Error marking message as seen:', error);
+  }
+}
+
+export function isMessageSeen(messageId: string): boolean {
+  const seenIds = getSeenMessageIds();
+  return seenIds.has(messageId);
+}

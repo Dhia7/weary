@@ -26,7 +26,7 @@ const Address = sequelize.define('Address', {
   },
   country: {
     type: DataTypes.STRING,
-    defaultValue: 'United States',
+    defaultValue: 'Tunisia',
     allowNull: false
   },
   isDefault: {

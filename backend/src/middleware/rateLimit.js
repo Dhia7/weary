@@ -122,6 +122,15 @@ const checkoutLimiter = createLimiter({
   ),
 });
 
+/** Public contact form submissions */
+const contactLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: isProduction ? 5 : 30,
+  message: rateLimitMessage(
+    'Too many contact form submissions. Please try again later.'
+  ),
+});
+
 /** Authenticated write operations (cart, wishlist) — keyed by user when available */
 const authenticatedWriteLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
@@ -145,5 +154,6 @@ module.exports = {
   resetPasswordLimiter,
   translateLimiter,
   checkoutLimiter,
+  contactLimiter,
   authenticatedWriteLimiter,
 };

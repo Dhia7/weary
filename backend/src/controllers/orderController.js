@@ -435,8 +435,9 @@ const createGuestOrder = async (req, res) => {
     }
 
     // Validate billing info for guest orders
-    if (!billingInfo || !billingInfo.email || !billingInfo.firstName || !billingInfo.lastName) {
-      return res.status(400).json({ success: false, message: 'Billing information (email, firstName, lastName) is required for guest orders' });
+    const guestFirstName = billingInfo?.firstName?.trim();
+    if (!billingInfo || !billingInfo.email?.trim() || !guestFirstName) {
+      return res.status(400).json({ success: false, message: 'Billing information (email and recipient name) is required for guest orders' });
     }
 
     // Validate products exist, check stock availability, and compute total

@@ -5,6 +5,7 @@ import { createContext, useContext, useState, ReactNode, useCallback, useMemo } 
 export type NotificationType = 
   | 'orderSuccess' 
   | 'loginSuccess' 
+  | 'logoutSuccess'
   | 'addToCart' 
   | 'wishlistAdded' 
   | 'error' 
@@ -26,6 +27,8 @@ interface OrderNotificationContextType {
   hideOrderSuccess: (id: string) => void;
   showLoginSuccess: (userName?: string) => void;
   hideLoginSuccess: (id: string) => void;
+  showLogoutSuccess: (userName?: string) => void;
+  hideLogoutSuccess: (id: string) => void;
   // Add-to-cart notification
   showAddToCart: (productName?: string) => void;
   hideAddToCart: (id: string) => void;
@@ -100,6 +103,19 @@ export const OrderNotificationProvider = ({ children }: OrderNotificationProvide
     hideNotification(id);
   }, [hideNotification]);
 
+  const showLogoutSuccess = useCallback((userName?: string) => {
+    const id = generateId('logoutSuccess');
+    setNotifications(prev => [...prev, {
+      id,
+      type: 'logoutSuccess',
+      data: { userName },
+    }]);
+  }, []);
+
+  const hideLogoutSuccess = useCallback((id: string) => {
+    hideNotification(id);
+  }, [hideNotification]);
+
   // Add-to-cart handlers
   const showAddToCart = useCallback((productName?: string) => {
     const id = generateId('addToCart');
@@ -164,6 +180,8 @@ export const OrderNotificationProvider = ({ children }: OrderNotificationProvide
     hideOrderSuccess,
     showLoginSuccess,
     hideLoginSuccess,
+    showLogoutSuccess,
+    hideLogoutSuccess,
     showAddToCart,
     hideAddToCart,
     showWishlistAdded,
@@ -180,6 +198,8 @@ export const OrderNotificationProvider = ({ children }: OrderNotificationProvide
     hideOrderSuccess,
     showLoginSuccess,
     hideLoginSuccess,
+    showLogoutSuccess,
+    hideLogoutSuccess,
     showAddToCart,
     hideAddToCart,
     showWishlistAdded,

@@ -9,6 +9,7 @@ const Cart = require('./Cart');
 const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Wishlist = require('./Wishlist');
+const ContactMessage = require('./ContactMessage');
 
 // User-Order associations (one-to-many)
 User.hasMany(Order, { as: 'orders', foreignKey: 'userId' });
@@ -78,6 +79,10 @@ Wishlist.belongsTo(User, { foreignKey: 'userId' });
 Product.hasMany(Wishlist, { as: 'wishlistItems', foreignKey: 'productId', onDelete: 'CASCADE' });
 Wishlist.belongsTo(Product, { foreignKey: 'productId' });
 
+// User-ContactMessage associations (one-to-many)
+User.hasMany(ContactMessage, { as: 'contactMessages', foreignKey: 'userId', onDelete: 'SET NULL' });
+ContactMessage.belongsTo( User, { as: 'User', foreignKey: 'userId', allowNull: true });
+
 module.exports = {
 	Product,
 	ProductVariant,
@@ -89,5 +94,6 @@ module.exports = {
 	Cart,
 	Order,
 	OrderItem,
-	Wishlist
+	Wishlist,
+	ContactMessage
 };

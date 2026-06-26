@@ -906,7 +906,7 @@ export default function DesignerPage() {
                       type="tel"
                       value={billing.phone}
                       onChange={(e) => setBilling({...billing, phone: e.target.value})}
-                      placeholder="+1234567890"
+                      placeholder="+216 20 123 456"
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       required
                     />
@@ -919,7 +919,7 @@ export default function DesignerPage() {
                       type="tel"
                       value={billing.phoneAlt}
                       onChange={(e) => setBilling({...billing, phoneAlt: e.target.value})}
-                      placeholder="+1234567890"
+                      placeholder="+216 20 123 456"
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
                   </div>
@@ -1006,7 +1006,7 @@ export default function DesignerPage() {
                       type="text"
                       value={shippingAddress.country}
                       onChange={(e) => setShippingAddress({...shippingAddress, country: e.target.value})}
-                      placeholder="United States"
+                      placeholder="Tunisia"
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       required
                     />

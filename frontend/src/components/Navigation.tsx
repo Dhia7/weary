@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ShoppingBagIcon,
   UserIcon,
@@ -47,7 +47,20 @@ const Navigation = () => {
   const { totalQuantity } = useCart();
   const { language, toggleLanguage } = useLanguage();
   const pathname = usePathname();
+  const router = useRouter();
   const isFrench = language === 'fr';
+
+  const handleLogout = () => {
+    const userName = user?.firstName;
+    logout();
+    setIsMobileMenuOpen(false);
+    const params = new URLSearchParams();
+    params.set('loggedOut', '1');
+    if (userName) {
+      params.set('userName', userName);
+    }
+    router.push(`/?${params.toString()}`);
+  };
   const isHome = pathname === '/';
 
   const handleSectionNavClick = (
@@ -164,7 +177,7 @@ const Navigation = () => {
                   </Link>
                   <button
                     type="button"
-                    onClick={logout}
+                    onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-swisse-mist dark:hover:bg-muted"
                   >
                     {isFrench ? 'Se deconnecter' : 'Logout'}
@@ -244,10 +257,7 @@ const Navigation = () => {
                 <p className="font-medium text-swisse-ink">{user.firstName}</p>
                 <button
                   type="button"
-                  onClick={() => {
-                    logout();
-                    setIsMobileMenuOpen(false);
-                  }}
+                  onClick={handleLogout}
                   className="mt-2 text-red-600 text-xs font-bold uppercase tracking-widest"
                 >
                   {isFrench ? 'Se deconnecter' : 'Logout'}

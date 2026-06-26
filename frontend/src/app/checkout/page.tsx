@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
@@ -48,9 +48,57 @@ const TUNISIA_GOVERNORATES = [
   'Zaghouan',
 ] as const;
 
+type ProfileAddress = {
+  id?: number;
+  type: 'home' | 'work' | 'other';
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
+};
+
+type ProfileUser = {
+  fullName?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  addresses?: ProfileAddress[];
+};
+
+function isTunisiaCountry(country: string): boolean {
+  const normalized = country.trim().toLowerCase();
+  return normalized === 'tunisia' || normalized === 'tunisie' || normalized === 'tn';
+}
+
+function getProfileDefaults(user: ProfileUser) {
+  const fullName = user.fullName?.trim() || `${user.firstName} ${user.lastName}`.trim();
+  const billing = { phone: user.phone ?? '', phoneAlt: '', email: user.email };
+
+  let address = { street: '', city: '', state: '', locality: '' };
+  const saved = user.addresses?.find((a) => a.isDefault) ?? user.addresses?.[0];
+  if (saved && isTunisiaCountry(saved.country)) {
+    const street = saved.street?.trim() ?? '';
+    let city = '';
+    let state = '';
+    if ((TUNISIA_GOVERNORATES as readonly string[]).includes(saved.city)) {
+      city = saved.city;
+      const delegations = getDelegationsForGovernorate(city);
+      if (saved.state?.trim() && delegations.includes(saved.state)) {
+        state = saved.state;
+      }
+    }
+    address = { street, city, state, locality: '' };
+  }
+
+  return { fullName, billing, address };
+}
+
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
-  const { token } = useAuth();
+  const { token, user, isLoading: authLoading } = useAuth();
   const { showOrderSuccess } = useOrderNotification();
   const router = useRouter();
   const { language } = useLanguage();
@@ -72,6 +120,7 @@ export default function CheckoutPage() {
   const govPickerRef = useRef<HTMLDivElement>(null);
   const delPickerRef = useRef<HTMLDivElement>(null);
   const locPickerRef = useRef<HTMLDivElement>(null);
+  const prefilledRef = useRef(false);
   const [localityRows, setLocalityRows] = useState<LocalityOption[]>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
   const [localityError, setLocalityError] = useState<string | null>(null);
@@ -104,6 +153,29 @@ export default function CheckoutPage() {
     () => (address.city ? [...getDelegationsForGovernorate(address.city)] : []),
     [address.city]
   );
+
+  const applyProfileDefaults = useCallback((profileUser: ProfileUser) => {
+    const defaults = getProfileDefaults(profileUser);
+    setFullName(defaults.fullName);
+    setBilling(defaults.billing);
+    setAddress(defaults.address);
+    setError(null);
+  }, []);
+
+  const resetToAccountDetails = () => {
+    if (!user) return;
+    applyProfileDefaults(user);
+  };
+
+  useEffect(() => {
+    if (authLoading || !user || prefilledRef.current) return;
+
+    const formEmpty = !fullName.trim() && !billing.email.trim() && !billing.phone.trim();
+    if (!formEmpty) return;
+
+    applyProfileDefaults(user);
+    prefilledRef.current = true;
+  }, [authLoading, user, fullName, billing.email, billing.phone, applyProfileDefaults]);
 
   useEffect(() => {
     if (!govPickerOpen && !delPickerOpen && !locPickerOpen) return;
@@ -171,8 +243,12 @@ export default function CheckoutPage() {
 
   const placeOrder = async () => {
     if (!hasItems) return;
-    if (!nameParts.firstName || !nameParts.lastName || !billing.phone || !billing.email) {
-      setError(isFrench ? 'Veuillez renseigner votre nom complet, votre téléphone et votre email.' : 'Please fill in full name, phone and email.');
+    if (!nameParts.firstName || !billing.phone || !billing.email) {
+      setError(
+        isFrench
+          ? 'Veuillez renseigner le nom du destinataire, le téléphone et l’email.'
+          : 'Please fill in recipient name, phone and email.'
+      );
       return;
     }
     if (!address.city) {
@@ -315,6 +391,19 @@ export default function CheckoutPage() {
           </div>
         )}
 
+        {token && user && (
+          <div className="border border-swisse-gold/20 bg-white/40 dark:bg-card/50 rounded-md px-5 py-4 mb-10">
+            <p className="text-xs uppercase tracking-[0.22em] font-bold text-swisse-ink/70 dark:text-muted-foreground">
+              {isFrench ? 'Compte connecté' : 'Signed in'}
+            </p>
+            <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2 leading-relaxed">
+              {isFrench
+                ? 'Vos coordonnées de compte sont préremplies. Vous offrez un cadeau ? Modifiez le nom et les coordonnées du destinataire ci-dessous.'
+                : 'Your account details are pre-filled. Sending a gift? Update the recipient name and contact info below.'}
+            </p>
+          </div>
+        )}
+
         {!hasItems ? (
           <div className="bg-white/60 dark:bg-card border border-swisse-gold/15 dark:border-border rounded-md p-10 text-center">
             <p className="text-swisse-ink/70 dark:text-muted-foreground mb-6">{isFrench ? 'Votre panier est vide.' : 'Your cart is empty.'}</p>
@@ -353,27 +442,47 @@ export default function CheckoutPage() {
               <div className="lg:col-span-7 space-y-14">
                 {/* Shipping address */}
                 <section data-reveal className="reveal">
-                  <div className="flex items-center gap-4 mb-8">
-                    <span className="text-swisse-gold font-serif text-xl italic">01</span>
-                    <h2 className="font-serif text-2xl md:text-3xl uppercase tracking-[0.12em]">
-                      {isFrench ? 'Adresse de livraison' : 'Shipping Address'}
-                    </h2>
+                  <div className="flex items-center justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-4">
+                      <span className="text-swisse-gold font-serif text-xl italic">01</span>
+                      <h2 className="font-serif text-2xl md:text-3xl uppercase tracking-[0.12em]">
+                        {isFrench ? 'Adresse de livraison' : 'Shipping Address'}
+                      </h2>
+                    </div>
+                    {user && (
+                      <button
+                        type="button"
+                        onClick={resetToAccountDetails}
+                        className="text-[10px] uppercase tracking-[0.22em] font-bold text-swisse-gold hover:text-swisse-ink dark:hover:text-foreground transition-colors shrink-0"
+                      >
+                        {isFrench ? 'Réinitialiser' : 'Reset to my details'}
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2 space-y-2">
                       <label htmlFor="checkout-full-name" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
-                        {isFrench ? 'Nom complet' : 'Full Name'}
+                        {isFrench ? 'Nom du destinataire' : 'Recipient name'}
                       </label>
                       <input
                         id="checkout-full-name"
                         type="text"
                         autoComplete="name"
-                        placeholder={isFrench ? 'Saisissez votre nom complet' : 'Enter your complete name'}
+                        placeholder={
+                          isFrench
+                            ? 'Nom de la personne qui recevra la commande'
+                            : 'Name of the person receiving the order'
+                        }
                         className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                       />
+                      <p className="text-xs text-swisse-ink/50 dark:text-muted-foreground ml-1">
+                        {isFrench
+                          ? 'Pour un cadeau, saisissez le nom et les coordonnées du destinataire.'
+                          : 'For a gift, enter the recipient’s name and contact details.'}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="checkout-email" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
@@ -397,7 +506,7 @@ export default function CheckoutPage() {
                         id="checkout-phone"
                         type="tel"
                         autoComplete="tel"
-                        placeholder="+216 -- --- ---"
+                        placeholder="28700123"
                         className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                         value={billing.phone}
                         onChange={(e) => setBilling({ ...billing, phone: e.target.value })}
@@ -719,7 +828,7 @@ export default function CheckoutPage() {
                           id="checkout-alt-phone"
                           type="tel"
                           autoComplete="tel"
-                          placeholder={isFrench ? 'Numéro secondaire' : 'Secondary phone number'}
+                          placeholder="28700123"
                           className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none"
                           value={billing.phoneAlt}
                           onChange={(e) => setBilling({ ...billing, phoneAlt: e.target.value })}

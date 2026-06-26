@@ -4,9 +4,12 @@ import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
+import { buildApiUrl, getApiErrorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function ContactPage() {
+  const { token } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -15,17 +18,57 @@ export default function ContactPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submittedEmail, setSubmittedEmail] = useState('');
+  const [confirmationEmailSent, setConfirmationEmailSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setSubmitStatus('idle');
+    setErrorMessage('');
+    setSubmittedEmail('');
+    setConfirmationEmailSent(false);
+
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      subject: formData.subject.trim(),
+      message: formData.message.trim(),
+    };
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch(buildApiUrl('/contact'), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setSubmitStatus('error');
+        setErrorMessage(getApiErrorMessage(res, data));
+        return;
+      }
+
       setSubmitStatus('success');
+      setSubmittedEmail(data.data?.email || payload.email);
+      setConfirmationEmailSent(Boolean(data.data?.confirmationEmailSent));
       setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 1000);
+    } catch {
+      setSubmitStatus('error');
+      setErrorMessage('Failed to send message. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -70,7 +113,7 @@ export default function ContactPage() {
                 <Mail className="w-6 h-6 text-blue-600 mt-1" />
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">Email</h3>
-                  <p className="text-gray-600 dark:text-gray-400">support@wear.com</p>
+                  <p className="text-gray-600 dark:text-gray-400">dhianaija@gmail.com</p>
                 </div>
               </div>
               
@@ -78,7 +121,7 @@ export default function ContactPage() {
                 <Phone className="w-6 h-6 text-blue-600 mt-1" />
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">Phone</h3>
-                  <p className="text-gray-600 dark:text-gray-400">+1 (555) 123-4567</p>
+                  <p className="text-gray-600 dark:text-gray-400">+(216) 28-700-958</p>
                 </div>
               </div>
               
@@ -87,8 +130,8 @@ export default function ContactPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">Address</h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    123 Fashion Street<br />
-                    New York, NY 10001
+                    Sahloul 3<br />
+                    Sousse, 4056
                   </p>
                 </div>
               </div>
@@ -178,13 +221,22 @@ export default function ContactPage() {
               
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={isSubmitting || submitStatus === 'success'}
+                className={`w-full py-3 px-6 rounded-lg focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                  submitStatus === 'success'
+                    ? 'bg-green-600 text-white focus:ring-green-500'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:opacity-50'
+                }`}
               >
                 {isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     Sending...
+                  </>
+                ) : submitStatus === 'success' ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Message Sent
                   </>
                 ) : (
                   <>
@@ -194,10 +246,36 @@ export default function ContactPage() {
                 )}
               </button>
               
-              {submitStatus === 'success' && (
+              {submitStatus === 'success' && submittedEmail && (
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-green-800 dark:text-green-200">
-                    Thank you for your message! We&apos;ll get back to you soon.
+                  <p className="text-green-800 dark:text-green-200 font-medium">
+                    Thank you! Your message was sent successfully.
+                  </p>
+                  <p className="text-green-700 dark:text-green-300 mt-2 text-sm">
+                    Our team will contact you at{' '}
+                    <span className="font-semibold">{submittedEmail}</span> as soon as possible.
+                    {confirmationEmailSent && (
+                      <> We also sent a confirmation to that email address.</>
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmitStatus('idle');
+                      setSubmittedEmail('');
+                      setConfirmationEmailSent(false);
+                    }}
+                    className="mt-3 text-sm font-medium text-green-800 dark:text-green-200 underline hover:no-underline"
+                  >
+                    Send another message
+                  </button>
+                </div>
+              )}
+
+              {submitStatus === 'error' && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-red-800 dark:text-red-200">
+                    {errorMessage || 'Failed to send message. Please try again.'}
                   </p>
                 </div>
               )}

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
+import QRCode from 'qrcode';
 import { 
   Lock, 
   Shield, 
@@ -27,25 +28,33 @@ const changePasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
-const twoFactorSchema = z.object({
+const twoFactorPasswordSchema = z.object({
   password: z.string().min(1, 'Password is required'),
+});
+
+const twoFactorVerifySchema = z.object({
   code: z.string().length(6, 'Code must be 6 digits').regex(/^\d{6}$/, 'Code must contain only numbers')
 });
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
-type TwoFactorFormData = z.infer<typeof twoFactorSchema>;
+type TwoFactorPasswordFormData = z.infer<typeof twoFactorPasswordSchema>;
+type TwoFactorVerifyFormData = z.infer<typeof twoFactorVerifySchema>;
 
 export default function SecuritySettings() {
   const { user, changePassword, toggleTwoFactorAuth, verifyTwoFactorCode } = useAuth();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // removed unused showTwoFactorPassword state
+  const [show2FAPassword, setShow2FAPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isToggling2FA, setIsToggling2FA] = useState(false);
   const [isVerifying2FA, setIsVerifying2FA] = useState(false);
   const [showTwoFactorSetup, setShowTwoFactorSetup] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [pending2FAEnable, setPending2FAEnable] = useState<boolean | null>(null);
   const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [otpauthUrl, setOtpauthUrl] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -60,13 +69,33 @@ export default function SecuritySettings() {
   });
 
   const {
-    register: register2FA,
-    handleSubmit: handle2FASubmit,
-    formState: { errors: twoFactorErrors },
-    reset: reset2FAForm
-  } = useForm<TwoFactorFormData>({
-    resolver: zodResolver(twoFactorSchema)
+    register: register2FAPassword,
+    handleSubmit: handle2FAPasswordSubmit,
+    formState: { errors: twoFactorPasswordErrors },
+    reset: reset2FAPasswordForm
+  } = useForm<TwoFactorPasswordFormData>({
+    resolver: zodResolver(twoFactorPasswordSchema)
   });
+
+  const {
+    register: register2FAVerify,
+    handleSubmit: handle2FAVerifySubmit,
+    formState: { errors: twoFactorVerifyErrors },
+    reset: reset2FAVerifyForm
+  } = useForm<TwoFactorVerifyFormData>({
+    resolver: zodResolver(twoFactorVerifySchema)
+  });
+
+  useEffect(() => {
+    if (!otpauthUrl) {
+      setQrCodeDataUrl('');
+      return;
+    }
+
+    QRCode.toDataURL(otpauthUrl, { width: 200, margin: 2 })
+      .then(setQrCodeDataUrl)
+      .catch(() => setQrCodeDataUrl(''));
+  }, [otpauthUrl]);
 
   const onPasswordSubmit = async (data: ChangePasswordFormData) => {
     setIsChangingPassword(true);
@@ -82,40 +111,65 @@ export default function SecuritySettings() {
       } else {
         setError(result.message);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsChangingPassword(false);
     }
   };
 
-  const onToggleTwoFactor = async (enable: boolean) => {
+  const openPasswordPrompt = (enable: boolean) => {
+    setError('');
+    setSuccess('');
+    setPending2FAEnable(enable);
+    setShowPasswordPrompt(true);
+    reset2FAPasswordForm();
+  };
+
+  const cancelPasswordPrompt = () => {
+    setShowPasswordPrompt(false);
+    setPending2FAEnable(null);
+    reset2FAPasswordForm();
+  };
+
+  const on2FAPasswordSubmit = async (data: TwoFactorPasswordFormData) => {
+    if (pending2FAEnable === null) return;
+
     setIsToggling2FA(true);
     setError('');
     setSuccess('');
 
     try {
-      const result = await toggleTwoFactorAuth(enable, '');
+      const result = await toggleTwoFactorAuth(pending2FAEnable, data.password);
       
       if (result.success) {
-        if (enable && result.data) {
+        setShowPasswordPrompt(false);
+        setPending2FAEnable(null);
+        reset2FAPasswordForm();
+
+        if (pending2FAEnable && result.data) {
           setTwoFactorSecret(result.data.secret ?? '');
+          setOtpauthUrl(result.data.otpauthUrl ?? '');
           setBackupCodes(result.data.backupCodes ?? []);
           setShowTwoFactorSetup(true);
         } else {
+          setShowTwoFactorSetup(false);
+          setTwoFactorSecret('');
+          setOtpauthUrl('');
+          setBackupCodes([]);
           setSuccess(result.message);
         }
       } else {
         setError(result.message);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsToggling2FA(false);
     }
   };
 
-  const onVerifyTwoFactor = async (data: TwoFactorFormData) => {
+  const onVerifyTwoFactor = async (data: TwoFactorVerifyFormData) => {
     setIsVerifying2FA(true);
     setError('');
     setSuccess('');
@@ -126,11 +180,14 @@ export default function SecuritySettings() {
       if (result.success) {
         setSuccess('Two-factor authentication verified successfully!');
         setShowTwoFactorSetup(false);
-        reset2FAForm();
+        setTwoFactorSecret('');
+        setOtpauthUrl('');
+        setBackupCodes([]);
+        reset2FAVerifyForm();
       } else {
         setError(result.message);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsVerifying2FA(false);
@@ -315,23 +372,89 @@ export default function SecuritySettings() {
                 </div>
               </div>
               <button
-                onClick={() => onToggleTwoFactor(!user?.twoFactorEnabled)}
-                disabled={isToggling2FA}
+                onClick={() => openPasswordPrompt(!user?.twoFactorEnabled)}
+                disabled={isToggling2FA || showPasswordPrompt}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   user?.twoFactorEnabled
                     ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                     : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                 }`}
               >
-                {isToggling2FA ? (
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  user?.twoFactorEnabled ? 'Disable' : 'Enable'
-                )}
+                {user?.twoFactorEnabled ? 'Disable' : 'Enable'}
               </button>
             </div>
 
-            {/* 2FA Setup Modal */}
+            {/* Password confirmation for enable/disable */}
+            {showPasswordPrompt && pending2FAEnable !== null && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+              >
+                <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                  {pending2FAEnable ? 'Enable Two-Factor Authentication' : 'Disable Two-Factor Authentication'}
+                </h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  Enter your current password to {pending2FAEnable ? 'enable' : 'disable'} two-factor authentication.
+                </p>
+                <form onSubmit={handle2FAPasswordSubmit(on2FAPasswordSubmit)} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        {...register2FAPassword('password')}
+                        type={show2FAPassword ? 'text' : 'password'}
+                        autoFocus
+                        className="block w-full pr-10 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShow2FAPassword(!show2FAPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        aria-label={show2FAPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {show2FAPassword ? (
+                          <EyeOff className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    {twoFactorPasswordErrors.password && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {twoFactorPasswordErrors.password.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      disabled={isToggling2FA}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors"
+                    >
+                      {isToggling2FA ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Shield className="w-4 h-4" />
+                      )}
+                      <span>Confirm</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelPasswordPrompt}
+                      disabled={isToggling2FA}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {/* 2FA Setup Panel */}
             {showTwoFactorSetup && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -345,10 +468,23 @@ export default function SecuritySettings() {
                       Set Up Two-Factor Authentication
                     </h4>
                     <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
-                      Use an authenticator app (like Google Authenticator or Authy) to scan this QR code or enter the secret manually.
+                      Use an authenticator app (like Google Authenticator or Authy) to scan the QR code below or enter the secret manually.
                     </p>
 
                     <div className="space-y-4">
+                      {/* QR Code */}
+                      {qrCodeDataUrl && (
+                        <div className="flex justify-center">
+                          <img
+                            src={qrCodeDataUrl}
+                            alt="Two-factor authentication QR code"
+                            className="rounded-lg border border-blue-300 dark:border-blue-700 bg-white p-2"
+                            width={200}
+                            height={200}
+                          />
+                        </div>
+                      )}
+
                       {/* Secret Key */}
                       <div>
                         <label className="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
@@ -363,6 +499,7 @@ export default function SecuritySettings() {
                             className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-800 text-blue-900 dark:text-blue-100 font-mono text-sm"
                           />
                           <button
+                            type="button"
                             onClick={() => copyToClipboard(twoFactorSecret)}
                             aria-label="Copy secret"
                             className="px-3 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
@@ -386,6 +523,7 @@ export default function SecuritySettings() {
                             ))}
                           </div>
                           <button
+                            type="button"
                             onClick={downloadBackupCodes}
                             className="flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                           >
@@ -396,22 +534,22 @@ export default function SecuritySettings() {
                       </div>
 
                       {/* Verification Form */}
-                      <form onSubmit={handle2FASubmit(onVerifyTwoFactor)} className="space-y-4">
+                      <form onSubmit={handle2FAVerifySubmit(onVerifyTwoFactor)} className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
                             Verification Code
                           </label>
                           <input
-                            {...register2FA('code')}
+                            {...register2FAVerify('code')}
                             type="text"
                             maxLength={6}
                             placeholder="000000"
                             aria-label="Verification code"
                             className="block w-full px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-800 text-blue-900 dark:text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          {twoFactorErrors.code && (
+                          {twoFactorVerifyErrors.code && (
                             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                              {twoFactorErrors.code.message}
+                              {twoFactorVerifyErrors.code.message}
                             </p>
                           )}
                         </div>
