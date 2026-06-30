@@ -1,5 +1,5 @@
 {
-  "name": "wear-backend",
+  "name": "swisia-backend",
   "version": "1.0.0",
   "description": "Backend API for Wear e-commerce platform",
   "main": "src/index.js",
