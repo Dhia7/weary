@@ -8,13 +8,19 @@ import { Mail, Phone, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
 import { buildApiUrl, getApiErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
+const inputClassName =
+  'w-full px-4 py-3 border border-swisse-gold/25 dark:border-border bg-transparent text-swisse-ink dark:text-foreground placeholder:text-swisse-ink/40 dark:placeholder:text-muted-foreground focus:outline-none focus:border-swisse-gold dark:focus:border-primary transition-colors';
+
+const labelClassName =
+  'block text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-2';
+
 export default function ContactPage() {
   const { token } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -72,77 +78,89 @@ export default function ContactPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-swisse-canvas text-swisse-ink dark:bg-background dark:text-foreground">
       <Navigation />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+      <main id="main-content" className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-12"
+          className="text-center mb-14"
         >
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="font-serif text-4xl sm:text-5xl text-swisse-ink dark:text-foreground mb-4">
             Contact Us
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
+          <p className="text-swisse-ink/70 dark:text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as
+            possible.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Contact Information */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
+            className="border border-swisse-gold/20 dark:border-border bg-white/90 dark:bg-card shadow-sm p-6 sm:p-8"
           >
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className="font-serif text-2xl text-swisse-ink dark:text-foreground mb-8">
               Get in Touch
             </h2>
-            
-            <div className="space-y-6">
+
+            <div className="space-y-8">
               <div className="flex items-start gap-4">
-                <Mail className="w-6 h-6 text-blue-600 mt-1" />
+                <Mail className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Email</h3>
-                  <p className="text-gray-600 dark:text-gray-400">dhianaija@gmail.com</p>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
+                    Email
+                  </h3>
+                  <p className="text-swisse-ink/70 dark:text-muted-foreground">dhianaija@gmail.com</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-4">
-                <Phone className="w-6 h-6 text-blue-600 mt-1" />
+                <Phone className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Phone</h3>
-                  <p className="text-gray-600 dark:text-gray-400">+(216) 28-700-958</p>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
+                    Phone
+                  </h3>
+                  <p className="text-swisse-ink/70 dark:text-muted-foreground">+(216) 28-700-958</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-4">
-                <MapPin className="w-6 h-6 text-blue-600 mt-1" />
+                <MapPin className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Address</h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Sahloul 3<br />
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
+                    Address
+                  </h3>
+                  <p className="text-swisse-ink/70 dark:text-muted-foreground">
+                    Sahloul 3
+                    <br />
                     Sousse, 4056
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-4">
-                <Clock className="w-6 h-6 text-blue-600 mt-1" />
+                <Clock className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Business Hours</h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Monday - Friday: 9:00 AM - 6:00 PM<br />
-                    Saturday: 10:00 AM - 4:00 PM<br />
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
+                    Business Hours
+                  </h3>
+                  <p className="text-swisse-ink/70 dark:text-muted-foreground">
+                    Monday - Friday: 9:00 AM - 6:00 PM
+                    <br />
+                    Saturday: 10:00 AM - 4:00 PM
+                    <br />
                     Sunday: Closed
                   </p>
                 </div>
@@ -150,16 +168,16 @@ export default function ContactPage() {
             </div>
           </motion.div>
 
-          {/* Contact Form */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
+            className="border border-swisse-gold/20 dark:border-border bg-white/90 dark:bg-card shadow-sm p-6 sm:p-8"
           >
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="name" className={labelClassName}>
                     Name
                   </label>
                   <input
@@ -169,12 +187,12 @@ export default function ContactPage() {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={inputClassName}
                   />
                 </div>
-                
+
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="email" className={labelClassName}>
                     Email
                   </label>
                   <input
@@ -184,13 +202,13 @@ export default function ContactPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className={inputClassName}
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="subject" className={labelClassName}>
                   Subject
                 </label>
                 <input
@@ -200,12 +218,12 @@ export default function ContactPage() {
                   value={formData.subject}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className={inputClassName}
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="message" className={labelClassName}>
                   Message
                 </label>
                 <textarea
@@ -215,22 +233,22 @@ export default function ContactPage() {
                   onChange={handleChange}
                   required
                   rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className={inputClassName}
                 />
               </div>
-              
+
               <button
                 type="submit"
                 disabled={isSubmitting || submitStatus === 'success'}
-                className={`w-full py-3 px-6 rounded-lg focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                className={`w-full py-3.5 px-6 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                   submitStatus === 'success'
-                    ? 'bg-green-600 text-white focus:ring-green-500'
-                    : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:opacity-50'
+                    ? 'bg-swisse-gold text-white'
+                    : 'bg-swisse-ink hover:bg-swisse-gold disabled:opacity-50 text-swisse-canvas dark:bg-foreground dark:text-background dark:hover:bg-primary'
                 }`}
               >
                 {isSubmitting ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="w-4 h-4 border-2 border-swisse-canvas border-t-transparent rounded-full animate-spin dark:border-background" />
                     Sending...
                   </>
                 ) : submitStatus === 'success' ? (
@@ -245,13 +263,13 @@ export default function ContactPage() {
                   </>
                 )}
               </button>
-              
+
               {submitStatus === 'success' && submittedEmail && (
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-green-800 dark:text-green-200 font-medium">
+                <div className="p-4 bg-swisse-mist/80 dark:bg-muted/50 border border-swisse-gold/20 dark:border-border">
+                  <p className="text-sm font-medium text-swisse-ink dark:text-foreground">
                     Thank you! Your message was sent successfully.
                   </p>
-                  <p className="text-green-700 dark:text-green-300 mt-2 text-sm">
+                  <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2">
                     Our team will contact you at{' '}
                     <span className="font-semibold">{submittedEmail}</span> as soon as possible.
                     {confirmationEmailSent && (
@@ -265,7 +283,7 @@ export default function ContactPage() {
                       setSubmittedEmail('');
                       setConfirmationEmailSent(false);
                     }}
-                    className="mt-3 text-sm font-medium text-green-800 dark:text-green-200 underline hover:no-underline"
+                    className="mt-3 text-sm font-medium text-swisse-gold hover:text-swisse-ink dark:text-primary dark:hover:text-foreground transition-colors"
                   >
                     Send another message
                   </button>
@@ -273,8 +291,8 @@ export default function ContactPage() {
               )}
 
               {submitStatus === 'error' && (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-red-800 dark:text-red-200">
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-800 dark:text-red-200">
                     {errorMessage || 'Failed to send message. Please try again.'}
                   </p>
                 </div>
@@ -282,10 +300,9 @@ export default function ContactPage() {
             </form>
           </motion.div>
         </div>
-      </div>
+      </main>
 
       <Footer />
     </div>
   );
 }
-

@@ -38,7 +38,7 @@ export default async function Hero() {
             <p>
               {isFrench ? (
                 <>
-                  En moins d’une semaine, Swissé vous livre des{' '}
+                  En moins d’une semaine, Swisia vous livre des{' '}
                   <strong className="font-semibold text-swisse-ink dark:text-swisse-canvas">
                     créations premium internationales
                   </strong>
@@ -46,7 +46,7 @@ export default async function Hero() {
                 </>
               ) : (
                 <>
-                  In under a week, Swissé brings you{' '}
+                  In under a week, Swisia brings you{' '}
                   <strong className="font-semibold text-swisse-ink dark:text-swisse-canvas">
                     carefully selected international premium pieces
                   </strong>

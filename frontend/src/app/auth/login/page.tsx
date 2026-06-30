@@ -217,7 +217,7 @@ export default function LoginPage() {
               transition={{ delay: 0.1 }}
               className="font-serif text-4xl sm:text-5xl text-swisse-ink dark:text-foreground mb-3"
             >
-              {isFrench ? 'Bon retour' : 'Welcome Back'}
+              {isFrench ? 'Connexion' : 'Sign In'}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: -12 }}
@@ -226,8 +226,8 @@ export default function LoginPage() {
               className="text-swisse-ink/70 dark:text-muted-foreground leading-relaxed"
             >
               {isFrench
-                ? 'Connectez-vous pour accéder à votre compte, vos commandes et votre liste de souhaits.'
-                : 'Sign in to access your account, orders, and wishlist.'}
+                ? 'Connectez-vous pour acheter, suivre vos commandes et enregistrer vos favoris.'
+                : 'Sign in to shop, track orders, and save your favorites.'}
             </motion.p>
           </div>
 

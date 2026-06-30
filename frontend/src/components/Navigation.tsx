@@ -94,19 +94,19 @@ const Navigation = () => {
           <div className="flex-shrink-0 h-16 md:h-[4.25rem]">
             <Link
               href="/"
-              aria-label={isFrench ? 'Swissé — Accueil' : 'Swissé — Home'}
+              aria-label={isFrench ? 'Swisia — Accueil' : 'Swisia — Home'}
               className="inline-flex h-full items-center"
             >
               <Image
                 src="/images/logo.png"
-                alt="Swissé"
+                alt="Swisia"
                 width={256}
                 height={256}
                 className="h-full w-auto dark:hidden"
                 priority
               />
               <span className="hidden dark:block font-serif text-xl sm:text-2xl tracking-[0.2em] uppercase text-foreground">
-                Swissé
+                Swisia
               </span>
             </Link>
           </div>

@@ -33,7 +33,7 @@ const NewsletterSignup = () => {
           transition={{ duration: 0.7 }}
         >
           <h2 className="font-serif text-3xl md:text-4xl mb-6 text-swisse-ink dark:text-foreground">
-            {isFrench ? 'Le cercle Swisse' : 'The Swissé Circle'}
+            {isFrench ? 'Le cercle Swisia' : 'The Swisia Circle'}
           </h2>
           <p className="text-swisse-ink/70 dark:text-muted-foreground mb-12 leading-relaxed">
             {isFrench

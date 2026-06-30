@@ -4,6 +4,17 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Package, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import {
+  bodyTextClass,
+  cardClass,
+  pageMainClass,
+  pageShellClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  primaryButtonClass,
+  sectionTitleClass,
+} from '@/lib/content-page-styles';
 
 export default function ReturnsPage() {
   const returnSteps = [
@@ -90,21 +101,18 @@ export default function ReturnsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={pageShellClass}>
       <Navigation />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
+
+      <main id="main-content" className={pageMainClass}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Returns & Exchanges
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+          <h1 className={pageTitleClass}>Returns & Exchanges</h1>
+          <p className={`${pageSubtitleClass} max-w-3xl mx-auto`}>
             We want you to love what you buy. If you&apos;re not completely satisfied, 
             we make returns easy and hassle-free.
           </p>
@@ -123,13 +131,13 @@ export default function ReturnsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 text-center"
+              className={`${cardClass} text-center`}
             >
-              <policy.icon className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <policy.icon className="w-12 h-12 text-swisse-gold mx-auto mb-4" />
+              <h3 className="text-lg font-serif text-swisse-ink dark:text-foreground mb-2">
                 {policy.title}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
+              <p className={`${bodyTextClass} text-sm`}>
                 {policy.description}
               </p>
             </motion.div>
@@ -143,7 +151,7 @@ export default function ReturnsPage() {
           transition={{ duration: 0.5, delay: 0.4 }}
           className="mb-16"
         >
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+          <h2 className={`${sectionTitleClass} mb-8 text-center`}>
             How to Return an Item
           </h2>
           
@@ -156,25 +164,25 @@ export default function ReturnsPage() {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="relative"
               >
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 h-full">
+                <div className={`${cardClass} h-full`}>
                   <div className="flex items-center mb-4">
-                    <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                    <div className="bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3">
                       {step.step}
                     </div>
-                    <step.icon className="w-6 h-6 text-blue-600" />
+                    <step.icon className="w-6 h-6 text-swisse-gold" />
                   </div>
-                  
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+
+                  <h3 className="text-lg font-serif text-swisse-ink dark:text-foreground mb-2">
                     {step.title}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  <p className={`${bodyTextClass} mb-4`}>
                     {step.description}
                   </p>
                   
                   <ul className="space-y-2">
                     {step.details.map((detail, detailIndex) => (
-                      <li key={detailIndex} className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
-                        <span className="text-blue-600 mr-2">•</span>
+                      <li key={detailIndex} className={`text-sm ${bodyTextClass} flex items-start`}>
+                        <span className="text-swisse-gold mr-2">•</span>
                         {detail}
                       </li>
                     ))}
@@ -183,7 +191,7 @@ export default function ReturnsPage() {
                 
                 {/* Connector line */}
                 {index < returnSteps.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-4 w-8 h-0.5 bg-gray-300 dark:bg-gray-600 transform -translate-y-1/2"></div>
+                  <div className="hidden lg:block absolute top-1/2 -right-4 w-8 h-0.5 bg-swisse-gold/20 dark:bg-border transform -translate-y-1/2" />
                 )}
               </motion.div>
             ))}
@@ -195,9 +203,8 @@ export default function ReturnsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="mb-16"
+          className={`${cardClass} bg-red-50/80 dark:bg-red-900/20 !border-red-200/80 dark:!border-red-800 mb-16`}
         >
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-8">
             <div className="flex items-start">
               <AlertCircle className="w-6 h-6 text-red-600 mr-3 mt-1" />
               <div>
@@ -214,7 +221,6 @@ export default function ReturnsPage() {
                 </div>
               </div>
             </div>
-          </div>
         </motion.div>
 
         {/* Exchange Process */}
@@ -222,43 +228,43 @@ export default function ReturnsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.8 }}
-          className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-8"
+          className={`${cardClass} bg-swisse-mist/40 dark:bg-muted/30`}
         >
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          <h3 className={`${sectionTitleClass} mb-4`}>
             Need a Different Size or Color?
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className={`${bodyTextClass} mb-6`}>
             We offer easy exchanges for different sizes or colors. Simply follow the return process 
             and specify that you&apos;d like an exchange instead of a refund.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-sm font-bold">
                 1
               </div>
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Start Exchange</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <h4 className="font-serif text-swisse-ink dark:text-foreground mb-2">Start Exchange</h4>
+              <p className={`text-sm ${bodyTextClass}`}>
                 Initiate return and select &ldquo;Exchange&rdquo; option
               </p>
             </div>
             
             <div className="text-center">
-              <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-sm font-bold">
                 2
               </div>
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Choose New Item</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <h4 className="font-serif text-swisse-ink dark:text-foreground mb-2">Choose New Item</h4>
+              <p className={`text-sm ${bodyTextClass}`}>
                 Select the size or color you&apos;d prefer
               </p>
             </div>
             
             <div className="text-center">
-              <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-sm font-bold">
                 3
               </div>
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Receive New Item</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <h4 className="font-serif text-swisse-ink dark:text-foreground mb-2">Receive New Item</h4>
+              <p className={`text-sm ${bodyTextClass}`}>
                 We&apos;ll ship your new item once we receive the return
               </p>
             </div>
@@ -272,22 +278,19 @@ export default function ReturnsPage() {
           transition={{ duration: 0.5, delay: 1.0 }}
           className="mt-16 text-center"
         >
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          <h3 className={`${sectionTitleClass} mb-4`}>
             Questions About Returns?
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className={`${bodyTextClass} mb-6`}>
             Our customer service team is here to help with any return-related questions.
           </p>
-          
-          <a
-            href="/contact"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
+
+          <Link href="/contact" className={primaryButtonClass}>
             <ArrowLeft className="w-4 h-4" />
             Contact Support
-          </a>
+          </Link>
         </motion.div>
-      </div>
+      </main>
 
       <Footer />
     </div>

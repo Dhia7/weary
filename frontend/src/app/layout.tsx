@@ -15,14 +15,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default:
-      "Swissé — Premium fashion & lifestyle | Switzerland → Tunisia",
-    template: "%s | Swissé",
+      "Swisia — Premium fashion & lifestyle | Switzerland → Tunisia",
+    template: "%s | Swisia",
   },
   description:
     "Curated international premium fashion and lifestyle, delivered across Tunisia in under a week. Official Switzerland→Tunisia import — authentic quality, no middlemen, honest prices in TND.",
   keywords: [
-    "Swissé",
-    "Swisse",
+    "Swisia",
     "premium fashion Tunisia",
     "luxury shopping Tunisia",
     "Switzerland Tunisia import",
@@ -37,9 +36,9 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    siteName: "Swissé",
+    siteName: "Swisia",
     title:
-      "Swissé — Premium fashion & lifestyle | Switzerland → Tunisia",
+      "Swisia — Premium fashion & lifestyle | Switzerland → Tunisia",
     description:
       "Curated international premium fashion and lifestyle in under a week. Official import to Tunisia — quality, elegance, fair TND prices.",
     locale: "en_US",
@@ -48,7 +47,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title:
-      "Swissé — Premium fashion & lifestyle | Switzerland → Tunisia",
+      "Swisia — Premium fashion & lifestyle | Switzerland → Tunisia",
     description:
       "Curated premium fashion & lifestyle. Switzerland→Tunisia, delivery in under a week. Honest prices in TND.",
   },

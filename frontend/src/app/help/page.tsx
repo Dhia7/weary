@@ -5,6 +5,19 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { ChevronDown, Search, Mail, Phone, MessageCircle } from 'lucide-react';
+import Link from 'next/link';
+import {
+  bodyTextClass,
+  cardClass,
+  inputClass,
+  pageMainClass,
+  pageShellClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  sectionTitleClass,
+} from '@/lib/content-page-styles';
 
 export default function HelpPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,28 +87,24 @@ export default function HelpPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={pageShellClass}>
       <Navigation />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
+
+      <main id="main-content" className={pageMainClass}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Help Center
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
+          <h1 className={pageTitleClass}>Help Center</h1>
+          <p className={`${pageSubtitleClass} mb-8 max-w-2xl mx-auto`}>
             Find answers to your questions or get in touch with our support team
           </p>
-          
-          {/* Search */}
+
           <div className="max-w-2xl mx-auto">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-swisse-gold/70 w-5 h-5" />
             <label htmlFor="help-search" className="sr-only">
               Search help articles
             </label>
@@ -105,7 +114,7 @@ export default function HelpPage() {
                 placeholder="Search for help..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className={`${inputClass} pl-10`}
               />
             </div>
           </div>
@@ -118,7 +127,7 @@ export default function HelpPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mb-16"
         >
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+          <h2 className={`${sectionTitleClass} mb-8 text-center`}>
             Browse by Category
           </h2>
           
@@ -129,15 +138,15 @@ export default function HelpPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+                className={`${cardClass} hover:border-swisse-gold/40 transition-colors`}
               >
                 <div className="text-3xl mb-4">{category.icon}</div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                <h3 className="text-lg font-serif text-swisse-ink dark:text-foreground mb-3">
                   {category.title}
                 </h3>
                 <ul className="space-y-2">
                   {category.topics.map((topic, topicIndex) => (
-                    <li key={topicIndex} className="text-sm text-gray-600 dark:text-gray-400">
+                    <li key={topicIndex} className={`text-sm ${bodyTextClass}`}>
                       • {topic}
                     </li>
                   ))}
@@ -153,14 +162,14 @@ export default function HelpPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+          <h2 className={`${sectionTitleClass} mb-8 text-center`}>
             Frequently Asked Questions
           </h2>
           
           <div className="max-w-4xl mx-auto">
             {filteredFaqs.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className={bodyTextClass}>
                   No results found for &ldquo;{searchQuery}&rdquo;. Try a different search term.
                 </p>
               </div>
@@ -172,17 +181,17 @@ export default function HelpPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                    className={`${cardClass} overflow-hidden p-0`}
                   >
                     <button
                       onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                      className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-swisse-mist/50 dark:hover:bg-muted/50 transition-colors"
                     >
-                      <span className="font-medium text-gray-900 dark:text-white">
+                      <span className="font-medium text-swisse-ink dark:text-foreground">
                         {faq.question}
                       </span>
                       <ChevronDown 
-                        className={`w-5 h-5 text-gray-500 transition-transform ${
+                        className={`w-5 h-5 text-swisse-gold/70 transition-transform ${
                           openFaq === index ? 'rotate-180' : ''
                         }`} 
                       />
@@ -196,7 +205,7 @@ export default function HelpPage() {
                         transition={{ duration: 0.3 }}
                         className="px-6 pb-4"
                       >
-                        <p className="text-gray-600 dark:text-gray-400">
+                        <p className={bodyTextClass}>
                           {faq.answer}
                         </p>
                       </motion.div>
@@ -213,44 +222,35 @@ export default function HelpPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="mt-16 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-8"
+          className={`mt-16 ${cardClass} bg-swisse-mist/40 dark:bg-muted/30`}
         >
           <div className="text-center">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            <h3 className={`${sectionTitleClass} mb-4`}>
               Still need help?
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className={`${bodyTextClass} mb-6`}>
               Our support team is here to help you with any questions or concerns.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/contact"
-                className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
+              <Link href="/contact" className={primaryButtonClass}>
                 <MessageCircle className="w-4 h-4" />
                 Contact Us
-              </a>
-              
-              <a
-                href="mailto:support@wear.com"
-                className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
+              </Link>
+
+              <a href="mailto:support@wear.com" className={secondaryButtonClass}>
                 <Mail className="w-4 h-4" />
                 Email Support
               </a>
-              
-              <a
-                href="tel:+15551234567"
-                className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
+
+              <a href="tel:+15551234567" className={secondaryButtonClass}>
                 <Phone className="w-4 h-4" />
                 Call Us
               </a>
             </div>
           </div>
         </motion.div>
-      </div>
+      </main>
 
       <Footer />
     </div>

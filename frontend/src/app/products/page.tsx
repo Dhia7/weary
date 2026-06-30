@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import NotFoundState from '@/components/NotFoundState';
 import { motion } from 'framer-motion';
 import { Grid, List } from 'lucide-react';
 import { useProducts } from '@/lib/hooks/useProducts';
@@ -57,25 +58,13 @@ export default function ProductsPage() {
 
   if (error && products.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Navigation />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-12">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Error Loading Products
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">{errorMessage}</p>
-            <button
-              type="button"
-              onClick={() => mutate()}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-        <Footer />
-      </div>
+      <NotFoundState
+        code="!"
+        title="Error Loading Products"
+        description={errorMessage}
+        onRetry={() => mutate()}
+        showBack={false}
+      />
     );
   }
 

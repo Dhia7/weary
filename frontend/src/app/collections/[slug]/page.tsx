@@ -8,6 +8,7 @@ import { ArrowLeftIcon, ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/o
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useCart } from '@/lib/contexts/CartContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
 
 interface Product {
@@ -101,29 +102,16 @@ export default function CollectionDetailPage() {
 
   if (!collection) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            {error || 'Collection not found'}
-          </h1>
-          {error && (
-            <button
-              type="button"
-              onClick={() => mutate()}
-              className="mb-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Try Again
-            </button>
-          )}
-          <Link 
-            href="/"
-            className="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
-          >
-            <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
-        </div>
-      </div>
+      <NotFoundState
+        title={error || 'Collection not found'}
+        description={
+          error
+            ? 'We had trouble loading this collection. Please try again.'
+            : "The collection you're looking for doesn't exist or may have been removed."
+        }
+        onRetry={error ? () => mutate() : undefined}
+        showBack={!error}
+      />
     );
   }
 

@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Swissé Bright Gold — aligned to design spec (#faf8f5, #2d2416, #c5a059, #f5f0e8) */
+    /* Swisia Bright Gold — aligned to design spec (#faf8f5, #2d2416, #c5a059, #f5f0e8) */
     --background: 40 33% 97%;
     --foreground: 33 33% 13%;
     --card: 40 28% 98%;

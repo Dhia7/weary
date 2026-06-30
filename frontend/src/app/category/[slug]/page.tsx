@@ -6,9 +6,17 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import NotFoundState from '@/components/NotFoundState';
 import { motion } from 'framer-motion';
 import { SortAsc, Grid, List } from 'lucide-react';
 import { useCategoryProducts } from '@/lib/hooks/useCategoryProducts';
+import {
+  bodyTextClass,
+  inputClass,
+  pageShellClass,
+  pageSubtitleClass,
+  pageTitleClass,
+} from '@/lib/content-page-styles';
 
 interface Product {
   id: number;
@@ -108,10 +116,10 @@ export default function CategoryPage() {
 
   if (loading && !category && products.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className={pageShellClass}>
         <Navigation />
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="flex items-center justify-center min-h-[400px] pt-28">
+          <div className="animate-spin rounded-full h-16 w-16 border-2 border-swisse-gold/30 border-t-swisse-gold" />
         </div>
         <Footer />
       </div>
@@ -120,61 +128,47 @@ export default function CategoryPage() {
 
   if (error && !category && !is404) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Navigation />
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Error Loading Category
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">{errorMessage}</p>
-            <button
-              type="button"
-              onClick={() => mutate()}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-        <Footer />
-      </div>
+      <NotFoundState
+        code="!"
+        title="Error Loading Category"
+        description={errorMessage}
+        onRetry={() => mutate()}
+        showBack={false}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={pageShellClass}>
       <Navigation />
-      
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <div className="border-b border-swisse-gold/10 dark:border-border pt-24">
+        <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              {category?.name}
-            </h1>
+            <h1 className={pageTitleClass}>{category?.name}</h1>
             {category?.description && (
-              <p className="text-gray-600 dark:text-gray-400">
-                {category.description}
-              </p>
+              <p className={pageSubtitleClass}>{category.description}</p>
             )}
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+            <p className={`text-sm ${bodyTextClass} mt-2`}>
               {products.length} products found
             </p>
           </motion.div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="border-b border-swisse-gold/10 dark:border-border">
+        <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <SortAsc className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
+                <SortAsc className="w-4 h-4 text-swisse-gold/70" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
+                  Sort by:
+                </span>
                 <select
                   value={`${sortBy}-${sortOrder}`}
                   onChange={(e) => {
@@ -183,7 +177,7 @@ export default function CategoryPage() {
                     setSortOrder(order);
                   }}
                   title="Sort products"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className={`${inputClass} py-2 text-sm`}
                 >
                   <option value="name-ASC">Name A-Z</option>
                   <option value="name-DESC">Name Z-A</option>
@@ -195,12 +189,12 @@ export default function CategoryPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-lg">
+            <div className="flex items-center gap-1 border border-swisse-gold/25 dark:border-border">
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
                 title="Grid view"
-                className={`p-2 ${viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background' : 'text-swisse-ink/60 hover:text-swisse-gold dark:text-muted-foreground'}`}
               >
                 <Grid className="w-4 h-4" />
               </button>
@@ -208,7 +202,7 @@ export default function CategoryPage() {
                 type="button"
                 onClick={() => setViewMode('list')}
                 title="List view"
-                className={`p-2 ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background' : 'text-swisse-ink/60 hover:text-swisse-gold dark:text-muted-foreground'}`}
               >
                 <List className="w-4 h-4" />
               </button>

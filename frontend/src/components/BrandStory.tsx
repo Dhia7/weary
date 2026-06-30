@@ -24,7 +24,7 @@ export default function BrandStory() {
             <div className="relative z-10">
               <Image
                 src={HOME_IMAGES.brandStory}
-                alt={isFrench ? 'Savoir-faire Swisse' : 'Swissé craftsmanship'}
+                alt={isFrench ? 'Savoir-faire Swisia' : 'Swisia craftsmanship'}
                 width={900}
                 height={1100}
                 className="w-full h-auto grayscale hover:grayscale-0 transition-all duration-1000"
@@ -51,8 +51,8 @@ export default function BrandStory() {
             </h2>
             <p className="text-lg text-swisse-ink/70 mb-8 leading-relaxed">
               {isFrench
-                ? "Swisse travaille en direct avec des ateliers suisses certifies, sans intermediaire. Chaque commande est preparee a Geneve, dedouanee par nos soins, puis livree chez vous en Tunisie en moins d'une semaine."
-                : 'Swisse works directly with certified Swiss ateliers, with no middlemen. Every order is prepared in Geneva, customs-cleared by our team, and delivered to your door in Tunisia in under one week.'}
+                ? "Swisia travaille en direct avec des ateliers suisses certifies, sans intermediaire. Chaque commande est preparee a Geneve, dedouanee par nos soins, puis livree chez vous en Tunisie en moins d'une semaine."
+                : 'Swisia works directly with certified Swiss ateliers, with no middlemen. Every order is prepared in Geneva, customs-cleared by our team, and delivered to your door in Tunisia in under one week.'}
             </p>
             <p className="text-lg text-swisse-ink/70 mb-12">
               {isFrench

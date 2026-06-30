@@ -25,12 +25,12 @@ export default function ManifestoBanner() {
           {isFrench ? (
             <>
               <br />
-              — Fondateur, Swissé Tunisia
+              — Fondateur, Swisia Tunisia
             </>
           ) : (
             <>
               <br />
-              — Founder, Swissé Tunisia
+              — Founder, Swisia Tunisia
             </>
           )}
         </motion.p>

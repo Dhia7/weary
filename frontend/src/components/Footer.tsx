@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { footerHeadingClass, footerLinkClass } from '@/lib/content-page-styles';
 
 const Footer = () => {
   const [currentYear, setCurrentYear] = useState('');
@@ -80,24 +81,24 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <Link
               href="/"
-              aria-label={isFrench ? 'Swissé — Accueil' : 'Swissé — Home'}
+              aria-label={isFrench ? 'Swisia — Accueil' : 'Swisia — Home'}
               className="inline-block mb-6"
             >
               <Image
                 src="/images/logo.png"
-                alt="Swissé"
+                alt="Swisia"
                 width={256}
                 height={256}
                 className="h-32 w-auto sm:h-40 dark:hidden"
               />
               <span className="hidden dark:block font-serif text-2xl tracking-[0.2em] uppercase text-foreground">
-                Swissé
+                Swisia
               </span>
             </Link>
             <p className="text-swisse-ink/70 dark:text-muted-foreground mb-8 max-w-md leading-relaxed text-sm">
               {isFrench
-                ? 'Swissé vous apporte des produits internationaux premium en Tunisie en moins d’une semaine — qualité authentique, prix équitables en TND et sans intermédiaires.'
-                : 'Swissé brings premium international products to Tunisia in under a week — authentic quality, fair TND pricing, and no middlemen.'}
+                ? 'Swisia vous apporte des produits internationaux premium en Tunisie en moins d’une semaine — qualité authentique, prix équitables en TND et sans intermédiaires.'
+                : 'Swisia brings premium international products to Tunisia in under a week — authentic quality, fair TND pricing, and no middlemen.'}
             </p>
 
             <div className="flex gap-5">
@@ -132,14 +133,11 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className="font-serif text-lg text-swisse-gold mb-4">{isFrench ? 'Boutique' : 'Shop'}</h3>
-            <ul className="space-y-2.5">
+            <h3 className={footerHeadingClass}>{isFrench ? 'Boutique' : 'Shop'}</h3>
+            <ul className="space-y-3">
               {translatedFooterLinks.shop.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-swisse-ink/80 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary transition-colors"
-                  >
+                  <Link href={link.href} className={footerLinkClass}>
                     {link.name}
                   </Link>
                 </li>
@@ -148,14 +146,11 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className="font-serif text-lg text-swisse-gold mb-4">{isFrench ? 'Support' : 'Support'}</h3>
-            <ul className="space-y-2.5">
+            <h3 className={footerHeadingClass}>{isFrench ? 'Support' : 'Support'}</h3>
+            <ul className="space-y-3">
               {translatedFooterLinks.support.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-swisse-ink/80 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary transition-colors"
-                  >
+                  <Link href={link.href} className={footerLinkClass}>
                     {link.name}
                   </Link>
                 </li>
@@ -164,14 +159,11 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className="font-serif text-lg text-swisse-gold mb-4">{isFrench ? 'Entreprise' : 'Company'}</h3>
-            <ul className="space-y-2.5">
+            <h3 className={footerHeadingClass}>{isFrench ? 'Entreprise' : 'Company'}</h3>
+            <ul className="space-y-3">
               {translatedFooterLinks.company.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-swisse-ink/80 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary transition-colors"
-                  >
+                  <Link href={link.href} className={footerLinkClass}>
                     {link.name}
                   </Link>
                 </li>
@@ -180,14 +172,11 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className="font-serif text-lg text-swisse-gold mb-4">{isFrench ? 'Legal' : 'Legal'}</h3>
-            <ul className="space-y-2.5">
+            <h3 className={footerHeadingClass}>{isFrench ? 'Legal' : 'Legal'}</h3>
+            <ul className="space-y-3">
               {translatedFooterLinks.legal.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-swisse-ink/80 hover:text-swisse-gold dark:text-muted-foreground dark:hover:text-primary transition-colors"
-                  >
+                  <Link href={link.href} className={footerLinkClass}>
                     {link.name}
                   </Link>
                 </li>
@@ -199,8 +188,8 @@ const Footer = () => {
         <div className="border-t border-swisse-gold/10 dark:border-border mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-swisse-ink/50 dark:text-muted-foreground tracking-wide">
             {isFrench
-              ? `© ${currentYear} Swisse. Tous droits reserves.`
-              : `© ${currentYear} Swissé. All rights reserved.`}
+              ? `© ${currentYear} Swisia. Tous droits reserves.`
+              : `© ${currentYear} Swisia. All rights reserved.`}
           </p>
           <div className="flex gap-3 opacity-40">
             <div className="h-7 w-11 rounded bg-swisse-mist dark:bg-muted" />

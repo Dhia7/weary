@@ -7,6 +7,7 @@ import { ShoppingBagIcon, ArrowLeftIcon, CreditCardIcon } from '@heroicons/react
 import { useCart } from '@/lib/contexts/CartContext';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import NotFoundState from '@/components/NotFoundState';
 import CartPanel from '@/components/CartPanel';
 import Navigation from '@/components/Navigation';
 import WishlistButton from '@/components/WishlistButton';
@@ -290,29 +291,12 @@ export default function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            {error || t.productNotFound}
-          </h1>
-          {error && (
-            <button
-              type="button"
-              onClick={() => mutate()}
-              className="mb-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Try Again
-            </button>
-          )}
-          <Link 
-            href="/"
-            className="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
-          >
-            <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            {t.backToHome}
-          </Link>
-        </div>
-      </div>
+      <NotFoundState
+        title={error || t.productNotFound}
+        onRetry={error ? () => mutate() : undefined}
+        homeLabel={t.backToHome}
+        showBack={!error}
+      />
     );
   }
 
