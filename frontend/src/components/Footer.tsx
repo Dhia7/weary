@@ -29,7 +29,6 @@ const Footer = () => {
       { name: 'Size Guide', href: '/size-guide' },
     ],
     company: [
-      { name: 'About Us', href: '/about' },
       { name: 'Careers', href: '/careers' },
       { name: 'Press', href: '/press' },
       { name: 'Blog', href: '/blog' },
@@ -59,7 +58,6 @@ const Footer = () => {
           { name: 'Guide des tailles', href: '/size-guide' },
         ],
         company: [
-          { name: 'A propos', href: '/about' },
           { name: 'Carrieres', href: '/careers' },
           { name: 'Presse', href: '/press' },
           { name: 'Blog', href: '/blog' },

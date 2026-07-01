@@ -37,7 +37,7 @@ const mainNav: MainNavItem[] = [
   { name: 'Home', href: '/' },
   { name: 'Collections', href: '/collections', sectionId: 'collections' },
   { name: 'Featured', href: '/products', sectionId: 'most-loved' },
-  { name: 'How it Works', href: '/about', sectionId: 'brand-story' },
+  { name: 'How it Works', href: '/', sectionId: 'brand-story' },
 ];
 
 const Navigation = () => {

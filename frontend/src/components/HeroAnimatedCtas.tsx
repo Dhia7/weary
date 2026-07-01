@@ -23,17 +23,14 @@ export default function HeroAnimatedCtas({ isFrench }: HeroAnimatedCtasProps) {
       >
         {isFrench ? 'Decouvrir la Collection' : 'Discover the Collection'}
       </Link>
-      <Link
-        href="/about"
-        onClick={(event) => {
-          event.preventDefault();
-          scrollToHomeSection('brand-story');
-        }}
+      <button
+        type="button"
+        onClick={() => scrollToHomeSection('brand-story')}
         className="group inline-flex items-center justify-center sm:justify-start gap-3 text-xs font-bold uppercase tracking-widest text-swisse-ink dark:text-swisse-canvas"
       >
         <span>{isFrench ? 'Comment ca marche ?' : 'How it Works?'}</span>
         <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-2" />
-      </Link>
+      </button>
     </motion.div>
   );
 }

@@ -91,12 +91,6 @@ export default function BrandStory() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/about"
-              className="inline-block px-8 py-3 md:px-10 md:py-4 border border-swisse-gold/30 text-swisse-ink hover:border-swisse-gold hover:text-swisse-gold transition-all text-xs font-bold uppercase tracking-widest"
-            >
-              {isFrench ? 'En Savoir Plus' : 'Read Our Manifesto'}
-            </Link>
           </motion.div>
         </div>
       </div>
