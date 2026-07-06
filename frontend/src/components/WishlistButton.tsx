@@ -54,9 +54,9 @@ export default function WishlistButton({
   };
 
   const variantClasses = {
-    default: 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:bg-red-50 dark:hover:bg-red-900/20',
-    outline: 'border-2 border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-600 bg-white dark:bg-gray-800',
-    ghost: 'bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20'
+    default: 'bg-white/80 dark:bg-card/80 backdrop-blur-sm hover:bg-swisse-mist/60 dark:hover:bg-muted/50 border border-swisse-gold/15 dark:border-border',
+    outline: 'border border-swisse-gold/30 dark:border-border hover:border-swisse-gold bg-transparent',
+    ghost: 'bg-transparent hover:bg-swisse-mist/50 dark:hover:bg-muted/30',
   };
 
   const handleToggleWishlist = async (e: React.MouseEvent) => {

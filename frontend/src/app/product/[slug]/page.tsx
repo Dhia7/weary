@@ -33,6 +33,12 @@ import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
 import { getProductTranslations, translateCategoryName } from '@/lib/i18n/product';
 import { useProduct } from '@/lib/hooks/useProduct';
+import {
+  bodyTextClass,
+  inlineLinkClass,
+  inputClass,
+  pageShellClass,
+} from '@/lib/content-page-styles';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -283,8 +289,11 @@ export default function ProductDetailPage() {
 
   if (loading && !product) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <LoadingSpinner />
+      <div className={`${pageShellClass} flex flex-col`}>
+        <Navigation />
+        <div className="flex-1 flex items-center justify-center pt-28 pb-20">
+          <LoadingSpinner />
+        </div>
       </div>
     );
   }
@@ -301,30 +310,32 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={pageShellClass}>
       <Navigation />
-      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        <nav aria-label={t.breadcrumbAria} className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-8">
-          <Link href="/" className="hover:text-gray-700 dark:hover:text-gray-300">
+      <main id="main-content" className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
+        <nav
+          aria-label={t.breadcrumbAria}
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-swisse-ink/50 dark:text-muted-foreground mb-10"
+        >
+          <Link href="/" className={`${inlineLinkClass} text-swisse-ink/50 dark:text-muted-foreground`}>
             {t.home}
           </Link>
-          <span>/</span>
+          <span aria-hidden>/</span>
           {product.categories && product.categories.length > 0 && (
             <>
-              <Link 
+              <Link
                 href={`/category/${product.categories[0].slug}`}
-                className="hover:text-gray-700 dark:hover:text-gray-300"
+                className={inlineLinkClass}
               >
                 {translateCategoryName(product.categories[0].name, isFrench)}
               </Link>
-              <span>/</span>
+              <span aria-hidden>/</span>
             </>
           )}
-          <span className="text-gray-900 dark:text-white">{product.name}</span>
+          <span className="text-swisse-ink dark:text-foreground">{product.name}</span>
         </nav>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
           <ProductImageGallery
             images={displayImages}
             alt={product.name}
@@ -333,51 +344,46 @@ export default function ProductDetailPage() {
             galleryKey={`${selectedColor}-${displayImages[0] ?? ''}`}
           />
 
-          {/* Product Info */}
-          <div className="space-y-6">
-            {/* Category */}
+          <div className="space-y-8 border border-swisse-gold/20 dark:border-border bg-white/90 dark:bg-card shadow-sm p-6 sm:p-8">
             {product.categories && product.categories.length > 0 && (
-              <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-swisse-gold">
                 {translateCategoryName(product.categories[0].name, isFrench)}
               </p>
             )}
 
-            {/* Product Name */}
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="font-serif text-3xl sm:text-4xl text-swisse-ink dark:text-foreground">
                 {product.name}
               </h1>
               {product.displayBadge === 'sold' && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-900 text-white dark:bg-foreground dark:text-background">
+                <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background">
                   {isFrench ? 'Vendu' : 'Sold'}
                 </span>
               )}
               {product.displayBadge === 'new_arrival' && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-600 text-white">
+                <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-gold text-white">
                   {isFrench ? 'Nouveauté' : 'New Arrival'}
                 </span>
               )}
             </div>
 
-            {/* SKU */}
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className={`text-xs uppercase tracking-widest ${bodyTextClass}`}>
               SKU: {product.SKU}
             </p>
 
-            {/* Price */}
             <div className="space-y-1">
-              <div className="flex items-center space-x-4">
-                <span className="text-3xl font-bold text-gray-900 dark:text-white">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="font-serif text-3xl text-swisse-ink dark:text-foreground">
                   {formatPrice(displayPrice)}
                 </span>
                 {shouldShowCompareAtPrice(effectiveCompareAt, displayPrice) && (
-                  <span className="text-xl text-red-600 dark:text-red-400 line-through">
+                  <span className="text-xl text-swisse-ink/40 dark:text-muted-foreground line-through">
                     {formatPrice(effectiveCompareAt!)}
                   </span>
                 )}
               </div>
               {product.priceRange?.hasVariablePricing && !selectedVariant && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className={`text-sm ${bodyTextClass}`}>
                   {selectedColor
                     ? sizeChoices.length > 0
                       ? 'Price may vary by size — select a size for the exact amount.'
@@ -387,55 +393,57 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Description */}
             {product.description && (
-              <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                <p className="font-semibold text-gray-900 dark:text-white">
+              <div className={`text-sm space-y-2 ${bodyTextClass}`}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
                   {isFrench ? t.descriptionFr : t.description}
                 </p>
-                <p className="text-gray-500 dark:text-gray-400 whitespace-pre-line">
+                <p className="whitespace-pre-line leading-relaxed">
                   {descriptionTranslating ? '…' : productDescription}
                 </p>
               </div>
             )}
 
-            {/* Weight */}
             {(product.depthCm || product.widthCm || product.heightCm) && (
-              <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                <p className="font-semibold text-gray-900 dark:text-white">{t.dimensions}</p>
-                <ul className="space-y-0.5 text-gray-500 dark:text-gray-400">
+              <div className={`text-sm space-y-2 ${bodyTextClass}`}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
+                  {t.dimensions}
+                </p>
+                <ul className="space-y-1">
                   {product.depthCm != null && product.depthCm > 0 && (
-                    <li><span className="text-gray-700 dark:text-gray-300">{t.depth}:</span> {Number(product.depthCm)} cm</li>
+                    <li><span className="text-swisse-ink/80 dark:text-foreground">{t.depth}:</span> {Number(product.depthCm)} cm</li>
                   )}
                   {product.widthCm != null && product.widthCm > 0 && (
-                    <li><span className="text-gray-700 dark:text-gray-300">{t.width}:</span> {Number(product.widthCm)} cm</li>
+                    <li><span className="text-swisse-ink/80 dark:text-foreground">{t.width}:</span> {Number(product.widthCm)} cm</li>
                   )}
                   {product.heightCm != null && product.heightCm > 0 && (
-                    <li><span className="text-gray-700 dark:text-gray-300">{t.height}:</span> {Number(product.heightCm)} cm</li>
+                    <li><span className="text-swisse-ink/80 dark:text-foreground">{t.height}:</span> {Number(product.heightCm)} cm</li>
                   )}
                 </ul>
               </div>
             )}
 
             {product.outerMaterial && (
-              <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                <p className="font-semibold text-gray-900 dark:text-white">{t.materials}</p>
-                <p className="text-gray-500 dark:text-gray-400">
-                  <span className="text-gray-700 dark:text-gray-300">{t.outerMaterial}:</span>{' '}
+              <div className={`text-sm space-y-2 ${bodyTextClass}`}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
+                  {t.materials}
+                </p>
+                <p>
+                  <span className="text-swisse-ink/80 dark:text-foreground">{t.outerMaterial}:</span>{' '}
                   {isFrench && outerMaterialText ? outerMaterialText : product.outerMaterial}
                 </p>
               </div>
             )}
 
             {product.weightGrams && (
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>{t.weight}:</strong> {product.weightGrams}g
+              <div className={`text-sm ${bodyTextClass}`}>
+                <span className="text-swisse-ink/80 dark:text-foreground font-medium">{t.weight}:</span> {product.weightGrams}g
               </div>
             )}
 
             {product.hasVariants && product.colorOptions && product.colorOptions.length > 0 && (
               <div className="space-y-3">
-                <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                <span className="block text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
                   {t.color} <span className="text-red-500">*</span>
                 </span>
                 <ColorSwatches
@@ -454,15 +462,17 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-red-600 dark:text-red-400">{colorError}</p>
                 )}
                 {selectedColor && !colorError && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{t.selected(selectedColor)}</p>
+                  <p className={`text-sm ${bodyTextClass}`}>{t.selected(selectedColor)}</p>
                 )}
               </div>
             )}
 
-            {/* Size Selector */}
             {sizeChoices.length > 0 && (
               <div className="space-y-3">
-                <label htmlFor="size-select" className="block text-sm font-semibold text-gray-900 dark:text-white">
+                <label
+                  htmlFor="size-select"
+                  className="block text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground"
+                >
                   {t.selectSize} <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -474,10 +484,8 @@ export default function ProductDetailPage() {
                       setSizeError(null);
                     }
                   }}
-                  className={`w-full max-w-xs border-2 rounded-lg px-4 py-3 text-base font-medium bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
-                    sizeError 
-                      ? 'border-red-500 dark:border-red-500' 
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                  className={`${inputClass} max-w-xs ${
+                    sizeError ? 'border-red-500 dark:border-red-500' : ''
                   }`}
                   required
                 >
@@ -497,7 +505,7 @@ export default function ProductDetailPage() {
                 )}
                 {selectedSize && !sizeError && (
                   <div className="flex items-center space-x-2">
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <span className="inline-flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-swisse-gold/30 text-swisse-gold">
                       {t.selectedSize(selectedSize)}
                     </span>
                   </div>
@@ -513,22 +521,21 @@ export default function ProductDetailPage() {
               />
             )}
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <div className="flex space-x-4">
+            <div className="space-y-3 pt-2">
+              <div className="flex gap-3">
                 <button
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
-                  className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  className="flex-1 bg-swisse-ink hover:bg-swisse-gold disabled:opacity-50 disabled:cursor-not-allowed text-swisse-canvas text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors duration-300 flex items-center justify-center gap-2 dark:bg-foreground dark:text-background dark:hover:bg-primary"
                 >
-                  <ShoppingBagIcon className="w-5 h-5 mr-2" />
+                  <ShoppingBagIcon className="w-5 h-5" />
                   {isOutOfStock ? t.outOfStock : t.addToCart}
                 </button>
 
-                <WishlistButton 
-                  productId={product.id.toString()} 
-                  size="lg" 
-                  variant="default"
+                <WishlistButton
+                  productId={product.id.toString()}
+                  size="lg"
+                  variant="outline"
                   onToggle={(inWishlist) => {
                     if (inWishlist) {
                       setWishlistToastVisible(true);
@@ -542,23 +549,22 @@ export default function ProductDetailPage() {
               <button
                 onClick={handleBuyNow}
                 disabled={isOutOfStock}
-                className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                className="w-full border border-swisse-gold/30 text-swisse-ink hover:border-swisse-gold hover:text-swisse-gold disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors flex items-center justify-center gap-2 dark:text-foreground"
               >
-                <CreditCardIcon className="w-5 h-5 mr-2" />
+                <CreditCardIcon className="w-5 h-5" />
                 {isOutOfStock ? t.outOfStock : t.buyNow}
               </button>
             </div>
 
-            {/* Additional Info */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>{t.freeShipping}</strong> {t.freeShippingDetail}
+            <div className="border-t border-swisse-gold/15 dark:border-border pt-6 space-y-3">
+              <div className={`text-sm ${bodyTextClass}`}>
+                <strong className="text-swisse-ink dark:text-foreground">{t.freeShipping}</strong> {t.freeShippingDetail}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>{t.returns}</strong> {t.returnsDetail}
+              <div className={`text-sm ${bodyTextClass}`}>
+                <strong className="text-swisse-ink dark:text-foreground">{t.returns}</strong> {t.returnsDetail}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>{t.secureCheckout}</strong> {t.secureCheckoutDetail}
+              <div className={`text-sm ${bodyTextClass}`}>
+                <strong className="text-swisse-ink dark:text-foreground">{t.secureCheckout}</strong> {t.secureCheckoutDetail}
               </div>
             </div>
           </div>
@@ -574,8 +580,8 @@ export default function ProductDetailPage() {
       {/* Wishlist success toast */}
       {wishlistToastVisible && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="px-4 py-2 rounded-full shadow-lg bg-white/90 dark:bg-gray-800/90 backdrop-blur flex items-center gap-2 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-opacity">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-green-600">
+          <div className="px-5 py-2.5 shadow-sm bg-white/95 dark:bg-card/95 backdrop-blur flex items-center gap-2 text-swisse-ink dark:text-foreground border border-swisse-gold/20 dark:border-border">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-swisse-gold">
               <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-2.69a.75.75 0 10-1.22-.86l-3.46 4.92-1.71-1.71a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.16-.1l4.04-5.58z" clipRule="evenodd" />
             </svg>
             <span className="text-sm font-medium">{t.wishlistAdded}</span>

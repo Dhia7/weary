@@ -202,13 +202,15 @@ export default function ProductImageGallery({
   return (
     <div className="space-y-4">
       {mediaLabel && (
-        <p className="text-sm text-gray-600 dark:text-gray-400">{mediaLabel}</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/60 dark:text-muted-foreground">
+          {mediaLabel}
+        </p>
       )}
 
       <div className="relative">
         <div
           ref={containerRef}
-          className={`aspect-square bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm relative group ${
+          className={`aspect-square bg-white/90 dark:bg-card border border-swisse-gold/20 dark:border-border overflow-hidden shadow-sm relative group ${
             zoomLevel > MIN_ZOOM
               ? isDragging
                 ? 'cursor-grabbing'
@@ -237,16 +239,16 @@ export default function ProductImageGallery({
               draggable={false}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-swisse-mist to-swisse-canvas dark:from-muted dark:to-secondary flex items-center justify-center">
               <span className="text-8xl">{fallbackEmoji}</span>
             </div>
           )}
 
           <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-            <div className="bg-black/70 dark:bg-gray-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-lg">
+            <div className="bg-swisse-ink/80 dark:bg-background/90 backdrop-blur-sm text-swisse-canvas dark:text-foreground px-3 py-1.5 text-sm font-medium shadow-lg">
               {Math.round(zoomLevel * 100)}%
             </div>
-            <div className="flex flex-col gap-1 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+            <div className="flex flex-col gap-1 bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-swisse-gold/20 dark:border-border shadow-lg overflow-hidden">
               <button
                 type="button"
                 onClick={(e) => {
@@ -254,13 +256,13 @@ export default function ProductImageGallery({
                   handleZoomIn();
                 }}
                 disabled={zoomLevel >= MAX_ZOOM}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 hover:bg-swisse-mist/60 dark:hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="Zoom in"
                 title="Zoom in"
               >
-                <MagnifyingGlassPlusIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <MagnifyingGlassPlusIcon className="w-5 h-5 text-swisse-ink dark:text-foreground" />
               </button>
-              <div className="h-px bg-gray-200 dark:bg-gray-600" />
+              <div className="h-px bg-swisse-gold/15 dark:bg-border" />
               <button
                 type="button"
                 onClick={(e) => {
@@ -268,22 +270,22 @@ export default function ProductImageGallery({
                   handleZoomOut();
                 }}
                 disabled={zoomLevel <= MIN_ZOOM}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 hover:bg-swisse-mist/60 dark:hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="Zoom out"
                 title="Zoom out"
               >
-                <MagnifyingGlassMinusIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <MagnifyingGlassMinusIcon className="w-5 h-5 text-swisse-ink dark:text-foreground" />
               </button>
               {zoomLevel > MIN_ZOOM && (
                 <>
-                  <div className="h-px bg-gray-200 dark:bg-gray-600" />
+                  <div className="h-px bg-swisse-gold/15 dark:bg-border" />
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       resetZoom();
                     }}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-xs text-gray-700 dark:text-gray-300 font-medium"
+                    className="p-2 hover:bg-swisse-mist/60 dark:hover:bg-muted/50 transition-colors text-xs text-swisse-ink dark:text-foreground font-medium"
                     aria-label="Reset zoom"
                     title="Reset zoom"
                   >
@@ -296,7 +298,7 @@ export default function ProductImageGallery({
 
           {zoomLevel === MIN_ZOOM && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="bg-black/70 dark:bg-gray-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm shadow-lg">
+              <div className="bg-swisse-ink/80 dark:bg-background/90 backdrop-blur-sm text-swisse-canvas dark:text-foreground px-4 py-2 text-sm shadow-lg">
                 Click to zoom • Scroll to zoom • Use controls
               </div>
             </div>
@@ -305,7 +307,7 @@ export default function ProductImageGallery({
 
         <div className="mt-4 px-2">
           <div className="flex items-center gap-3">
-            <MagnifyingGlassMinusIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+            <MagnifyingGlassMinusIcon className="w-4 h-4 text-swisse-gold/70 flex-shrink-0" />
             <input
               type="range"
               min={MIN_ZOOM}
@@ -313,18 +315,18 @@ export default function ProductImageGallery({
               step={ZOOM_STEP}
               value={zoomLevel}
               onChange={(e) => handleZoomTo(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-600 dark:accent-indigo-500"
+              className="flex-1 h-2 bg-swisse-mist dark:bg-muted appearance-none cursor-pointer accent-swisse-gold"
               aria-label="Zoom level"
             />
-            <MagnifyingGlassPlusIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-            <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[3rem] text-right">
+            <MagnifyingGlassPlusIcon className="w-4 h-4 text-swisse-gold/70 flex-shrink-0" />
+            <span className="text-sm text-swisse-ink/70 dark:text-muted-foreground min-w-[3rem] text-right">
               {Math.round(zoomLevel * 100)}%
             </span>
           </div>
         </div>
 
         {zoomLevel > MIN_ZOOM && (
-          <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-center text-sm text-swisse-ink/60 dark:text-muted-foreground">
             Drag to pan • Scroll to zoom • Click Reset or press ESC to reset
           </p>
         )}
@@ -339,10 +341,10 @@ export default function ProductImageGallery({
               onClick={() => setSelectedImageIndex(index)}
               aria-label={`View image ${index + 1} of ${images.length}`}
               aria-current={selectedImageIndex === index ? 'true' : undefined}
-              className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+              className={`flex-shrink-0 w-20 h-20 overflow-hidden border-2 transition-colors ${
                 selectedImageIndex === index
-                  ? 'border-blue-500 dark:border-blue-400'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  ? 'border-swisse-gold'
+                  : 'border-swisse-gold/20 dark:border-border hover:border-swisse-gold/50'
               }`}
             >
               <Image
