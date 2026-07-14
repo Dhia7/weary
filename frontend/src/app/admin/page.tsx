@@ -10,7 +10,7 @@ import {
   TrendingUp, 
   TrendingDown,
   UserCheck,
-  Globe,
+  MapPin,
   Activity,
   ArrowUpRight,
   ArrowDownRight,
@@ -53,7 +53,7 @@ interface DashboardData {
   verifiedUsers: number;
   usersWithAddresses: number;
   recentUsers: number;
-  usersByCountry: Array<{ country: string; count: number }>;
+  ordersByGovernorate: Array<{ governorate: string; count: number }>;
   totalProducts: number;
   activeProducts: number;
   totalOrders: number;
@@ -177,10 +177,10 @@ export default function AdminDashboardPage() {
     color: getStatusColor(status.status)
   })) || [];
 
-  const usersByCountryChartData = data?.usersByCountry?.slice(0, 7).map(country => ({
-    name: country.country || 'Unknown',
-    value: country.count,
-    users: country.count
+  const ordersByGovernorateChartData = data?.ordersByGovernorate?.slice(0, 7).map(item => ({
+    name: item.governorate || 'Unknown',
+    value: item.count,
+    orders: item.count
   })) || [];
 
   const topProductsChartData = data?.topProducts?.slice(0, 10).map((product, index) => {
@@ -499,18 +499,18 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
 
-                {/* Users by Country */}
+                {/* Orders by Governorate */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Top Countries</CardTitle>
-                    <CardDescription>Users by country</CardDescription>
+                    <CardTitle>Top Governorates</CardTitle>
+                    <CardDescription>Orders by shipping governorate in Tunisia</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {usersByCountryChartData.length > 0 ? (
+                    {ordersByGovernorateChartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
-                            data={usersByCountryChartData}
+                            data={ordersByGovernorateChartData}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
@@ -519,7 +519,7 @@ export default function AdminDashboardPage() {
                             fill="#8884d8"
                             dataKey="value"
                           >
-                            {usersByCountryChartData.map((entry, index) => (
+                            {ordersByGovernorateChartData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -528,7 +528,7 @@ export default function AdminDashboardPage() {
                       </ResponsiveContainer>
                     ) : (
                       <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                        No country data available
+                        No governorate data available
                       </div>
                     )}
                   </CardContent>
@@ -663,6 +663,40 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {data?.ordersByGovernorate && data.ordersByGovernorate.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Orders by Governorate</CardTitle>
+                    <CardDescription>Shipping destinations across Tunisia</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Governorate</TableHead>
+                          <TableHead className="text-right">Orders</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.ordersByGovernorate.map((item, index) => (
+                          <TableRow key={item.governorate || index}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                                {item.governorate || 'Unknown'}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline">{item.count}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="products" className="space-y-4">
@@ -780,40 +814,6 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
               </div>
-
-              {data?.usersByCountry && data.usersByCountry.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Users by Country</CardTitle>
-                    <CardDescription>Geographic distribution of users</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Country</TableHead>
-                          <TableHead className="text-right">Users</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.usersByCountry.map((country, index) => (
-                          <TableRow key={country.country || index}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center">
-                                <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
-                                {country.country || 'Unknown'}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Badge variant="outline">{country.count}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-4">

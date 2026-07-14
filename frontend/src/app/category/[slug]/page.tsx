@@ -8,14 +8,17 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import NotFoundState from '@/components/NotFoundState';
 import { motion } from 'framer-motion';
-import { SortAsc, Grid, List } from 'lucide-react';
+import { SortAsc, Grid, List, Package } from 'lucide-react';
 import { useCategoryProducts } from '@/lib/hooks/useCategoryProducts';
 import {
   bodyTextClass,
+  inlineLinkClass,
   inputClass,
   pageShellClass,
   pageSubtitleClass,
   pageTitleClass,
+  primaryButtonClass,
+  sectionTitleClass,
 } from '@/lib/content-page-styles';
 
 interface Product {
@@ -153,96 +156,102 @@ export default function CategoryPage() {
             {category?.description && (
               <p className={pageSubtitleClass}>{category.description}</p>
             )}
-            <p className={`text-sm ${bodyTextClass} mt-2`}>
-              {products.length} products found
-            </p>
+            {products.length > 0 && (
+              <p className={`text-sm ${bodyTextClass} mt-2`}>
+                {products.length} products found
+              </p>
+            )}
           </motion.div>
         </div>
       </div>
 
-      <div className="border-b border-swisse-gold/10 dark:border-border">
-        <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <SortAsc className="w-4 h-4 text-swisse-gold/70" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
-                  Sort by:
-                </span>
-                <select
-                  value={`${sortBy}-${sortOrder}`}
-                  onChange={(e) => {
-                    const [sort, order] = e.target.value.split('-');
-                    setSortBy(sort);
-                    setSortOrder(order);
-                  }}
-                  title="Sort products"
-                  className={`${inputClass} py-2 text-sm`}
-                >
-                  <option value="name-ASC">Name A-Z</option>
-                  <option value="name-DESC">Name Z-A</option>
-                  <option value="price-ASC">Price Low to High</option>
-                  <option value="price-DESC">Price High to Low</option>
-                  <option value="createdAt-DESC">Newest First</option>
-                  <option value="createdAt-ASC">Oldest First</option>
-                </select>
+      {products.length > 0 && (
+        <div className="border-b border-swisse-gold/10 dark:border-border">
+          <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <SortAsc className="w-4 h-4 text-swisse-gold/70" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
+                    Sort by:
+                  </span>
+                  <select
+                    value={`${sortBy}-${sortOrder}`}
+                    onChange={(e) => {
+                      const [sort, order] = e.target.value.split('-');
+                      setSortBy(sort);
+                      setSortOrder(order);
+                    }}
+                    title="Sort products"
+                    className={`${inputClass} py-2 text-sm`}
+                  >
+                    <option value="name-ASC">Name A-Z</option>
+                    <option value="name-DESC">Name Z-A</option>
+                    <option value="price-ASC">Price Low to High</option>
+                    <option value="price-DESC">Price High to Low</option>
+                    <option value="createdAt-DESC">Newest First</option>
+                    <option value="createdAt-ASC">Oldest First</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-1 border border-swisse-gold/25 dark:border-border">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                title="Grid view"
-                className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background' : 'text-swisse-ink/60 hover:text-swisse-gold dark:text-muted-foreground'}`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                title="List view"
-                className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background' : 'text-swisse-ink/60 hover:text-swisse-gold dark:text-muted-foreground'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1 border border-swisse-gold/25 dark:border-border">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  title="Grid view"
+                  className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background' : 'text-swisse-ink/60 hover:text-swisse-gold dark:text-muted-foreground'}`}
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  title="List view"
+                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background' : 'text-swisse-ink/60 hover:text-swisse-gold dark:text-muted-foreground'}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {products.length === 0 ? (
-          <div className="text-center py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center"
+          >
             <div className="max-w-md mx-auto">
-              <div className="mb-6">
-                <svg className="mx-auto h-24 w-24 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <Package
+                aria-hidden
+                className="mx-auto h-16 w-16 text-swisse-gold/40 dark:text-primary/30 mb-8"
+                strokeWidth={1}
+              />
+              <h2 className={`${sectionTitleClass} mb-4`}>
                 {category?.name} Collection Coming Soon
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                We&apos;re working on curating the perfect {category?.name?.toLowerCase()} collection for you. 
+              </h2>
+              <p className={`${bodyTextClass} leading-relaxed mb-10`}>
+                We&apos;re working on curating the perfect {category?.name?.toLowerCase()} collection for you.
                 Check back soon or explore our other categories!
               </p>
-              <div className="space-y-3">
-                <Link 
-                  href="/collections"
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                >
+              <div className="space-y-6">
+                <Link href="/collections" className={primaryButtonClass}>
                   Browse All Collections
                 </Link>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  <Link href="/contact" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                <p className={`text-sm ${bodyTextClass}`}>
+                  <Link href="/contact" className={inlineLinkClass}>
                     Contact us
                   </Link>
                   {' '}if you&apos;re looking for something specific
-                </div>
+                </p>
               </div>
             </div>
-          </div>
+          </motion.div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}

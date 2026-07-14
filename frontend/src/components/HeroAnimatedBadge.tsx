@@ -8,20 +8,20 @@ type HeroAnimatedBadgeProps = {
 
 export default function HeroAnimatedBadge({ isFrench }: HeroAnimatedBadgeProps) {
   return (
-    <motion.span
+    <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.1 }}
-      className="inline-flex max-w-full items-stretch overflow-hidden border border-[#d7cebe] bg-[#f3eee3]/95 dark:border-swisse-gold/30 dark:bg-swisse-ink/75 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.28em] mb-6 backdrop-blur-sm"
+      className="relative z-20 mb-6 inline-flex w-full max-w-full flex-row items-stretch border border-swisse-gold/35 bg-swisse-canvas shadow-[0_8px_30px_rgba(45,36,22,0.12)] dark:border-swisse-gold/40 dark:bg-swisse-ink/90 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] sm:w-auto"
     >
-      <span className="shrink-0 px-3 sm:px-4 py-2 font-medium text-swisse-ink dark:text-swisse-canvas border-r border-[#d7cebe] dark:border-swisse-gold/30 tracking-[0.2em]">
+      <span className="flex shrink-0 items-center justify-center px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-[0.22em] text-swisse-canvas bg-swisse-ink dark:bg-swisse-gold dark:text-swisse-ink sm:px-4 sm:text-[10px] sm:tracking-[0.2em]">
         CH
       </span>
-      <span className="px-3 sm:px-5 py-2 font-semibold text-[#b39b69] dark:text-swisse-gold leading-relaxed">
+      <span className="min-w-0 px-3 py-2.5 text-[10px] font-semibold uppercase leading-snug tracking-[0.12em] text-swisse-ink dark:text-swisse-gold whitespace-normal sm:px-5 sm:leading-relaxed sm:tracking-[0.22em] lg:whitespace-nowrap">
         {isFrench
           ? 'Importation Officielle · Suisse → Tunisie'
           : 'Official Import · Switzerland → Tunisia'}
       </span>
-    </motion.span>
+    </motion.div>
   );
 }

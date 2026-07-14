@@ -62,6 +62,30 @@ export default function NewProductPage() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
+
+  const fieldErrors = {
+    name: showFieldErrors && !name.trim(),
+    slug: showFieldErrors && !slug.trim(),
+    price: showFieldErrors && !hasVariants && (price === '' || price === null),
+    SKU: showFieldErrors && !hasVariants && !SKU.trim(),
+    quantity: showFieldErrors && !hasVariants && quantity === '',
+    sizeOptions: showFieldErrors && hasSizes && !hasVariants && !sizeOptions.trim(),
+    variants: showFieldErrors && hasVariants && variants.length === 0,
+  };
+
+  const hasValidationErrors =
+    !name.trim() ||
+    !slug.trim() ||
+    (!hasVariants && (!SKU.trim() || price === '' || price === null || quantity === '')) ||
+    (hasSizes && !hasVariants && !sizeOptions.trim()) ||
+    (hasVariants && variants.length === 0);
+
+  const requiredStar = (show: boolean) =>
+    show ? <span className="text-red-500 ml-0.5">*</span> : null;
+
+  const invalidInputClass = (invalid: boolean) =>
+    invalid ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
 
   // Add category modal state
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
@@ -307,6 +331,13 @@ export default function NewProductPage() {
   };
 
   const onSave = async () => {
+    if (hasValidationErrors) {
+      setShowFieldErrors(true);
+      setError('Please fill in all required fields marked with a red star.');
+      return;
+    }
+
+    setShowFieldErrors(false);
     setSaving(true);
     setError(null);
     try {
@@ -315,7 +346,7 @@ export default function NewProductPage() {
       formData.append('name', name);
       formData.append('slug', slug);
       formData.append('description', description);
-      formData.append('price', price.toString());
+      formData.append('price', price === '' ? '0' : price.toString());
       formData.append('compareAtPrice', compareAtPrice === '' ? '' : compareAtPrice.toString());
       formData.append('SKU', SKU);
       formData.append('quantity', quantity === '' ? '0' : quantity.toString());
@@ -334,6 +365,24 @@ export default function NewProductPage() {
         const totalQty = variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
         formData.set('quantity', String(totalQty));
         formData.set('size', '');
+
+        const variantPrices = variants
+          .map((v) => (v.price == null ? null : Number(v.price)))
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+        if (variantPrices.length > 0) {
+          const minPrice = Math.min(...variantPrices);
+          formData.set('price', String(minPrice));
+        } else {
+          formData.set('price', '0');
+        }
+
+        const compareAtPrices = variants
+          .map((v) => (v.compareAtPrice == null ? null : Number(v.compareAtPrice)))
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+        if (compareAtPrices.length > 0) {
+          const minCompareAt = Math.min(...compareAtPrices);
+          formData.set('compareAtPrice', String(minCompareAt));
+        }
       }
       formData.append('isActive', isActive.toString());
       formData.append('allowCustomerQuantity', String(allowCustomerQuantity));
@@ -391,26 +440,28 @@ export default function NewProductPage() {
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Product Title & Description</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Title *</label>
+                <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Product Title{requiredStar(fieldErrors.name)}
+                </label>
                 <input 
                   id="name" 
                   placeholder="Enter product title" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)} 
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                  required
+                  className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.name)}`}
                 />
               </div>
               
               <div>
-                <label htmlFor="slug" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Slug *</label>
+                <label htmlFor="slug" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Slug{requiredStar(fieldErrors.slug)}
+                </label>
                 <input 
                   id="slug" 
                   placeholder="product-slug" 
                   value={slug} 
                   onChange={(e) => setSlug(e.target.value)} 
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                  required
+                  className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.slug)}`}
                 />
               </div>
             </div>
@@ -451,112 +502,119 @@ export default function NewProductPage() {
           />
 
           {/* Pricing Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Pricing</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="price" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Price *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">TND</span>
+          {!hasVariants && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Pricing</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="price" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Price{requiredStar(fieldErrors.price)}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input 
+                      id="price" 
+                      placeholder="0.00" 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      value={price} 
+                      onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))} 
+                      className={`w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.price)}`}
+                    />
                   </div>
-                  <input 
-                    id="price" 
-                    placeholder="0.00" 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    value={price} 
-                    onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))} 
-                    className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                    required
-                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The selling price</p>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The selling price</p>
-              </div>
-              
-              <div>
-                <label htmlFor="compareAtPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at Price</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">TND</span>
+                
+                <div>
+                  <label htmlFor="compareAtPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at Price</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input 
+                      id="compareAtPrice" 
+                      placeholder="0.00" 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      value={compareAtPrice} 
+                      onChange={(e) => setCompareAtPrice(e.target.value === '' ? '' : Number(e.target.value))} 
+                      className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                    />
                   </div>
-                  <input 
-                    id="compareAtPrice" 
-                    placeholder="0.00" 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    value={compareAtPrice} 
-                    onChange={(e) => setCompareAtPrice(e.target.value === '' ? '' : Number(e.target.value))} 
-                    className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Inventory Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Inventory (SKU & Barcode)</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="sku" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">SKU (Stock Keeping Unit) *</label>
-                <input 
-                  id="sku" 
-                  placeholder="EVADRESS-BLU-M" 
-                  value={SKU} 
-                  onChange={(e) => setSKU(e.target.value)} 
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                  required
+          {!hasVariants && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Inventory (SKU & Barcode)</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="sku" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    SKU (Stock Keeping Unit){requiredStar(fieldErrors.SKU)}
+                  </label>
+                  <input 
+                    id="sku" 
+                    placeholder="EVADRESS-BLU-M" 
+                    value={SKU} 
+                    onChange={(e) => setSKU(e.target.value)} 
+                    className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.SKU)}`}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Create a unique identifier for each product variant. Example: EVADRESS-BLU-M for the Eva Dress in Blue, Size Medium.</p>
+                </div>
+                
+                <div>
+                  <label htmlFor="quantity" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Quantity{requiredStar(fieldErrors.quantity)}
+                  </label>
+                  <input 
+                    id="quantity" 
+                    placeholder="0" 
+                    type="number" 
+                    min="0"
+                    value={quantity} 
+                    onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} 
+                    className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.quantity)}`}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter the stock level for each variant. This allows for low-stock alerts.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-start space-x-2">
+                <input
+                  id="allowCustomerQuantity"
+                  type="checkbox"
+                  checked={allowCustomerQuantity}
+                  onChange={(e) => setAllowCustomerQuantity(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Create a unique identifier for each product variant. Example: EVADRESS-BLU-M for the Eva Dress in Blue, Size Medium.</p>
+                <label htmlFor="allowCustomerQuantity" className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Let customers choose quantity</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    When enabled, shoppers can pick how many to add on the product page, quick view, and cart (up to available stock).
+                  </span>
+                </label>
               </div>
               
-              <div>
-                <label htmlFor="quantity" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Quantity *</label>
+              <div className="mt-6">
+                <label htmlFor="barcode" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Barcode (Optional)</label>
                 <input 
-                  id="quantity" 
-                  placeholder="0" 
-                  type="number" 
-                  min="0"
-                  value={quantity} 
-                  onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} 
+                  id="barcode" 
+                  placeholder="123456789012" 
+                  value={barcode} 
+                  onChange={(e) => setBarcode(e.target.value)} 
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                  required
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter the stock level for each variant. This allows for low-stock alerts.</p>
               </div>
             </div>
-
-            <div className="mt-6 flex items-start space-x-2">
-              <input
-                id="allowCustomerQuantity"
-                type="checkbox"
-                checked={allowCustomerQuantity}
-                onChange={(e) => setAllowCustomerQuantity(e.target.checked)}
-                className="w-4 h-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label htmlFor="allowCustomerQuantity" className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Let customers choose quantity</span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  When enabled, shoppers can pick how many to add on the product page, quick view, and cart (up to available stock).
-                </span>
-              </label>
-            </div>
-            
-            <div className="mt-6">
-              <label htmlFor="barcode" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Barcode (Optional)</label>
-              <input 
-                id="barcode" 
-                placeholder="123456789012" 
-                value={barcode} 
-                onChange={(e) => setBarcode(e.target.value)} 
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-              />
-            </div>
-          </div>
+          )}
 
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center space-x-2 mb-4">
@@ -575,13 +633,21 @@ export default function NewProductPage() {
               </label>
             </div>
             {hasVariants && (
-              <VariantEditor
-                parentSku={SKU}
-                basePrice={price}
-                baseCompareAtPrice={compareAtPrice}
-                variants={variants}
-                onChange={setVariants}
-              />
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Color Variants{requiredStar(fieldErrors.variants)}
+                </p>
+                {fieldErrors.variants && (
+                  <p className="text-sm text-red-600 mb-3">Add at least one color variant.</p>
+                )}
+                <VariantEditor
+                  parentSku={SKU}
+                  basePrice={price}
+                  baseCompareAtPrice={compareAtPrice}
+                  variants={variants}
+                  onChange={setVariants}
+                />
+              </div>
             )}
           </div>
 
@@ -685,14 +751,14 @@ export default function NewProductPage() {
               <div className="mt-6 space-y-4">
                 <div>
                   <label htmlFor="sizeOptions" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Available Sizes
+                    Available Sizes{requiredStar(fieldErrors.sizeOptions)}
                   </label>
                   <input
                     id="sizeOptions"
                     placeholder="XS, S, M, L or 38, 39, 40, 41"
                     value={sizeOptions}
                     onChange={(e) => setSizeOptions(e.target.value)}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.sizeOptions)}`}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Enter sizes separated by commas. Example: XS, S, M or 38, 39, 40, 41.
@@ -783,7 +849,7 @@ export default function NewProductPage() {
           {/* Action Buttons */}
           <div className="flex gap-3 pt-6 border-t">
             <button 
-              disabled={saving || !name || !slug || !SKU || !price || quantity === '' || (hasSizes && !sizeOptions.trim()) || (hasVariants && variants.length === 0)} 
+              disabled={saving}
               onClick={onSave} 
               className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
             >

@@ -15,7 +15,7 @@ export default function HeroAnimatedCtas({ isFrench }: HeroAnimatedCtasProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.4 }}
-      className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8"
+      className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8 mb-12 sm:mb-0"
     >
       <Link
         href="/products"

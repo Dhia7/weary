@@ -481,10 +481,10 @@ export default function EditProductPage() {
       formData.append('name', productData.name);
       formData.append('slug', productData.slug);
       formData.append('description', productData.description);
-      formData.append('price', productData.price.toString());
-      formData.append('compareAtPrice', productData.compareAtPrice.toString());
+      formData.append('price', productData.price === '' ? '0' : productData.price.toString());
+      formData.append('compareAtPrice', productData.compareAtPrice === '' ? '' : productData.compareAtPrice.toString());
       formData.append('SKU', productData.SKU);
-      formData.append('quantity', productData.quantity.toString());
+      formData.append('quantity', productData.quantity === '' ? '0' : productData.quantity.toString());
       formData.append('barcode', productData.barcode || '');
       formData.append('weightGrams', productData.weightGrams.toString());
       formData.append('depthCm', productData.depthCm === '' || productData.depthCm == null ? '' : String(productData.depthCm));
@@ -495,11 +495,29 @@ export default function EditProductPage() {
       formData.append('size', hasSizes ? sizeOptions.trim() : '');
       // For made-to-order products, send empty sizeStock (not tracking stock per size)
       formData.append('sizeStock', JSON.stringify({}));
-      if (hasVariants) {
+      if (hasVariants && variants.length > 0) {
         formData.append('variants', JSON.stringify(variants));
         const totalQty = variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
         formData.set('quantity', String(totalQty));
         formData.set('size', '');
+
+        const variantPrices = variants
+          .map((v) => (v.price == null ? null : Number(v.price)))
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+        if (variantPrices.length > 0) {
+          const minPrice = Math.min(...variantPrices);
+          formData.set('price', String(minPrice));
+        } else {
+          formData.set('price', '0');
+        }
+
+        const compareAtPrices = variants
+          .map((v) => (v.compareAtPrice == null ? null : Number(v.compareAtPrice)))
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+        if (compareAtPrices.length > 0) {
+          const minCompareAt = Math.min(...compareAtPrices);
+          formData.set('compareAtPrice', String(minCompareAt));
+        }
       }
       formData.append('isActive', productData.isActive.toString());
       formData.append('allowCustomerQuantity', String(Boolean(productData.allowCustomerQuantity)));
@@ -683,118 +701,122 @@ export default function EditProductPage() {
           />
 
           {/* Pricing Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Pricing</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="price" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Price *</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">TND</span>
+            {!hasVariants && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Pricing</h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="price" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Price *</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500 sm:text-sm">TND</span>
+                      </div>
+                      <input 
+                        id="price" 
+                        placeholder="0.00" 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        value={productData.price} 
+                        onChange={(e) => updateProduct('price', e.target.value === '' ? '' : Number(e.target.value))} 
+                        className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                        required
+                      />
                     </div>
-                    <input 
-                      id="price" 
-                      placeholder="0.00" 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      value={productData.price} 
-                      onChange={(e) => updateProduct('price', e.target.value === '' ? '' : Number(e.target.value))} 
-                      className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                      required
-                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The selling price</p>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The selling price</p>
-                </div>
-                
-                <div>
-                  <label htmlFor="compareAtPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at Price</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">TND</span>
+                  
+                  <div>
+                    <label htmlFor="compareAtPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at Price</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500 sm:text-sm">TND</span>
+                      </div>
+                      <input 
+                        id="compareAtPrice" 
+                        placeholder="0.00" 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        value={productData.compareAtPrice} 
+                        onChange={(e) => updateProduct('compareAtPrice', e.target.value === '' ? '' : Number(e.target.value))} 
+                        className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                      />
                     </div>
-                    <input 
-                      id="compareAtPrice" 
-                      placeholder="0.00" 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      value={productData.compareAtPrice} 
-                      onChange={(e) => updateProduct('compareAtPrice', e.target.value === '' ? '' : Number(e.target.value))} 
-                      className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Inventory Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Inventory (SKU & Barcode)</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="sku" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">SKU (Stock Keeping Unit) *</label>
-                  <input 
-                    id="sku" 
-                    placeholder="EVADRESS-BLU-M" 
-                    value={productData.SKU} 
-                    onChange={(e) => updateProduct('SKU', e.target.value)} 
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                    required
+            {!hasVariants && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Inventory (SKU & Barcode)</h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="sku" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">SKU (Stock Keeping Unit) *</label>
+                    <input 
+                      id="sku" 
+                      placeholder="EVADRESS-BLU-M" 
+                      value={productData.SKU} 
+                      onChange={(e) => updateProduct('SKU', e.target.value)} 
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                      required
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Create a unique identifier for each product variant. Example: EVADRESS-BLU-M for the Eva Dress in Blue, Size Medium.</p>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="quantity" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Quantity *
+                    </label>
+                    <input 
+                      id="quantity" 
+                      placeholder="0" 
+                      type="number" 
+                      min="0"
+                      value={productData.quantity} 
+                      onChange={(e) => {
+                        updateProduct('quantity', e.target.value === '' ? '' : Number(e.target.value));
+                      }}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Enter the stock level for this product. This allows for low-stock alerts.
+                    </p>
+                  </div>
+                </div>
+ 
+                <div className="mt-6 flex items-start space-x-2">
+                  <input
+                    id="allowCustomerQuantity"
+                    type="checkbox"
+                    checked={Boolean(productData.allowCustomerQuantity)}
+                    onChange={(e) => updateProduct('allowCustomerQuantity', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Create a unique identifier for each product variant. Example: EVADRESS-BLU-M for the Eva Dress in Blue, Size Medium.</p>
+                  <label htmlFor="allowCustomerQuantity" className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Let customers choose quantity</span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      When enabled, shoppers can pick how many to add on the product page, quick view, and cart (up to available stock).
+                    </span>
+                  </label>
                 </div>
                 
-                <div>
-                  <label htmlFor="quantity" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Quantity *
-                  </label>
+                <div className="mt-6">
+                  <label htmlFor="barcode" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Barcode (Optional)</label>
                   <input 
-                    id="quantity" 
-                    placeholder="0" 
-                    type="number" 
-                    min="0"
-                    value={productData.quantity} 
-                    onChange={(e) => {
-                      updateProduct('quantity', e.target.value === '' ? '' : Number(e.target.value));
-                    }}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-                    required
+                    id="barcode" 
+                    placeholder="123456789012" 
+                    value={productData.barcode || ''} 
+                    onChange={(e) => updateProduct('barcode', e.target.value)} 
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Enter the stock level for this product. This allows for low-stock alerts.
-                  </p>
                 </div>
               </div>
-
-              <div className="mt-6 flex items-start space-x-2">
-                <input
-                  id="allowCustomerQuantity"
-                  type="checkbox"
-                  checked={Boolean(productData.allowCustomerQuantity)}
-                  onChange={(e) => updateProduct('allowCustomerQuantity', e.target.checked)}
-                  className="w-4 h-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="allowCustomerQuantity" className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Let customers choose quantity</span>
-                  <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    When enabled, shoppers can pick how many to add on the product page, quick view, and cart (up to available stock).
-                  </span>
-                </label>
-              </div>
-              
-              <div className="mt-6">
-                <label htmlFor="barcode" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Barcode (Optional)</label>
-                <input 
-                  id="barcode" 
-                  placeholder="123456789012" 
-                  value={productData.barcode || ''} 
-                  onChange={(e) => updateProduct('barcode', e.target.value)} 
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
-                />
-              </div>
-            </div>
+            )}
 
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center space-x-2 mb-4">
@@ -1022,7 +1044,14 @@ export default function EditProductPage() {
         {/* Action Buttons */}
         <div className="flex gap-3 pt-6 border-t">
           <button 
-            disabled={saving || !productData.name || !productData.slug || !productData.SKU || !productData.price || productData.quantity === '' || (hasSizes && !sizeOptions.trim())} 
+            disabled={
+              saving ||
+              !productData.name ||
+              !productData.slug ||
+              (!hasVariants && (!productData.SKU || !productData.price || productData.quantity === '')) ||
+              (hasSizes && !sizeOptions.trim()) ||
+              (hasVariants && variants.length === 0)
+            } 
             onClick={onSave} 
             className="px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
           >

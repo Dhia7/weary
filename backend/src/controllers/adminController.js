@@ -533,20 +533,23 @@ const getDashboardStats = async (req, res) => {
       }
     });
 
-    // Users by country (top 5)
-    const usersByCountryRaw = await Address.findAll({
+    // Orders by governorate from shipping address (top 10)
+    const ordersByGovernorateRaw = await Order.findAll({
       attributes: [
-        'country',
-        [sequelize.fn('COUNT', sequelize.col('userId')), 'userCount']
+        [sequelize.literal(`"shippingAddress"->>'city'`), 'governorate'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount']
       ],
-      group: ['country'],
-      order: [[sequelize.fn('COUNT', sequelize.col('userId')), 'DESC']],
-      limit: 5,
+      where: sequelize.literal(
+        `"shippingAddress"->>'city' IS NOT NULL AND TRIM("shippingAddress"->>'city') <> ''`
+      ),
+      group: [sequelize.literal(`"shippingAddress"->>'city'`)],
+      order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']],
+      limit: 10,
       raw: true
     });
-    const usersByCountry = usersByCountryRaw.map(item => ({
-      country: item.country,
-      count: parseInt(item.userCount) || 0
+    const ordersByGovernorate = ordersByGovernorateRaw.map(item => ({
+      governorate: item.governorate,
+      count: parseInt(item.orderCount) || 0
     }));
 
     // Get product statistics
@@ -789,7 +792,7 @@ const getDashboardStats = async (req, res) => {
         verifiedUsers,
         usersWithAddresses,
         recentUsers,
-        usersByCountry,
+        ordersByGovernorate,
         totalProducts,
         activeProducts,
         totalOrders,

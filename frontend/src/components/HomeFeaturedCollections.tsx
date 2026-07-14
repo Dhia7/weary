@@ -35,7 +35,11 @@ export default function HomeFeaturedCollections() {
   const { isFrench } = useLanguage();
 
   return (
-    <section id="collections" aria-labelledby="collections-heading" className="py-24 md:py-32 px-6 md:px-8 max-w-swisse mx-auto">
+    <section
+      id="collections"
+      aria-labelledby="collections-heading"
+      className="py-24 md:py-32 px-6 md:px-8 max-w-swisse mx-auto"
+    >
       <h2 id="collections-heading" className="sr-only">
         {isFrench ? 'Collections' : 'Collections'}
       </h2>

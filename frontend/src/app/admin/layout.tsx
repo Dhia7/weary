@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  Mail
+  Mail,
+  User
 } from 'lucide-react';
 
 const navigation = [
@@ -24,6 +25,11 @@ const navigation = [
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { name: 'Messages', href: '/admin/messages', icon: Mail },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
+];
+
+const footerLinks = [
+  { name: 'My Profile', href: '/account', icon: User },
+  { name: 'Back to Site', href: '/', icon: LogOut },
 ];
 
 export default function AdminLayout({
@@ -163,6 +169,19 @@ export default function AdminLayout({
                 );
               })}
             </nav>
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-1">
+              {footerLinks.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="group flex items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -198,14 +217,17 @@ export default function AdminLayout({
                 );
               })}
             </nav>
-            <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-              <Link
-                href="/"
-                className="group flex items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md"
-              >
-                <LogOut className="mr-3 h-5 w-5" />
-                Back to Site
-              </Link>
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-1">
+              {footerLinks.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="group flex items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md"
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -224,7 +246,14 @@ export default function AdminLayout({
               <Menu className="h-6 w-6" />
             </button>
             <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-              <div className="flex flex-1"></div>
+              <div className="flex flex-1" />
+              <Link
+                href="/account"
+                className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+              >
+                <User className="h-5 w-5" />
+                <span className="hidden sm:inline">My Profile</span>
+              </Link>
             </div>
           </div>
 

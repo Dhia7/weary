@@ -11,7 +11,7 @@ export default async function Hero() {
   return (
     <section
       id="hero"
-      className="relative min-h-screen flex items-center dark:bg-swisse-ink"
+      className="relative min-h-screen flex items-start md:items-center dark:bg-swisse-ink"
     >
       <div className="absolute inset-0">
         <Image
@@ -27,7 +27,7 @@ export default async function Hero() {
         <div className="absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />
       </div>
 
-      <div className="relative z-10 max-w-swisse mx-auto px-6 md:px-8 w-full pt-24 pb-32 md:pb-40">
+      <div className="relative z-10 max-w-swisse mx-auto px-6 md:px-8 w-full pt-32 md:pt-24 pb-52 md:pb-40">
         <div className="max-w-2xl">
           <HeroAnimatedBadge isFrench={isFrench} />
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1] mb-8 text-swisse-ink dark:text-swisse-canvas">
