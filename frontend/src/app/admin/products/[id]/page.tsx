@@ -841,6 +841,7 @@ export default function EditProductPage() {
                   baseCompareAtPrice={productData.compareAtPrice}
                   variants={variants}
                   onChange={setVariants}
+                  sampleImages={imagePreviews}
                 />
               )}
             </div>

@@ -133,4 +133,25 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Ensure react-colorful remains sized and interactive in admin swatch modal */
+  .swatch-color-picker .react-colorful {
+    width: 100% !important;
+    height: 168px !important;
+  }
+
+  .swatch-color-picker .react-colorful__saturation {
+    border-radius: 8px 8px 0 0;
+  }
+
+  .swatch-color-picker .react-colorful__hue {
+    height: 14px;
+    margin-top: 10px;
+    border-radius: 999px;
+  }
+
+  .swatch-color-picker .react-colorful__pointer {
+    width: 18px;
+    height: 18px;
+  }
 }

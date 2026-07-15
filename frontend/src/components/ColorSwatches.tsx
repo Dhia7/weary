@@ -1,6 +1,7 @@
 'use client';
 
 import type { ColorOption } from '@/lib/types/product';
+import { getImageUrl } from '@/lib/utils';
 
 interface ColorSwatchesProps {
   colors: ColorOption[];
@@ -27,10 +28,15 @@ export default function ColorSwatches({
     <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.preventDefault()}>
       {visible.map((c) => {
         const isSelected = selectedColor?.toLowerCase() === c.name.toLowerCase();
+        const imageSrc = c.imageUrl ? getImageUrl(c.imageUrl) || c.imageUrl : null;
         const swatchStyle = c.hex
           ? { backgroundColor: c.hex }
-          : c.imageUrl
-            ? { backgroundImage: `url(${c.imageUrl})`, backgroundSize: 'cover' }
+          : imageSrc
+            ? {
+                backgroundImage: `url(${imageSrc})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
             : { backgroundColor: '#d1d5db' };
 
         return (

@@ -646,6 +646,7 @@ export default function NewProductPage() {
                   baseCompareAtPrice={compareAtPrice}
                   variants={variants}
                   onChange={setVariants}
+                  sampleImages={imagePreviews}
                 />
               </div>
             )}

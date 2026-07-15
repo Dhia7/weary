@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { HexColorInput, HexColorPicker } from 'react-colorful';
 import type { ProductVariant } from '@/lib/types/product';
+import { getImageUrl } from '@/lib/utils';
 import { slugifyCode } from '@/lib/utils/variants';
 
 export type VariantDraft = Omit<ProductVariant, 'id' | 'productId'> & {
@@ -31,6 +32,8 @@ interface VariantEditorProps {
   baseCompareAtPrice?: number | '';
   variants: VariantDraft[];
   onChange: (variants: VariantDraft[]) => void;
+  /** Product / per-color images used to sample swatch colors */
+  sampleImages?: string[];
 }
 
 const defaultColors = [
@@ -67,23 +70,88 @@ interface SwatchPickerProps {
   confirmed?: boolean;
   onConfirm: (hex: string) => void;
   size?: 'md' | 'sm';
+  sampleImages?: string[];
 }
 
-function SwatchPicker({ value, confirmed = false, onConfirm, size = 'md' }: SwatchPickerProps) {
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b]
+    .map((n) => n.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+function sampleColorFromImage(
+  img: HTMLImageElement,
+  clientX: number,
+  clientY: number
+): string | null {
+  const rect = img.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  const x = Math.min(
+    Math.max(0, Math.floor(((clientX - rect.left) / rect.width) * img.naturalWidth)),
+    Math.max(0, img.naturalWidth - 1)
+  );
+  const y = Math.min(
+    Math.max(0, Math.floor(((clientY - rect.top) / rect.height) * img.naturalHeight)),
+    Math.max(0, img.naturalHeight - 1)
+  );
+
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  try {
+    ctx.drawImage(img, 0, 0);
+    const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+    return rgbToHex(r, g, b);
+  } catch {
+    // Cross-origin images without CORS cannot be sampled
+    return null;
+  }
+}
+
+function SwatchPicker({
+  value,
+  confirmed = false,
+  onConfirm,
+  size = 'md',
+  sampleImages = [],
+}: SwatchPickerProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [localHex, setLocalHex] = useState(value);
-  const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
   const [mounted, setMounted] = useState(false);
+  const [samplingUrl, setSamplingUrl] = useState<string | null>(null);
+  const [sampleHint, setSampleHint] = useState<string | null>(null);
   const previewSize = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10';
   const displayHex = value.trim() ? pickerHex(value) : '#e5e7eb';
   const valid = Boolean(normalizeHex(localHex));
+  const resolvedSamples = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of sampleImages) {
+      const trimmed = raw?.trim();
+      if (!trimmed) continue;
+      const url =
+        /^(blob:|data:|https?:\/\/)/i.test(trimmed)
+          ? trimmed
+          : getImageUrl(trimmed) || trimmed;
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      out.push(url);
+    }
+    return out.slice(0, 8);
+  }, [sampleImages]);
 
   useEffect(() => setMounted(true), []);
 
   const closePanel = useCallback(() => {
     setOpen(false);
+    setSamplingUrl(null);
+    setSampleHint(null);
     requestAnimationFrame(() => buttonRef.current?.focus());
   }, []);
 
@@ -97,18 +165,24 @@ function SwatchPicker({ value, confirmed = false, onConfirm, size = 'md' }: Swat
       if (e.key === 'Escape') closePanel();
     };
 
+    // Prevent background scroll while the picker is open
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [open, value, closePanel]);
 
   const openPanel = () => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) {
-      const panelWidth = 240;
-      const left = Math.min(rect.left, window.innerWidth - panelWidth - 12);
-      setPanelPos({ top: rect.bottom + 8, left: Math.max(12, left) });
-    }
     setLocalHex(value.trim() ? pickerHex(value) : '#000000');
+    setSamplingUrl(resolvedSamples[0] || null);
+    setSampleHint(
+      resolvedSamples.length
+        ? 'Click a spot on an image below to sample its color.'
+        : null
+    );
     setOpen(true);
   };
 
@@ -119,34 +193,76 @@ function SwatchPicker({ value, confirmed = false, onConfirm, size = 'md' }: Swat
     closePanel();
   };
 
+  const handleSampleClick = (
+    e: MouseEvent<HTMLImageElement>,
+    url: string
+  ) => {
+    const hex = sampleColorFromImage(e.currentTarget, e.clientX, e.clientY);
+    if (!hex) {
+      setSampleHint('Could not sample this image (try another or use the picker).');
+      return;
+    }
+    setSamplingUrl(url);
+    setLocalHex(hex);
+    setSampleHint(`Sampled ${hex}`);
+  };
+
   const panel =
     open && mounted
       ? createPortal(
-          <>
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
             <div
-              className="fixed inset-0 z-[200] bg-black/20"
+              className="absolute inset-0 bg-black/40"
               aria-hidden
-              onPointerDown={(e) => {
-                if (panelRef.current?.contains(e.target as Node)) return;
-                closePanel();
-              }}
+              onClick={closePanel}
             />
             <div
               ref={panelRef}
               role="dialog"
+              aria-modal="true"
               aria-label="Choose swatch color"
-              className="fixed z-[201] w-[240px] rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 shadow-xl [&_.react-colorful]:w-full [&_.react-colorful]:h-40"
-              style={{ top: panelPos.top, left: panelPos.left }}
-              onPointerDown={(e) => e.stopPropagation()}
+              className="relative z-[301] w-full max-w-[300px] max-h-[min(90vh,640px)] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
             >
-              <HexColorPicker color={pickerHex(localHex)} onChange={setLocalHex} />
+              <div className="flex items-center gap-3 mb-4">
+                <span
+                  className="w-10 h-10 rounded-lg border border-gray-300 dark:border-gray-600 shrink-0 shadow-inner"
+                  style={{ backgroundColor: pickerHex(localHex) }}
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Color picker
+                  </p>
+                  <p className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate">
+                    {pickerHex(localHex)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePanel}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none px-1"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="swatch-color-picker w-full">
+                <HexColorPicker
+                  color={pickerHex(localHex)}
+                  onChange={setLocalHex}
+                  style={{ width: '100%', height: 168 }}
+                />
+              </div>
+
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {quickPickColors.map((hex) => (
                   <button
                     key={hex}
                     type="button"
                     onClick={() => setLocalHex(hex)}
-                    className={`w-6 h-6 rounded-full border-2 shrink-0 hover:scale-110 transition-transform ${
+                    className={`w-7 h-7 rounded-full border-2 shrink-0 hover:scale-110 transition-transform ${
                       pickerHex(localHex) === hex
                         ? 'border-indigo-500 ring-1 ring-indigo-300'
                         : 'border-gray-300 dark:border-gray-600'
@@ -157,38 +273,88 @@ function SwatchPicker({ value, confirmed = false, onConfirm, size = 'md' }: Swat
                   />
                 ))}
               </div>
+
               <HexColorInput
                 prefixed
                 color={pickerHex(localHex)}
                 onChange={setLocalHex}
                 aria-label="Hex color code"
-                className="mt-3 w-full border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 text-sm font-mono bg-white dark:bg-gray-700"
+                className="mt-3 w-full border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-2 text-sm font-mono bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
-              <div className="mt-3 flex gap-2">
+
+              {resolvedSamples.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">
+                    Pick from product images
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {resolvedSamples.map((url) => (
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => {
+                          setSamplingUrl(url);
+                          setSampleHint('Click a spot on the image to sample its color.');
+                        }}
+                        className={`w-10 h-10 rounded-md overflow-hidden border-2 shrink-0 ${
+                          samplingUrl === url
+                            ? 'border-indigo-500 ring-1 ring-indigo-300'
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                        title="Use this image"
+                        aria-label="Select image to sample color from"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                  {samplingUrl && (
+                    <div className="rounded-lg border border-dashed border-indigo-300 dark:border-indigo-700 overflow-hidden bg-gray-50 dark:bg-gray-900/40">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={samplingUrl}
+                        alt="Click to sample color"
+                        crossOrigin="anonymous"
+                        onClick={(e) => handleSampleClick(e, samplingUrl)}
+                        className="w-full h-32 object-cover cursor-crosshair"
+                        title="Click anywhere to sample a color"
+                      />
+                    </div>
+                  )}
+                  {sampleHint && (
+                    <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                      {sampleHint}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 flex gap-2 sticky bottom-0 bg-white dark:bg-gray-800 pt-2">
                 <button
                   type="button"
                   onClick={applyColor}
                   disabled={!valid}
-                  className="flex-1 px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2.5 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Confirm
                 </button>
                 <button
                   type="button"
                   onClick={closePanel}
-                  className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="px-3 py-2.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>
               </div>
             </div>
-          </>,
+          </div>,
           document.body
         )
       : null;
 
   return (
-    <>
+    <div className="relative inline-flex shrink-0">
       <button
         ref={buttonRef}
         type="button"
@@ -197,13 +363,13 @@ function SwatchPicker({ value, confirmed = false, onConfirm, size = 'md' }: Swat
           confirmed ? 'border-green-500' : 'border-dashed border-amber-400'
         }`}
         style={{ backgroundColor: displayHex }}
-        title="Click to pick a color"
+        title="Click to open color picker"
         aria-label="Pick swatch color"
         aria-expanded={open ? 'true' : 'false'}
         aria-haspopup="dialog"
       />
       {panel}
-    </>
+    </div>
   );
 }
 
@@ -213,6 +379,7 @@ export default function VariantEditor({
   baseCompareAtPrice = '',
   variants,
   onChange,
+  sampleImages = [],
 }: VariantEditorProps) {
   const [colorInput, setColorInput] = useState('');
   const [colorHex, setColorHex] = useState('#000000');
@@ -220,6 +387,15 @@ export default function VariantEditor({
   const [swatchConfirmed, setSwatchConfirmed] = useState(false);
   const [sizeInput, setSizeInput] = useState('');
   const [hasSizes, setHasSizes] = useState(false);
+
+  const pickerSampleImages = useMemo(() => {
+    const fromVariants: string[] = [];
+    for (const v of variants) {
+      if (v.imageUrl) fromVariants.push(v.imageUrl);
+      if (Array.isArray(v.images)) fromVariants.push(...v.images);
+    }
+    return [...sampleImages, ...fromVariants];
+  }, [sampleImages, variants]);
 
   const confirmSwatch = (hex: string) => {
     setSwatchDraft(hex);
@@ -394,6 +570,7 @@ export default function VariantEditor({
                 value={swatchDraft}
                 confirmed={swatchConfirmed}
                 onConfirm={confirmSwatch}
+                sampleImages={pickerSampleImages}
               />
               {swatchConfirmed && (
                 <span className="text-xs font-mono text-gray-600 dark:text-gray-400">{colorHex}</span>
@@ -401,7 +578,7 @@ export default function VariantEditor({
             </div>
             {!swatchConfirmed && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                Click the swatch, pick a color, then press Confirm in the panel.
+                Click the swatch to open the color picker, then press Confirm in the panel.
               </p>
             )}
           </div>
@@ -498,6 +675,7 @@ export default function VariantEditor({
                       value={variant.colorHex || ''}
                       confirmed={Boolean(normalizeHex(variant.colorHex || ''))}
                       onConfirm={(hex) => updateVariant(index, { colorHex: hex })}
+                      sampleImages={pickerSampleImages}
                     />
                   </td>
                   <td className="px-3 py-2">
