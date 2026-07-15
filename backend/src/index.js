@@ -143,7 +143,10 @@ const allowedOrigins = new Set([
   // Vercel deployment domains
   'https://weary-iota.vercel.app',
   'https://weary-git-main-dhia7s-projects.vercel.app',
-  'https://weary-kndtv5wjk-dhia7s-projects.vercel.app'
+  'https://weary-kndtv5wjk-dhia7s-projects.vercel.app',
+  // Website domains
+  'https://www.swisia.store',
+  'https://swisia.store'
 ]);
 
 const vercelOriginPattern = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i;
