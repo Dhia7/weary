@@ -44,6 +44,10 @@ const syncProductVariants = async (productId, variantsPayload, parentSku, transa
 		if (!row || !row.color || !String(row.color).trim()) continue;
 
 		const color = String(row.color).trim();
+		const colorFr =
+			row.colorFr != null && String(row.colorFr).trim()
+				? String(row.colorFr).trim()
+				: null;
 		const colorCode = row.colorCode ? String(row.colorCode).trim() : slugifyCode(color);
 		const size = row.size && String(row.size).trim() ? String(row.size).trim() : null;
 		const sku =
@@ -55,6 +59,7 @@ const syncProductVariants = async (productId, variantsPayload, parentSku, transa
 			productId,
 			SKU: sku,
 			color,
+			colorFr,
 			colorCode,
 			colorHex: row.colorHex || null,
 			size,
@@ -111,12 +116,16 @@ const deriveColorOptions = (variants, productPrice = 0) => {
 		if (!map.has(key)) {
 			map.set(key, {
 				name: json.color,
+				nameFr: json.colorFr || null,
 				hex: json.colorHex || null,
 				imageUrl: json.imageUrl || (Array.isArray(json.images) && json.images[0]) || null,
 				price: effectivePrice
 			});
 		} else {
 			const existing = map.get(key);
+			if (!existing.nameFr && json.colorFr) {
+				existing.nameFr = json.colorFr;
+			}
 			if (effectivePrice < existing.price) {
 				existing.price = effectivePrice;
 			}

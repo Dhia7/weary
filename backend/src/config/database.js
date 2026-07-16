@@ -208,6 +208,13 @@ const connectDB = async () => {
       }
 
       try {
+        const addProductFrFields = require('../scripts/add-product-fr-fields');
+        await addProductFrFields();
+      } catch (error) {
+        console.warn('Product French fields migration failed (non-critical):', error.message);
+      }
+
+      try {
         const { addUserRoleColumn } = require('../scripts/add-user-role-column');
         await addUserRoleColumn();
       } catch (error) {

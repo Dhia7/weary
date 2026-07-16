@@ -249,7 +249,7 @@ const normalizeSizeField = (size) => {
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, allowCustomerQuantity } = req.body;
+		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, allowCustomerQuantity } = req.body;
 		const specs = parseSpecFields(req.body);
 		
 		// Parse categoryIds if it's a string (from FormData)
@@ -303,7 +303,8 @@ const createProduct = async (req, res) => {
 
 		// Note: sizeStock column doesn't exist in database, so we don't include it in create
 		const product = await Product.create({ 
-			name, 
+			name,
+			nameFr: nameFr != null && String(nameFr).trim() ? String(nameFr).trim() : null,
 			slug, 
 			description, 
 			SKU, 
@@ -566,7 +567,7 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, sizeStock, depthCm, widthCm, heightCm, outerMaterial, allowCustomerQuantity } = req.body;
+		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, sizeStock, depthCm, widthCm, heightCm, outerMaterial, allowCustomerQuantity } = req.body;
 		
 		console.log('=== UPDATE PRODUCT REQUEST ===');
 		console.log('Product ID:', id);
@@ -663,6 +664,9 @@ const updateProduct = async (req, res) => {
 		product.imageUrl = workingImages.length > 0 ? (workingImages[mainThumbnailIndex] || workingImages[0]) : null;
 
 		if (name !== undefined) product.name = name;
+		if (nameFr !== undefined) {
+			product.nameFr = nameFr != null && String(nameFr).trim() ? String(nameFr).trim() : null;
+		}
 		if (slug !== undefined) product.slug = slug;
 		if (description !== undefined) product.description = description;
 		if (SKU !== undefined) product.SKU = SKU;

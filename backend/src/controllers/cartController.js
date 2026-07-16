@@ -86,10 +86,23 @@ const transformCartItems = (cartItems) => {
             : Number(product.quantity) || 0;
           const allowCustomerQuantity = Boolean(product.allowCustomerQuantity);
 
+          const canonicalColor = itemData.color || variant?.color || undefined;
+          let colorFr = variant?.colorFr || null;
+          if (!colorFr && canonicalColor && Array.isArray(product.variants)) {
+            const colorMatch = getActiveVariants(product.variants).find(
+              (v) =>
+                String(v.color || '')
+                  .trim()
+                  .toLowerCase() === String(canonicalColor).trim().toLowerCase()
+            );
+            colorFr = colorMatch?.colorFr || null;
+          }
+
           const transformed = {
             id: uniqueId,
             productId: String(product.id),
             name: product.name || 'Unknown Product',
+            nameFr: product.nameFr || null,
             price: variantPrice,
             image: variantImage,
             slug: product.slug || null,
@@ -99,7 +112,8 @@ const transformCartItems = (cartItems) => {
             allowCustomerQuantity,
             SKU: variant?.SKU || product.SKU || '',
             size: itemData.size || variant?.size || undefined,
-            color: itemData.color || variant?.color || undefined,
+            color: canonicalColor,
+            colorFr,
             variantId: itemData.variantId ? String(itemData.variantId) : undefined,
             cartItemId: itemData.id ? String(itemData.id) : undefined
           };

@@ -10,10 +10,13 @@ import { useCart } from '@/lib/contexts/CartContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { getProductDisplayName } from '@/lib/i18n/product';
 
 interface Product {
   id: number;
   name: string;
+  nameFr?: string | null;
   slug: string;
   description: string;
   SKU: string;
@@ -37,6 +40,7 @@ export default function CollectionDetailPage() {
   const error = fetchError?.message ?? null;
   const [wishlistedItems, setWishlistedItems] = useState<Set<number>>(new Set());
   const { addItem } = useCart();
+  const { isFrench } = useLanguage();
 
   const handleAddToCart = (product: Product, e?: React.MouseEvent) => {
     if (e) {
@@ -54,6 +58,7 @@ export default function CollectionDetailPage() {
     addItem({
       id: product.id.toString(),
       name: product.name,
+      nameFr: product.nameFr || null,
       price: product.price,
       image: product.imageUrl || '/placeholder-product.jpg',
       slug: product.slug
@@ -162,7 +167,7 @@ export default function CollectionDetailPage() {
                     {product.imageUrl ? (
                       <img
                         src={getImageUrl(product.imageUrl) || ''}
-                        alt={product.name}
+                        alt={getProductDisplayName(product, isFrench)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
@@ -213,7 +218,7 @@ export default function CollectionDetailPage() {
                   {/* Product Name */}
                   <Link href={`/product/${product.slug}`}>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                      {product.name}
+                      {getProductDisplayName(product, isFrench)}
                     </h3>
                   </Link>
 

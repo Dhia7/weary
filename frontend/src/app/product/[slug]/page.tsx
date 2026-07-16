@@ -31,7 +31,7 @@ import {
 } from '@/lib/utils/productImages';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
-import { getProductTranslations, translateCategoryName } from '@/lib/i18n/product';
+import { getProductTranslations, translateCategoryName, getProductDisplayName, getColorDisplayName } from '@/lib/i18n/product';
 import { useProduct } from '@/lib/hooks/useProduct';
 import {
   bodyTextClass,
@@ -60,6 +60,12 @@ export default function ProductDetailPage() {
   const { clearAllErrors, showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
   const t = useMemo(() => getProductTranslations(isFrench), [isFrench]);
+  const displayName = product ? getProductDisplayName(product, isFrench) : '';
+  const selectedColorLabel = getColorDisplayName(
+    selectedColor,
+    isFrench,
+    product?.colorOptions
+  );
   const { text: productDescription, isLoading: descriptionTranslating } =
     useTranslatedText(product?.description, isFrench);
   const { text: outerMaterialText } = useTranslatedText(product?.outerMaterial, isFrench);
@@ -130,10 +136,10 @@ export default function ProductDetailPage() {
       colorImages.length > 0 &&
       colorImages.join('|') !== defaultImages.join('|')
     ) {
-      return t.showingImagesFor(selectedColor);
+      return t.showingImagesFor(selectedColorLabel);
     }
     return undefined;
-  }, [product, selectedColor, t]);
+  }, [product, selectedColor, selectedColorLabel, t]);
 
   useEffect(() => {
     if (product) {
@@ -186,11 +192,18 @@ export default function ProductDetailPage() {
         id: product.id.toString(),
         productId: product.id.toString(),
         name: product.name,
+        nameFr: product.nameFr || null,
         price: displayPrice,
         image: selectedImage || '/placeholder-product.jpg',
         slug: product.slug,
         size: selectedSize || selectedVariant?.size || undefined,
         color: selectedColor || selectedVariant?.color || undefined,
+        colorFr:
+          selectedVariant?.colorFr ||
+          product.colorOptions?.find(
+            (c) => c.name.toLowerCase() === (selectedColor || '').toLowerCase()
+          )?.nameFr ||
+          null,
         variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
         allowCustomerQuantity: Boolean(product.allowCustomerQuantity),
         maxStock: maxPurchasableQty,
@@ -203,7 +216,7 @@ export default function ProductDetailPage() {
         clearAllErrors(); // Clear error notifications
         
         // Show success notification every time an item is added
-        showAddToCart(product.name);
+        showAddToCart(displayName);
       } catch (error) {
         console.error('Error adding item to cart:', error);
         // Error handling is done by CartContext
@@ -248,11 +261,18 @@ export default function ProductDetailPage() {
         id: product.id.toString(),
         productId: product.id.toString(),
         name: product.name,
+        nameFr: product.nameFr || null,
         price: displayPrice,
         image: selectedImage || '/placeholder-product.jpg',
         slug: product.slug,
         size: selectedSize || selectedVariant?.size || undefined,
         color: selectedColor || selectedVariant?.color || undefined,
+        colorFr:
+          selectedVariant?.colorFr ||
+          product.colorOptions?.find(
+            (c) => c.name.toLowerCase() === (selectedColor || '').toLowerCase()
+          )?.nameFr ||
+          null,
         variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
         allowCustomerQuantity: Boolean(product.allowCustomerQuantity),
         maxStock: maxPurchasableQty,
@@ -332,13 +352,13 @@ export default function ProductDetailPage() {
               <span aria-hidden>/</span>
             </>
           )}
-          <span className="text-swisse-ink dark:text-foreground">{product.name}</span>
+          <span className="text-swisse-ink dark:text-foreground">{displayName}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
           <ProductImageGallery
             images={displayImages}
-            alt={product.name}
+            alt={displayName}
             fallbackEmoji={getCategoryEmoji(product.categories)}
             mediaLabel={galleryMediaLabel}
             galleryKey={`${selectedColor}-${displayImages[0] ?? ''}`}
@@ -353,7 +373,7 @@ export default function ProductDetailPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-serif text-3xl sm:text-4xl text-swisse-ink dark:text-foreground">
-                {product.name}
+                {displayName}
               </h1>
               {product.displayBadge === 'sold' && (
                 <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background">
@@ -462,7 +482,7 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-red-600 dark:text-red-400">{colorError}</p>
                 )}
                 {selectedColor && !colorError && (
-                  <p className={`text-sm ${bodyTextClass}`}>{t.selected(selectedColor)}</p>
+                  <p className={`text-sm ${bodyTextClass}`}>{t.selected(selectedColorLabel)}</p>
                 )}
               </div>
             )}

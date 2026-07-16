@@ -8,12 +8,14 @@ export interface CartItem {
   id: string; // Unique cart item identifier (cartItemId or productId-size)
   productId?: string; // Product ID for backend operations
   name: string;
+  nameFr?: string | null;
   price: number;
   image?: string;
   slug?: string;
   quantity: number;
   size?: string;
   color?: string;
+  colorFr?: string | null;
   variantId?: string;
   cartItemId?: number; // Original cart item ID from database
   allowCustomerQuantity?: boolean;

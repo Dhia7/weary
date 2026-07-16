@@ -3,6 +3,7 @@ export interface ProductVariant {
   productId?: number;
   SKU: string;
   color: string;
+  colorFr?: string | null;
   colorCode?: string | null;
   colorHex?: string | null;
   size?: string | null;
@@ -23,6 +24,7 @@ export interface ProductVariant {
 
 export interface ColorOption {
   name: string;
+  nameFr?: string | null;
   hex?: string | null;
   imageUrl?: string | null;
   /** Lowest price for this color (across sizes), when variants differ */
@@ -40,6 +42,7 @@ export type ProductDisplayBadge = 'new_arrival' | 'sold' | null;
 export interface Product {
   id: number;
   name: string;
+  nameFr?: string | null;
   slug: string;
   description: string;
   SKU: string;

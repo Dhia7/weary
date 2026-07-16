@@ -116,3 +116,35 @@ export type ProductTranslations = typeof EN | typeof FR;
 export function getProductTranslations(isFrench: boolean): ProductTranslations {
   return isFrench ? FR : EN;
 }
+
+/** Storefront product title: French when available, else English. */
+export function getProductDisplayName(
+  product: { name: string; nameFr?: string | null },
+  isFrench: boolean
+): string {
+  if (isFrench && product.nameFr?.trim()) return product.nameFr.trim();
+  return product.name;
+}
+
+/** Storefront color label from a ColorOption or canonical name + options lookup. */
+export function getColorDisplayName(
+  color: string | { name: string; nameFr?: string | null } | null | undefined,
+  isFrench: boolean,
+  colorOptions?: Array<{ name: string; nameFr?: string | null }>
+): string {
+  if (!color) return '';
+  if (typeof color === 'object') {
+    if (isFrench && color.nameFr?.trim()) return color.nameFr.trim();
+    return color.name;
+  }
+  const canonical = color.trim();
+  if (!canonical) return '';
+  if (isFrench && colorOptions?.length) {
+    const match = colorOptions.find(
+      (c) => c.name.trim().toLowerCase() === canonical.toLowerCase()
+    );
+    if (match?.nameFr?.trim()) return match.nameFr.trim();
+  }
+  return canonical;
+}
+

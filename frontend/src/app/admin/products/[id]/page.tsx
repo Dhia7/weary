@@ -19,6 +19,7 @@ interface Category {
 interface Product {
   id?: number;
   name: string;
+  nameFr?: string | null;
   slug: string;
   description: string;
   price: number | '';
@@ -51,6 +52,7 @@ export default function EditProductPage() {
   // Product data state
   const [productData, setProductData] = useState<Product>({
     name: '',
+    nameFr: '',
     slug: '',
     description: '',
     price: '',
@@ -154,6 +156,7 @@ export default function EditProductPage() {
             setProductData({
               id: p.id,
               name: p.name || '',
+              nameFr: p.nameFr || '',
               slug: p.slug || '',
               description: p.description || '',
               price: p.price ?? '',
@@ -183,6 +186,7 @@ export default function EditProductPage() {
                   id: v.id,
                   SKU: v.SKU,
                   color: v.color,
+                  colorFr: v.colorFr ?? null,
                   colorCode: v.colorCode,
                   colorHex: v.colorHex,
                   size: v.size,
@@ -479,6 +483,7 @@ export default function EditProductPage() {
     try {
       const formData = new FormData();
       formData.append('name', productData.name);
+      formData.append('nameFr', (productData.nameFr || '').trim());
       formData.append('slug', productData.slug);
       formData.append('description', productData.description);
       formData.append('price', productData.price === '' ? '0' : productData.price.toString());
@@ -640,7 +645,7 @@ export default function EditProductPage() {
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Product Title & Description</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Title *</label>
+                  <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Title (EN) *</label>
                   <input 
                     id="name" 
                     placeholder="Enter product title" 
@@ -648,6 +653,17 @@ export default function EditProductPage() {
                     onChange={(e) => updateProduct('name', e.target.value)} 
                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                     required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="nameFr" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Title (FR)</label>
+                  <input 
+                    id="nameFr" 
+                    placeholder="Titre du produit en français" 
+                    value={productData.nameFr || ''} 
+                    onChange={(e) => updateProduct('nameFr', e.target.value)} 
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                   />
                 </div>
                 

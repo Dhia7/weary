@@ -24,6 +24,7 @@ import {
 } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
 import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
+import { getProductDisplayName } from '@/lib/i18n/product';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
 
@@ -54,6 +55,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
+  const displayName = getProductDisplayName(product, isFrench);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -75,6 +77,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           id: product.id.toString(),
           productId: product.id.toString(),
           name: product.name,
+          nameFr: product.nameFr || null,
           price: product.price,
           image: product.imageUrl || '/placeholder-product.jpg',
           slug: product.slug,
@@ -82,7 +85,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
         },
         1
       );
-      showAddToCart(product.name);
+      showAddToCart(displayName);
     } catch (error) {
       console.error('Error adding item to cart:', error);
     }
@@ -166,7 +169,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             {displayImage ? (
               <Image
                 src={getImageUrl(displayImage) || ''}
-                alt={product.name}
+                alt={displayName}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
@@ -205,7 +208,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
               <h3 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
-                {product.name}
+                {displayName}
               </h3>
               <p className="text-xs text-swisse-ink/60 dark:text-muted-foreground">
                 {getCategoryName(product.categories)}
@@ -253,7 +256,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           {displayImage ? (
             <Image
               src={getImageUrl(displayImage) || ''}
-              alt={product.name}
+              alt={displayName}
               fill
               className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -321,7 +324,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
         <div className="p-4">
           <p className="text-sm text-muted-foreground mb-1">{getCategoryName(product.categories)}</p>
 
-          <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{product.name}</h3>
+          <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{displayName}</h3>
 
           {product.colorOptions && product.colorOptions.length > 1 && (
             <div className="mb-2">

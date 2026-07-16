@@ -8,6 +8,7 @@ import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { getCartItemKey, useCart } from '@/lib/contexts/CartContext';
 import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { getProductDisplayName, getColorDisplayName } from '@/lib/i18n/product';
 
 interface CartPanelProps {
   isOpen: boolean;
@@ -147,7 +148,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       {item.image ? (
                         <Image
                           src={getImageUrl(item.image) || ''}
-                          alt={item.name}
+                          alt={getProductDisplayName(item, isFrench)}
                           fill
                           sizes="80px"
                           className="object-cover"
@@ -162,11 +163,15 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         href={item.slug ? `/product/${item.slug}` : '#'}
                         className="text-sm font-semibold text-foreground hover:text-primary transition-colors cursor-pointer block leading-snug"
                       >
-                        <span className="line-clamp-2">{item.name}</span>
+                        <span className="line-clamp-2">{getProductDisplayName(item, isFrench)}</span>
                       </Link>
                       {item.color && (
                         <p className="text-xs font-medium text-primary mt-0.5">
-                          {isFrench ? 'Couleur' : 'Color'}: {item.color}
+                          {isFrench ? 'Couleur' : 'Color'}:{' '}
+                          {getColorDisplayName(
+                            { name: item.color, nameFr: item.colorFr },
+                            isFrench
+                          )}
                         </p>
                       )}
                       {item.size && (
@@ -217,8 +222,8 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         className="mt-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-red-500 hover:text-red-700 hover:bg-red-500/10 transition-colors"
                         aria-label={
                           isFrench
-                            ? `Supprimer ${item.name} du panier`
-                            : `Remove ${item.name} from cart`
+                            ? `Supprimer ${getProductDisplayName(item, isFrench)} du panier`
+                            : `Remove ${getProductDisplayName(item, isFrench)} from cart`
                         }
                       >
                         <TrashIcon className="w-4 h-4" />

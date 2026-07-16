@@ -10,6 +10,11 @@ const Product = sequelize.define('Product', {
 			len: [2, 200]
 		}
 	},
+	nameFr: {
+		type: DataTypes.STRING(200),
+		allowNull: true,
+		comment: 'French display title; falls back to name on storefront'
+	},
 	slug: {
 		type: DataTypes.STRING(220),
 		allowNull: false,

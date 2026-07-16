@@ -382,6 +382,7 @@ export default function VariantEditor({
   sampleImages = [],
 }: VariantEditorProps) {
   const [colorInput, setColorInput] = useState('');
+  const [colorFrInput, setColorFrInput] = useState('');
   const [colorHex, setColorHex] = useState('#000000');
   const [swatchDraft, setSwatchDraft] = useState('#000000');
   const [swatchConfirmed, setSwatchConfirmed] = useState(false);
@@ -410,6 +411,16 @@ export default function VariantEditor({
     setSwatchConfirmed(true);
   };
 
+  const syncColorFrForName = (colorName: string, colorFr: string | null) => {
+    const normalized = colorName.trim().toLowerCase();
+    const nextFr = colorFr?.trim() || null;
+    onChange(
+      variants.map((v) =>
+        v.color.trim().toLowerCase() === normalized ? { ...v, colorFr: nextFr } : v
+      )
+    );
+  };
+
   const uniqueColors = useMemo(() => {
     const set = new Set<string>();
     variants.forEach((v) => set.add(v.color));
@@ -422,12 +433,14 @@ export default function VariantEditor({
     const code = slugifyCode(name);
     const sku = parentSku ? `${slugifyCode(parentSku)}-${code}` : code;
     if (variants.some((v) => v.color.toLowerCase() === name.toLowerCase() && !v.size)) return;
+    const colorFr = colorFrInput.trim() || null;
     onChange([
       ...variants,
       {
         clientKey: newVariantKey(),
         SKU: sku,
         color: name,
+        colorFr,
         colorCode: code,
         colorHex: colorHex || null,
         size: null,
@@ -442,6 +455,7 @@ export default function VariantEditor({
       },
     ]);
     setColorInput('');
+    setColorFrInput('');
     setSwatchConfirmed(false);
   };
 
@@ -451,6 +465,7 @@ export default function VariantEditor({
       ? sizeInput.split(',').map((s) => s.trim()).filter(Boolean)
       : [null];
     if (colors.length === 0) return;
+    const colorFr = colorFrInput.trim() || null;
     const next: VariantDraft[] = [...variants];
     colors.forEach((colorName, colorIndex) => {
       const code = slugifyCode(colorName);
@@ -465,6 +480,7 @@ export default function VariantEditor({
           clientKey: newVariantKey(),
           SKU: sku,
           color: colorName,
+          colorFr: colors.length === 1 ? colorFr : null,
           colorCode: code,
           colorHex: null,
           size,
@@ -481,6 +497,7 @@ export default function VariantEditor({
     });
     onChange(next);
     setColorInput('');
+    setColorFrInput('');
     setSizeInput('');
   };
 
@@ -553,13 +570,22 @@ export default function VariantEditor({
             />
           ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Color name</label>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Color name (EN)</label>
             <input
               value={colorInput}
               onChange={(e) => setColorInput(e.target.value)}
               placeholder="Red or Red, Navy, Black"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm bg-white dark:bg-gray-700"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Color name (FR)</label>
+            <input
+              value={colorFrInput}
+              onChange={(e) => setColorFrInput(e.target.value)}
+              placeholder="Rouge"
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm bg-white dark:bg-gray-700"
             />
           </div>
@@ -624,7 +650,8 @@ export default function VariantEditor({
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-3 py-2 text-left">Color</th>
+                <th className="px-3 py-2 text-left">Color (EN)</th>
+                <th className="px-3 py-2 text-left">Color (FR)</th>
                 <th className="px-3 py-2 text-left">Size</th>
                 <th className="px-3 py-2 text-left">SKU</th>
                 <th className="px-3 py-2 text-left">Qty</th>
@@ -638,6 +665,14 @@ export default function VariantEditor({
               {variants.map((variant, index) => (
                 <tr key={variantRowKey(variant, index)} className="border-t border-gray-100 dark:border-gray-700">
                   <td className="px-3 py-2">{variant.color}</td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={variant.colorFr ?? ''}
+                      onChange={(e) => syncColorFrForName(variant.color, e.target.value)}
+                      placeholder="FR name"
+                      className={`w-28 ${variantInputClass}`}
+                    />
+                  </td>
                   <td className="px-3 py-2">{variant.size || '—'}</td>
                   <td className="px-3 py-2">
                     <input

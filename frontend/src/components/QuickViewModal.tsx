@@ -29,7 +29,7 @@ import {
 } from '@/lib/utils/productImages';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
-import { getProductTranslations, translateCategoryName } from '@/lib/i18n/product';
+import { getProductTranslations, translateCategoryName, getProductDisplayName } from '@/lib/i18n/product';
 
 interface QuickViewModalProps {
   isOpen: boolean;
@@ -48,6 +48,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
   const { showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
   const t = useMemo(() => getProductTranslations(isFrench), [isFrench]);
+  const displayName = product ? getProductDisplayName(product, isFrench) : '';
   const { text: productDescription, isLoading: descriptionTranslating } =
     useTranslatedText(product?.description, isFrench);
 
@@ -179,18 +180,25 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
         await addItem({ 
           id: product.id.toString(),
           productId: product.id.toString(),
-          name: product.name, 
+          name: product.name,
+          nameFr: product.nameFr || null,
           price: displayPrice,
           image: selectedImage || '/placeholder-product.jpg',
           slug: product.slug,
           size: selectedSize || selectedVariant?.size || undefined,
           color: selectedColor || selectedVariant?.color || undefined,
+          colorFr:
+            selectedVariant?.colorFr ||
+            product.colorOptions?.find(
+              (c) => c.name.toLowerCase() === (selectedColor || '').toLowerCase()
+            )?.nameFr ||
+            null,
           variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
           allowCustomerQuantity: Boolean(product.allowCustomerQuantity),
           maxStock: maxPurchasableQty,
         }, showQuantitySelector ? selectedQuantity : 1);
         // Show success notification every time an item is added
-        showAddToCart(product.name);
+        showAddToCart(displayName);
         onClose();
       } catch (error) {
         console.error('Error adding item to cart:', error);
@@ -245,7 +253,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               <div className="relative aspect-square w-full h-full">
                 <Image
                   src={getImageUrl(selectedImage) || ''}
-                  alt={product.name}
+                  alt={displayName}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, 50vw"
@@ -276,7 +284,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                     >
                       <Image
                         src={getImageUrl(img) || ''}
-                        alt={`${product.name} view ${index + 1}`}
+                        alt={`${displayName} view ${index + 1}`}
                         fill
                         className="object-cover"
                         sizes="64px"
@@ -300,7 +308,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
               {/* Product Name */}
               <h2 id="quick-view-title" className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {product.name}
+                {displayName}
               </h2>
 
               {/* SKU */}

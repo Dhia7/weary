@@ -21,6 +21,7 @@ export default function NewProductPage() {
 
   // Product Title & Description
   const [name, setName] = useState('');
+  const [nameFr, setNameFr] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   
@@ -344,6 +345,7 @@ export default function NewProductPage() {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('name', name);
+      formData.append('nameFr', nameFr.trim());
       formData.append('slug', slug);
       formData.append('description', description);
       formData.append('price', price === '' ? '0' : price.toString());
@@ -441,7 +443,7 @@ export default function NewProductPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Product Title{requiredStar(fieldErrors.name)}
+                  Product Title (EN){requiredStar(fieldErrors.name)}
                 </label>
                 <input 
                   id="name" 
@@ -449,6 +451,19 @@ export default function NewProductPage() {
                   value={name} 
                   onChange={(e) => setName(e.target.value)} 
                   className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.name)}`}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="nameFr" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Product Title (FR)
+                </label>
+                <input 
+                  id="nameFr" 
+                  placeholder="Titre du produit en français" 
+                  value={nameFr} 
+                  onChange={(e) => setNameFr(e.target.value)} 
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
               

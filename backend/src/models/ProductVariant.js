@@ -15,7 +15,12 @@ const ProductVariant = sequelize.define('ProductVariant', {
 	color: {
 		type: DataTypes.STRING(80),
 		allowNull: false,
-		comment: 'Display color name e.g. Red, Navy'
+		comment: 'Canonical color name (EN identity) e.g. Red, Navy'
+	},
+	colorFr: {
+		type: DataTypes.STRING(80),
+		allowNull: true,
+		comment: 'French display color name; falls back to color on storefront'
 	},
 	colorCode: {
 		type: DataTypes.STRING(20),

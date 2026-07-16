@@ -2,6 +2,8 @@
 
 import type { ColorOption } from '@/lib/types/product';
 import { getImageUrl } from '@/lib/utils';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { getColorDisplayName } from '@/lib/i18n/product';
 
 interface ColorSwatchesProps {
   colors: ColorOption[];
@@ -18,6 +20,8 @@ export default function ColorSwatches({
   maxVisible = 5,
   size = 'sm',
 }: ColorSwatchesProps) {
+  const { isFrench } = useLanguage();
+
   if (!colors.length) return null;
 
   const visible = colors.slice(0, maxVisible);
@@ -28,6 +32,7 @@ export default function ColorSwatches({
     <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.preventDefault()}>
       {visible.map((c) => {
         const isSelected = selectedColor?.toLowerCase() === c.name.toLowerCase();
+        const label = getColorDisplayName(c, isFrench);
         const imageSrc = c.imageUrl ? getImageUrl(c.imageUrl) || c.imageUrl : null;
         const swatchStyle = c.hex
           ? { backgroundColor: c.hex }
@@ -45,8 +50,8 @@ export default function ColorSwatches({
             type="button"
             title={
               c.price != null
-                ? `${c.name} — ${Number(c.price).toFixed(2)} TND`
-                : c.name
+                ? `${label} — ${Number(c.price).toFixed(2)} TND`
+                : label
             }
             onClick={(e) => {
               e.preventDefault();
@@ -57,7 +62,7 @@ export default function ColorSwatches({
               isSelected ? 'border-swisse-gold scale-110 ring-1 ring-swisse-gold/50' : 'border-gray-300 dark:border-gray-600'
             } ${onSelect ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
             style={swatchStyle}
-            aria-label={c.name}
+            aria-label={label}
           />
         );
       })}
