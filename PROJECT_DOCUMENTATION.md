@@ -592,7 +592,7 @@ JWT_SECRET=your_jwt_secret_key_here_make_it_long_and_secure
 FRONTEND_URL=https://weary-iota.vercel.app
 
 # Admin Auto-Creation (remove after first use)
-ADMIN_EMAIL=admin@weary.com
+ADMIN_EMAIL=admin@swisia.store
 ADMIN_PASSWORD=secure_password
 ADMIN_FIRST_NAME=Admin
 ADMIN_LAST_NAME=User
