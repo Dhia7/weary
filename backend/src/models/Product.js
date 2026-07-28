@@ -91,6 +91,14 @@ const Product = sequelize.define('Product', {
 			min: 0
 		}
 	},
+	costPrice: {
+		type: DataTypes.DECIMAL(12, 2),
+		allowNull: true,
+		validate: {
+			min: 0
+		},
+		comment: 'Purchase / buy cost (what we paid for the item)'
+	},
 	quantity: {
 		type: DataTypes.INTEGER,
 		allowNull: false,
@@ -123,6 +131,11 @@ const Product = sequelize.define('Product', {
 		type: DataTypes.DECIMAL(10, 2),
 		allowNull: true,
 		validate: { min: 0 }
+	},
+	dimensions: {
+		type: DataTypes.STRING(500),
+		allowNull: true,
+		comment: 'Free-text adjustment & measurement (depth, width, height, etc.)'
 	},
 	outerMaterial: {
 		type: DataTypes.STRING(200),

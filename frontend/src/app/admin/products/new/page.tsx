@@ -28,6 +28,7 @@ export default function NewProductPage() {
   // Pricing
   const [price, setPrice] = useState<number | ''>('');
   const [compareAtPrice, setCompareAtPrice] = useState<number | ''>('');
+  const [costPrice, setCostPrice] = useState<number | ''>('');
   
   // Inventory
   const [SKU, setSKU] = useState('');
@@ -36,9 +37,7 @@ export default function NewProductPage() {
   
   // Additional fields
   const [weightGrams, setWeightGrams] = useState<number | ''>('');
-  const [depthCm, setDepthCm] = useState<number | ''>('');
-  const [widthCm, setWidthCm] = useState<number | ''>('');
-  const [heightCm, setHeightCm] = useState<number | ''>('');
+  const [dimensions, setDimensions] = useState('');
   const [outerMaterial, setOuterMaterial] = useState('');
   const [hasSizes, setHasSizes] = useState<boolean>(false); // Always initialize as boolean
   const [sizeOptions, setSizeOptions] = useState('XS, S, M, L, XL, XXL');
@@ -350,13 +349,12 @@ export default function NewProductPage() {
       formData.append('description', description);
       formData.append('price', price === '' ? '0' : price.toString());
       formData.append('compareAtPrice', compareAtPrice === '' ? '' : compareAtPrice.toString());
+      formData.append('costPrice', costPrice === '' ? '' : costPrice.toString());
       formData.append('SKU', SKU);
       formData.append('quantity', quantity === '' ? '0' : quantity.toString());
       formData.append('barcode', barcode);
       formData.append('weightGrams', weightGrams === '' ? '' : weightGrams.toString());
-      formData.append('depthCm', depthCm === '' ? '' : depthCm.toString());
-      formData.append('widthCm', widthCm === '' ? '' : widthCm.toString());
-      formData.append('heightCm', heightCm === '' ? '' : heightCm.toString());
+      formData.append('dimensions', dimensions.trim());
       formData.append('outerMaterial', outerMaterial.trim());
       // If hasSizes is checked, use custom size list; otherwise empty
       formData.append('size', hasSizes ? sizeOptions.trim() : '');
@@ -384,6 +382,13 @@ export default function NewProductPage() {
         if (compareAtPrices.length > 0) {
           const minCompareAt = Math.min(...compareAtPrices);
           formData.set('compareAtPrice', String(minCompareAt));
+        }
+
+        const variantCosts = variants
+          .map((v) => (v.costPrice == null ? null : Number(v.costPrice)))
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+        if (variantCosts.length > 0) {
+          formData.set('costPrice', String(Math.min(...variantCosts)));
         }
       }
       formData.append('isActive', isActive.toString());
@@ -537,7 +542,7 @@ export default function NewProductPage() {
                       min="0"
                       value={price} 
                       onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))} 
-                      className={`w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.price)}`}
+                      className={`w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.price)}`}
                     />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The selling price</p>
@@ -557,11 +562,58 @@ export default function NewProductPage() {
                       min="0"
                       value={compareAtPrice} 
                       onChange={(e) => setCompareAtPrice(e.target.value === '' ? '' : Number(e.target.value))} 
-                      className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                      className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                     />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
                 </div>
+
+                <div>
+                  <label htmlFor="costPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Bought for</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input 
+                      id="costPrice" 
+                      placeholder="0.00" 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      value={costPrice} 
+                      onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))} 
+                      className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">What you paid for this item — used for real income on the dashboard</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasVariants && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Cost</h2>
+              <div className="max-w-sm">
+                <label htmlFor="costPriceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Bought for (base)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm">TND</span>
+                  </div>
+                  <input
+                    id="costPriceBase"
+                    placeholder="0.00"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={costPrice}
+                    onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Base purchase cost — override per color in the variants table below
+                </p>
               </div>
             </div>
           )}
@@ -659,6 +711,7 @@ export default function NewProductPage() {
                   parentSku={SKU}
                   basePrice={price}
                   baseCompareAtPrice={compareAtPrice}
+                  baseCostPrice={costPrice}
                   variants={variants}
                   onChange={setVariants}
                   sampleImages={imagePreviews}
@@ -706,48 +759,17 @@ export default function NewProductPage() {
 
             <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Dimensions (cm)</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="depthCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Depth</label>
-                    <input
-                      id="depthCm"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      placeholder="0"
-                      value={depthCm}
-                      onChange={(e) => setDepthCm(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="widthCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Width</label>
-                    <input
-                      id="widthCm"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      placeholder="0"
-                      value={widthCm}
-                      onChange={(e) => setWidthCm(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="heightCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Height</label>
-                    <input
-                      id="heightCm"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      placeholder="0"
-                      value={heightCm}
-                      onChange={(e) => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                </div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Adjustment & Measurement</h3>
+                <label htmlFor="dimensions" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Depth, width & height
+                </label>
+                <input
+                  id="dimensions"
+                  placeholder="e.g. Depth 5 cm, Width 20 cm, Height 30 cm"
+                  value={dimensions}
+                  onChange={(e) => setDimensions(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Materials</h3>

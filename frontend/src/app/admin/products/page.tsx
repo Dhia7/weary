@@ -241,11 +241,15 @@ export default function AdminProductsPage() {
                         {product.SKU}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{Number(product.price).toFixed(2)} TND</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium inline-flex items-baseline gap-1.5">
+                            <span>{Number(product.price).toFixed(2)}</span>
+                            <span className="text-gray-500 font-normal">TND</span>
+                          </span>
                           {product.compareAtPrice && (
-                            <span className="text-xs text-gray-500 line-through">
-                              {Number(product.compareAtPrice).toFixed(2)} TND
+                            <span className="text-xs text-gray-500 line-through inline-flex items-baseline gap-1.5">
+                              <span>{Number(product.compareAtPrice).toFixed(2)}</span>
+                              <span>TND</span>
                             </span>
                           )}
                         </div>
