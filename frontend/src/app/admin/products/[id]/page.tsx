@@ -24,6 +24,7 @@ interface Product {
   description: string;
   price: number | '';
   compareAtPrice: number | '';
+  costPrice: number | '';
   SKU: string;
   quantity: number | '';
   barcode: string | null;
@@ -31,6 +32,7 @@ interface Product {
   depthCm?: number | '';
   widthCm?: number | '';
   heightCm?: number | '';
+  dimensions?: string | null;
   outerMaterial?: string | null;
   size?: string | null;
   isActive: boolean;
@@ -57,6 +59,7 @@ export default function EditProductPage() {
     description: '',
     price: '',
     compareAtPrice: '',
+    costPrice: '',
     SKU: '',
     quantity: '',
     barcode: null,
@@ -64,6 +67,7 @@ export default function EditProductPage() {
     depthCm: '',
     widthCm: '',
     heightCm: '',
+    dimensions: '',
     outerMaterial: null,
     size: null,
     isActive: true,
@@ -161,6 +165,7 @@ export default function EditProductPage() {
               description: p.description || '',
               price: p.price ?? '',
               compareAtPrice: (p.compareAtPrice === null || p.compareAtPrice === undefined) ? '' : p.compareAtPrice,
+              costPrice: (p.costPrice === null || p.costPrice === undefined) ? '' : p.costPrice,
               SKU: p.SKU || '',
               quantity: (p.quantity === null || p.quantity === undefined) ? '' : p.quantity,
               barcode: p.barcode || null,
@@ -168,6 +173,16 @@ export default function EditProductPage() {
               depthCm: p.depthCm != null ? Number(p.depthCm) : '',
               widthCm: p.widthCm != null ? Number(p.widthCm) : '',
               heightCm: p.heightCm != null ? Number(p.heightCm) : '',
+              dimensions:
+                p.dimensions?.trim() ||
+                [
+                  p.depthCm != null && Number(p.depthCm) > 0 ? `Depth ${Number(p.depthCm)} cm` : null,
+                  p.widthCm != null && Number(p.widthCm) > 0 ? `Width ${Number(p.widthCm)} cm` : null,
+                  p.heightCm != null && Number(p.heightCm) > 0 ? `Height ${Number(p.heightCm)} cm` : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ') ||
+                '',
               outerMaterial: p.outerMaterial || null,
               size: p.size || null,
               isActive: p.isActive !== false,
@@ -193,6 +208,7 @@ export default function EditProductPage() {
                   quantity: v.quantity,
                   price: v.price,
                   compareAtPrice: v.compareAtPrice,
+                  costPrice: v.costPrice,
                   imageUrl: v.imageUrl,
                   images: v.images || [],
                   isActive: v.isActive !== false,
@@ -488,13 +504,12 @@ export default function EditProductPage() {
       formData.append('description', productData.description);
       formData.append('price', productData.price === '' ? '0' : productData.price.toString());
       formData.append('compareAtPrice', productData.compareAtPrice === '' ? '' : productData.compareAtPrice.toString());
+      formData.append('costPrice', productData.costPrice === '' ? '' : productData.costPrice.toString());
       formData.append('SKU', productData.SKU);
       formData.append('quantity', productData.quantity === '' ? '0' : productData.quantity.toString());
       formData.append('barcode', productData.barcode || '');
       formData.append('weightGrams', productData.weightGrams.toString());
-      formData.append('depthCm', productData.depthCm === '' || productData.depthCm == null ? '' : String(productData.depthCm));
-      formData.append('widthCm', productData.widthCm === '' || productData.widthCm == null ? '' : String(productData.widthCm));
-      formData.append('heightCm', productData.heightCm === '' || productData.heightCm == null ? '' : String(productData.heightCm));
+      formData.append('dimensions', productData.dimensions?.trim() || '');
       formData.append('outerMaterial', productData.outerMaterial?.trim() || '');
       // If hasSizes is checked, use custom size list; otherwise empty
       formData.append('size', hasSizes ? sizeOptions.trim() : '');
@@ -522,6 +537,13 @@ export default function EditProductPage() {
         if (compareAtPrices.length > 0) {
           const minCompareAt = Math.min(...compareAtPrices);
           formData.set('compareAtPrice', String(minCompareAt));
+        }
+
+        const variantCosts = variants
+          .map((v) => (v.costPrice == null ? null : Number(v.costPrice)))
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+        if (variantCosts.length > 0) {
+          formData.set('costPrice', String(Math.min(...variantCosts)));
         }
       }
       formData.append('isActive', productData.isActive.toString());
@@ -735,7 +757,7 @@ export default function EditProductPage() {
                         min="0"
                         value={productData.price} 
                         onChange={(e) => updateProduct('price', e.target.value === '' ? '' : Number(e.target.value))} 
-                        className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                        className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                         required
                       />
                     </div>
@@ -756,11 +778,58 @@ export default function EditProductPage() {
                         min="0"
                         value={productData.compareAtPrice} 
                         onChange={(e) => updateProduct('compareAtPrice', e.target.value === '' ? '' : Number(e.target.value))} 
-                        className="w-full pl-7 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                        className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                       />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
                   </div>
+
+                  <div>
+                    <label htmlFor="costPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Bought for</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500 sm:text-sm">TND</span>
+                      </div>
+                      <input 
+                        id="costPrice" 
+                        placeholder="0.00" 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        value={productData.costPrice} 
+                        onChange={(e) => updateProduct('costPrice', e.target.value === '' ? '' : Number(e.target.value))} 
+                        className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">What you paid for this item — used for real income on the dashboard</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hasVariants && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Cost</h2>
+                <div className="max-w-sm">
+                  <label htmlFor="costPriceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Bought for (base)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input
+                      id="costPriceBase"
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productData.costPrice}
+                      onChange={(e) => updateProduct('costPrice', e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Base purchase cost — override per color in the variants table below
+                  </p>
                 </div>
               </div>
             )}
@@ -855,6 +924,7 @@ export default function EditProductPage() {
                   parentSku={productData.SKU}
                   basePrice={productData.price}
                   baseCompareAtPrice={productData.compareAtPrice}
+                  baseCostPrice={productData.costPrice}
                   variants={variants}
                   onChange={setVariants}
                   sampleImages={imagePreviews}
@@ -900,48 +970,17 @@ export default function EditProductPage() {
 
               <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Dimensions (cm)</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="depthCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Depth</label>
-                      <input
-                        id="depthCm"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        placeholder="0"
-                        value={productData.depthCm ?? ''}
-                        onChange={(e) => updateProduct('depthCm', e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="widthCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Width</label>
-                      <input
-                        id="widthCm"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        placeholder="0"
-                        value={productData.widthCm ?? ''}
-                        onChange={(e) => updateProduct('widthCm', e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="heightCm" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Height</label>
-                      <input
-                        id="heightCm"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        placeholder="0"
-                        value={productData.heightCm ?? ''}
-                        onChange={(e) => updateProduct('heightCm', e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      />
-                    </div>
-                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Adjustment & Measurement</h3>
+                  <label htmlFor="dimensions" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Depth, width & height
+                  </label>
+                  <input
+                    id="dimensions"
+                    placeholder="e.g. Depth 5 cm, Width 20 cm, Height 30 cm"
+                    value={productData.dimensions || ''}
+                    onChange={(e) => updateProduct('dimensions', e.target.value)}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Materials</h3>

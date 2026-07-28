@@ -10,6 +10,7 @@ export interface ProductVariant {
   quantity: number;
   price?: number | null;
   compareAtPrice?: number | null;
+  costPrice?: number | null;
   imageUrl?: string | null;
   images?: string[];
   isActive?: boolean;
@@ -50,6 +51,7 @@ export interface Product {
   depthCm?: number | null;
   widthCm?: number | null;
   heightCm?: number | null;
+  dimensions?: string | null;
   outerMaterial?: string | null;
   isActive: boolean;
   displayBadge?: ProductDisplayBadge;
@@ -60,6 +62,7 @@ export interface Product {
   defaultDisplayColor?: string | null;
   price: number;
   compareAtPrice?: number;
+  costPrice?: number | null;
   quantity: number;
   size?: string | null;
   hasVariants?: boolean;

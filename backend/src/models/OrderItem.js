@@ -34,6 +34,13 @@ const OrderItem = sequelize.define('OrderItem', {
     allowNull: false,
     validate: { min: 0 }
   },
+  unitCostCents: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    validate: { min: 0 },
+    comment: 'Snapshotted buy cost in cents at order time'
+  },
   size: {
     type: DataTypes.STRING(50),
     allowNull: true,

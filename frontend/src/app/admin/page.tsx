@@ -59,6 +59,8 @@ interface DashboardData {
   totalOrders: number;
   ordersByStatus: Array<{ status: string; count: number }>;
   revenueLast30Days: number;
+  profitLast30Days: number;
+  merchandiseCostLast30Days?: number;
   revenuePrevious30Days: number;
   revenueGrowth: string;
   ordersGrowth: string;
@@ -68,9 +70,9 @@ interface DashboardData {
     totalQuantity: number;
     totalRevenueCents?: number;
   }>;
-  revenueByDay: Array<{ date: string; revenue: number; orders: number }>;
+  revenueByDay: Array<{ date: string; revenue: number; profit?: number; orders: number }>;
   usersByDay: Array<{ date: string; users: number }>;
-  revenueByMonth: Array<{ month: string; revenue: number; orders: number }>;
+  revenueByMonth: Array<{ month: string; revenue: number; profit?: number; orders: number }>;
   ordersByDayOfWeek: Array<{ day: string; count: number }>;
 }
 
@@ -109,11 +111,21 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     return (
       <div className="bg-background border border-border rounded-lg shadow-lg p-3">
         <p className="font-semibold mb-2">{label}</p>
-        {payload.map((entry, index: number) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: {entry.name === 'Revenue' ? `$${((entry.value || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : entry.value}
-          </p>
-        ))}
+        {payload.map((entry, index: number) => {
+          const isMoney =
+            entry.name === 'Revenue' || entry.name === 'Real Income';
+          return (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}:{' '}
+              {isMoney
+                ? `${((entry.value || 0) / 100).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} TND`
+                : entry.value}
+            </p>
+          );
+        })}
       </div>
     );
   }
@@ -127,6 +139,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '6m'>('30d');
+  const [showRealIncome, setShowRealIncome] = useState(true);
 
   const fetchDashboardData = async (isRefresh = false) => {
     if (isRefresh) {
@@ -285,7 +298,7 @@ export default function AdminDashboardPage() {
       ) : (
         <div className="space-y-6">
           {/* Stats Grid with Growth Indicators */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <StatCard
               title="Total Revenue (30d)"
               value={formatPrice((data?.revenueLast30Days || 0) / 100)}
@@ -295,6 +308,13 @@ export default function AdminDashboardPage() {
               color="yellow"
               isPercentage
               showGrowth
+            />
+            <StatCard
+              title="Real Income (30d)"
+              value={formatPrice((data?.profitLast30Days || 0) / 100)}
+              icon={TrendingUp}
+              trendLabel="revenue − buy cost"
+              color="green"
             />
             <StatCard
               title="Total Orders"
@@ -328,18 +348,50 @@ export default function AdminDashboardPage() {
           {/* Comprehensive Revenue & Orders Chart */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Revenue & Orders Trend</CardTitle>
+                  <CardTitle>
+                    {showRealIncome ? 'Revenue, Real Income & Orders' : 'Revenue & Orders Trend'}
+                  </CardTitle>
                   <CardDescription>
                     {timeRange === '7d' ? 'Last 7 days' : timeRange === '30d' ? 'Last 30 days' : 'Last 6 months'}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showRealIncome}
+                    onClick={() => setShowRealIncome((v) => !v)}
+                    className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      showRealIncome
+                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <span
+                      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                        showRealIncome ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                          showRealIncome ? 'translate-x-4' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </span>
+                    Real Income
+                  </button>
                   <Badge variant="outline" className="gap-1 border-green-500/50 bg-green-500/10">
                     <DollarSign className="h-3 w-3 text-green-600 dark:text-green-400" />
                     <span className="text-green-600 dark:text-green-400 font-semibold">Revenue</span>
                   </Badge>
+                  {showRealIncome && (
+                    <Badge variant="outline" className="gap-1 border-emerald-500/50 bg-emerald-500/10">
+                      <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Real Income</span>
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="gap-1 border-indigo-500/50 bg-indigo-500/10">
                     <ShoppingCart className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                     <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Orders</span>
@@ -363,8 +415,14 @@ export default function AdminDashboardPage() {
                   <YAxis 
                     yAxisId="left"
                     tick={{ fill: '#10b981', fontSize: 12, fontWeight: 500 }}
-                    label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', style: { fill: '#10b981', fontWeight: 600 } }}
+                    label={{
+                      value: showRealIncome ? 'Amount (TND)' : 'Revenue (TND)',
+                      angle: -90,
+                      position: 'insideLeft',
+                      style: { fill: '#10b981', fontWeight: 600 },
+                    }}
                     stroke="#10b981"
+                    tickFormatter={(value) => (Number(value) / 100).toFixed(0)}
                   />
                   <YAxis 
                     yAxisId="right"
@@ -389,10 +447,12 @@ export default function AdminDashboardPage() {
                       if (value === 'Revenue') {
                         return <span style={{ color: '#10b981', fontWeight: 600 }}>Revenue</span>;
                       }
+                      if (value === 'Real Income') {
+                        return <span style={{ color: '#059669', fontWeight: 600 }}>Real Income</span>;
+                      }
                       return <span style={{ color: '#6366f1', fontWeight: 600 }}>Orders</span>;
                     }}
                   />
-                  {/* Revenue - Line with Area fill */}
                   <Area
                     yAxisId="left"
                     type="monotone"
@@ -405,7 +465,20 @@ export default function AdminDashboardPage() {
                     dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#fff' }}
                     activeDot={{ r: 6, strokeWidth: 2 }}
                   />
-                  {/* Orders - Line with Area fill */}
+                  {showRealIncome && (
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="profit"
+                      fill="#059669"
+                      fillOpacity={0.12}
+                      stroke="#059669"
+                      strokeWidth={3}
+                      name="Real Income"
+                      dot={{ fill: '#059669', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6, strokeWidth: 2 }}
+                    />
+                  )}
                   <Area
                     yAxisId="right"
                     type="monotone"
@@ -859,8 +932,10 @@ export default function AdminDashboardPage() {
                 {/* Monthly Revenue Trend */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Monthly Revenue Trend</CardTitle>
-                    <CardDescription>Revenue over the last 6 months</CardDescription>
+                    <CardTitle>
+                      {showRealIncome ? 'Monthly Revenue & Real Income' : 'Monthly Revenue Trend'}
+                    </CardTitle>
+                    <CardDescription>Over the last 6 months</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {data?.revenueByMonth && data.revenueByMonth.length > 0 ? (
@@ -868,16 +943,34 @@ export default function AdminDashboardPage() {
                         <LineChart data={data.revenueByMonth}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip formatter={(value: number | undefined) => formatPrice((value || 0) / 100)} />
+                          <YAxis tickFormatter={(value) => (Number(value) / 100).toFixed(0)} />
+                          <Tooltip
+                            formatter={(value: number | undefined, name?: string) => [
+                              formatPrice((value || 0) / 100),
+                              name === 'profit' ? 'Real Income' : 'Revenue',
+                            ]}
+                          />
+                          <Legend />
                           <Line 
                             type="monotone" 
                             dataKey="revenue" 
+                            name="Revenue"
                             stroke="#f59e0b" 
                             strokeWidth={3}
                             dot={{ fill: '#f59e0b', r: 4 }}
                             activeDot={{ r: 6 }}
                           />
+                          {showRealIncome && (
+                            <Line
+                              type="monotone"
+                              dataKey="profit"
+                              name="Real Income"
+                              stroke="#059669"
+                              strokeWidth={3}
+                              dot={{ fill: '#059669', r: 4 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          )}
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
@@ -979,7 +1072,7 @@ function StatCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {trend !== undefined && trendLabel && (
+        {trend !== undefined && trendLabel ? (
           <p className={`text-xs flex items-center mt-1 ${trendColor}`}>
             {showGrowth && trend !== 0 ? (
               <>
@@ -1002,7 +1095,9 @@ function StatCard({
               </>
             )}
           </p>
-        )}
+        ) : trendLabel ? (
+          <p className="text-xs text-muted-foreground mt-1">{trendLabel}</p>
+        ) : null}
       </CardContent>
     </Card>
   );

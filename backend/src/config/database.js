@@ -215,6 +215,13 @@ const connectDB = async () => {
       }
 
       try {
+        const addCostPrice = require('../scripts/add-cost-price');
+        await addCostPrice();
+      } catch (error) {
+        console.warn('costPrice migration failed (non-critical):', error.message);
+      }
+
+      try {
         const { addUserRoleColumn } = require('../scripts/add-user-role-column');
         await addUserRoleColumn();
       } catch (error) {

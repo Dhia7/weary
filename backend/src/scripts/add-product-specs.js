@@ -4,6 +4,7 @@ const SPEC_COLUMNS = [
 	{ name: 'depthCm', type: 'DECIMAL(10, 2)', comment: 'Product depth in centimeters' },
 	{ name: 'widthCm', type: 'DECIMAL(10, 2)', comment: 'Product width in centimeters' },
 	{ name: 'heightCm', type: 'DECIMAL(10, 2)', comment: 'Product height in centimeters' },
+	{ name: 'dimensions', type: 'VARCHAR(500)', comment: 'Free-text adjustment & measurement (depth, width, height, etc.)' },
 	{ name: 'outerMaterial', type: 'VARCHAR(200)', comment: 'Outer material description' }
 ];
 

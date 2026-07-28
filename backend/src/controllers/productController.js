@@ -46,10 +46,14 @@ const normalizeProductPrices = (productData) => {
 		productData.compareAtPrice =
 			compare != null && price != null && compare > price ? compare : null;
 	}
+	if (productData.costPrice != null) {
+		productData.costPrice = parsePriceField(productData.costPrice);
+	}
 	if (Array.isArray(productData.variants)) {
 		productData.variants = productData.variants.map((variant) => {
 			const v = { ...variant };
 			if (v.price != null) v.price = parsePriceField(v.price);
+			if (v.costPrice != null) v.costPrice = parsePriceField(v.costPrice);
 			if (v.compareAtPrice != null) {
 				const compare = parsePriceField(v.compareAtPrice);
 				const variantPrice = parsePriceField(v.price) ?? parsePriceField(productData.price);
@@ -138,10 +142,27 @@ const formatProductForUser = (product, isAdmin = false) => {
 			},
 			sizeStockInfo: sizeStockInfo
 		};
+		// Hide purchase cost from storefront / non-admin responses
+		delete formatted.costPrice;
+		if (Array.isArray(formatted.variants)) {
+			formatted.variants = formatted.variants.map((v) => {
+				const { costPrice: _cost, ...rest } = v;
+				return rest;
+			});
+		}
 	}
 
 	if (hasVariants) {
 		const withVariants = attachVariantSummary(formatted, variants, isAdmin);
+		if (!isAdmin) {
+			delete withVariants.costPrice;
+			if (Array.isArray(withVariants.variants)) {
+				withVariants.variants = withVariants.variants.map((v) => {
+					const { costPrice: _cost, ...rest } = v;
+					return rest;
+				});
+			}
+		}
 		if (isSoldBadge(productData)) {
 			withVariants.stockInfo = {
 				...(withVariants.stockInfo || {}),
@@ -200,9 +221,10 @@ const parseOptionalDecimal = (value) => {
 };
 
 const parseSpecFields = (body) => ({
-	depthCm: parseOptionalDecimal(body.depthCm),
-	widthCm: parseOptionalDecimal(body.widthCm),
-	heightCm: parseOptionalDecimal(body.heightCm),
+	depthCm: null,
+	widthCm: null,
+	heightCm: null,
+	dimensions: body.dimensions?.trim() || null,
 	outerMaterial: body.outerMaterial?.trim() || null
 });
 
@@ -249,7 +271,7 @@ const normalizeSizeField = (size) => {
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, allowCustomerQuantity } = req.body;
+		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, allowCustomerQuantity } = req.body;
 		const specs = parseSpecFields(req.body);
 		
 		// Parse categoryIds if it's a string (from FormData)
@@ -324,6 +346,11 @@ const createProduct = async (req, res) => {
 				return Number.isFinite(compare) && Number.isFinite(basePrice) && compare > basePrice
 					? compare
 					: null;
+			})(),
+			costPrice: (() => {
+				if (costPrice == null || costPrice === '') return null;
+				const cost = parseFloat(costPrice);
+				return Number.isFinite(cost) && cost >= 0 ? cost : null;
 			})(),
 			quantity: parseInt(quantity) || 0,
 			barcode: barcode || null,
@@ -567,7 +594,7 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, quantity, barcode, size, sizeStock, depthCm, widthCm, heightCm, outerMaterial, allowCustomerQuantity } = req.body;
+		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity } = req.body;
 		
 		console.log('=== UPDATE PRODUCT REQUEST ===');
 		console.log('Product ID:', id);
@@ -685,6 +712,14 @@ const updateProduct = async (req, res) => {
 					? compare
 					: null;
 		}
+		if (costPrice !== undefined) {
+			if (costPrice === '' || costPrice == null) {
+				product.costPrice = null;
+			} else {
+				const cost = parseFloat(costPrice);
+				product.costPrice = Number.isFinite(cost) && cost >= 0 ? cost : null;
+			}
+		}
 		// For made-to-order products with sizes, sizeStock is not used
 		// Just set empty object for compatibility (column doesn't exist anyway)
 		const finalSize = size !== undefined ? normalizeSizeField(size) : product.size;
@@ -708,9 +743,13 @@ const updateProduct = async (req, res) => {
 		}
 		if (barcode !== undefined) product.barcode = barcode || null;
 		if (size !== undefined) product.size = normalizeSizeField(size);
-		if (depthCm !== undefined) product.depthCm = parseOptionalDecimal(depthCm);
-		if (widthCm !== undefined) product.widthCm = parseOptionalDecimal(widthCm);
-		if (heightCm !== undefined) product.heightCm = parseOptionalDecimal(heightCm);
+		if (dimensions !== undefined) {
+			product.dimensions = dimensions?.trim() || null;
+			// Clear legacy numeric dimension fields when using free-text
+			product.depthCm = null;
+			product.widthCm = null;
+			product.heightCm = null;
+		}
 		if (outerMaterial !== undefined) product.outerMaterial = outerMaterial?.trim() || null;
 		if (req.body.defaultDisplayColor !== undefined) {
 			const variantRows =

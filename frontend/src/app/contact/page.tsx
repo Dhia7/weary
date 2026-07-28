@@ -122,7 +122,7 @@ export default function ContactPage() {
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
                     Email
                   </h3>
-                  <p className="text-swisse-ink/70 dark:text-muted-foreground">dhianaija@gmail.com</p>
+                  <p className="text-swisse-ink/70 dark:text-muted-foreground">admin@swisia.store</p>
                 </div>
               </div>
 

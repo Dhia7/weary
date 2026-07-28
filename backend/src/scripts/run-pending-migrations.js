@@ -20,6 +20,8 @@ async function main() {
 		await require('./add-avatar-url-to-users')();
 		console.log('');
 		await require('./add-product-fr-fields')();
+		console.log('');
+		await require('./add-cost-price')();
 		console.log('\n✅ All migrations finished.');
 	} catch (error) {
 		console.error('\n❌ Migration run failed:', error.message);
