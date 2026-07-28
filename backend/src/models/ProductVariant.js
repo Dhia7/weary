@@ -52,11 +52,6 @@ const ProductVariant = sequelize.define('ProductVariant', {
 		type: DataTypes.DECIMAL(12, 2),
 		allowNull: true
 	},
-	costPrice: {
-		type: DataTypes.DECIMAL(12, 2),
-		allowNull: true,
-		comment: 'Override buy cost; null uses parent product costPrice'
-	},
 	imageUrl: {
 		type: DataTypes.STRING(500),
 		allowNull: true

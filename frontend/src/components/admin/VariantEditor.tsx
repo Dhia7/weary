@@ -30,7 +30,6 @@ interface VariantEditorProps {
   parentSku: string;
   basePrice: number | '';
   baseCompareAtPrice?: number | '';
-  baseCostPrice?: number | '';
   variants: VariantDraft[];
   onChange: (variants: VariantDraft[]) => void;
   /** Product / per-color images used to sample swatch colors */
@@ -378,7 +377,6 @@ export default function VariantEditor({
   parentSku,
   basePrice,
   baseCompareAtPrice = '',
-  baseCostPrice = '',
   variants,
   onChange,
   sampleImages = [],
@@ -450,7 +448,6 @@ export default function VariantEditor({
         price: basePrice === '' ? null : Number(basePrice),
         compareAtPrice:
           baseCompareAtPrice === '' ? null : Number(baseCompareAtPrice),
-        costPrice: baseCostPrice === '' ? null : Number(baseCostPrice),
         imageUrl: null,
         images: [],
         isActive: true,
@@ -491,7 +488,6 @@ export default function VariantEditor({
           price: basePrice === '' ? null : Number(basePrice),
           compareAtPrice:
             baseCompareAtPrice === '' ? null : Number(baseCompareAtPrice),
-          costPrice: baseCostPrice === '' ? null : Number(baseCostPrice),
           imageUrl: null,
           images: [],
           isActive: true,
@@ -521,9 +517,8 @@ export default function VariantEditor({
           One style, one slug. Each color (and size for shoes) gets its own SKU, stock, and optional price.
           Leave price empty to use the product&apos;s base price, or set a different price per row (e.g. premium colors).
           Compare-at works the same way per color — useful when a special color costs more than black or white.
-          Bought-for is the purchase cost used for real income on the dashboard.
         </p>
-        {variants.length > 0 && (basePrice !== '' || baseCompareAtPrice !== '' || baseCostPrice !== '') && (
+        {variants.length > 0 && (basePrice !== '' || baseCompareAtPrice !== '') && (
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {basePrice !== '' && (
               <button
@@ -555,22 +550,6 @@ export default function VariantEditor({
                 className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
               >
                 Apply compare-at ({Number(baseCompareAtPrice).toFixed(2)} TND) to all variants
-              </button>
-            )}
-            {baseCostPrice !== '' && (
-              <button
-                type="button"
-                onClick={() =>
-                  onChange(
-                    variants.map((v) => ({
-                      ...v,
-                      costPrice: Number(baseCostPrice),
-                    }))
-                  )
-                }
-                className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
-              >
-                Apply bought-for ({Number(baseCostPrice).toFixed(2)} TND) to all variants
               </button>
             )}
           </div>
@@ -678,7 +657,6 @@ export default function VariantEditor({
                 <th className="px-3 py-2 text-left">Qty</th>
                 <th className="px-3 py-2 text-left">Price (optional)</th>
                 <th className="px-3 py-2 text-left">Compare-at (optional)</th>
-                <th className="px-3 py-2 text-left">Bought for (optional)</th>
                 <th className="px-3 py-2 text-left">Hex</th>
                 <th className="px-3 py-2" />
               </tr>
@@ -723,21 +701,6 @@ export default function VariantEditor({
                         })
                       }
                       placeholder={baseCompareAtPrice === '' ? 'Base' : String(baseCompareAtPrice)}
-                      className={`w-24 ${variantInputClass}`}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={variant.costPrice ?? ''}
-                      onChange={(e) =>
-                        updateVariant(index, {
-                          costPrice: e.target.value === '' ? null : parseFloat(e.target.value),
-                        })
-                      }
-                      placeholder={baseCostPrice === '' ? 'Bought for' : String(baseCostPrice)}
                       className={`w-24 ${variantInputClass}`}
                     />
                   </td>

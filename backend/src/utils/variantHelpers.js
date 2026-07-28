@@ -69,10 +69,6 @@ const syncProductVariants = async (productId, variantsPayload, parentSku, transa
 				row.compareAtPrice != null && row.compareAtPrice !== ''
 					? parseFloat(row.compareAtPrice)
 					: null,
-			costPrice:
-				row.costPrice != null && row.costPrice !== ''
-					? parseFloat(row.costPrice)
-					: null,
 			imageUrl: row.imageUrl || null,
 			images: Array.isArray(row.images) ? row.images : row.imageUrl ? [row.imageUrl] : [],
 			isActive: row.isActive !== false && row.isActive !== 'false',

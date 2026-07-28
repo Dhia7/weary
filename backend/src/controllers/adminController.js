@@ -593,44 +593,6 @@ const getDashboardStats = async (req, res) => {
     
     const revenueLast30Days = revenueResult ? parseInt(revenueResult.dataValues.totalRevenue) || 0 : 0;
 
-    // Real income (profit) = merchandise sold − buy cost, last 30 days
-    const profitResult = await OrderItem.findOne({
-      attributes: [
-        [
-          sequelize.literal(
-            'SUM("OrderItem"."quantity" * "OrderItem"."unitPriceCents")'
-          ),
-          'merchandiseRevenueCents'
-        ],
-        [
-          sequelize.literal(
-            'SUM("OrderItem"."quantity" * COALESCE("OrderItem"."unitCostCents", 0))'
-          ),
-          'merchandiseCostCents'
-        ]
-      ],
-      include: [
-        {
-          model: Order,
-          attributes: [],
-          required: true,
-          where: {
-            createdAt: { [Op.gte]: thirtyDaysAgo },
-            status: { [Op.in]: ['paid', 'delivered'] }
-          }
-        }
-      ],
-      raw: true
-    });
-
-    const merchandiseRevenueCents = profitResult
-      ? parseInt(profitResult.merchandiseRevenueCents) || 0
-      : 0;
-    const merchandiseCostCents = profitResult
-      ? parseInt(profitResult.merchandiseCostCents) || 0
-      : 0;
-    const profitLast30Days = merchandiseRevenueCents - merchandiseCostCents;
-
     // Top products by order count with actual revenue calculation
     const topProductsRaw = await OrderItem.findAll({
       attributes: [
@@ -665,7 +627,7 @@ const getDashboardStats = async (req, res) => {
       };
     });
 
-    // Time-series data: Revenue + real income by day (last 30 days)
+    // Time-series data: Revenue by day (last 30 days)
     const revenueByDay = [];
     for (let i = 29; i >= 0; i--) {
       const date = new Date();
@@ -674,48 +636,25 @@ const getDashboardStats = async (req, res) => {
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      const dayWhere = {
-        createdAt: {
-          [Op.gte]: date,
-          [Op.lt]: nextDate
-        },
-        status: {
-          [Op.in]: ['paid', 'delivered']
-        }
-      };
-
       const dayRevenue = await Order.findOne({
         attributes: [
           [sequelize.fn('SUM', sequelize.col('totalAmountCents')), 'revenue'],
           [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount']
         ],
-        where: dayWhere
-      });
-
-      const dayProfit = await OrderItem.findOne({
-        attributes: [
-          [
-            sequelize.literal(
-              'SUM("OrderItem"."quantity" * "OrderItem"."unitPriceCents") - SUM("OrderItem"."quantity" * COALESCE("OrderItem"."unitCostCents", 0))'
-            ),
-            'profit'
-          ]
-        ],
-        include: [
-          {
-            model: Order,
-            attributes: [],
-            required: true,
-            where: dayWhere
+        where: {
+          createdAt: {
+            [Op.gte]: date,
+            [Op.lt]: nextDate
+          },
+          status: {
+            [Op.in]: ['paid', 'delivered']
           }
-        ],
-        raw: true
+        }
       });
 
       revenueByDay.push({
         date: date.toISOString().split('T')[0],
         revenue: dayRevenue && dayRevenue.dataValues.revenue ? parseInt(dayRevenue.dataValues.revenue) : 0,
-        profit: dayProfit && dayProfit.profit != null ? parseInt(dayProfit.profit) || 0 : 0,
         orders: dayRevenue && dayRevenue.dataValues.orderCount ? parseInt(dayRevenue.dataValues.orderCount) : 0
       });
     }
@@ -792,48 +731,25 @@ const getDashboardStats = async (req, res) => {
       const nextDate = new Date(date);
       nextDate.setMonth(nextDate.getMonth() + 1);
 
-      const monthWhere = {
-        createdAt: {
-          [Op.gte]: date,
-          [Op.lt]: nextDate
-        },
-        status: {
-          [Op.in]: ['paid', 'delivered']
-        }
-      };
-
       const monthRevenue = await Order.findOne({
         attributes: [
           [sequelize.fn('SUM', sequelize.col('totalAmountCents')), 'revenue'],
           [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount']
         ],
-        where: monthWhere
-      });
-
-      const monthProfit = await OrderItem.findOne({
-        attributes: [
-          [
-            sequelize.literal(
-              'SUM("OrderItem"."quantity" * "OrderItem"."unitPriceCents") - SUM("OrderItem"."quantity" * COALESCE("OrderItem"."unitCostCents", 0))'
-            ),
-            'profit'
-          ]
-        ],
-        include: [
-          {
-            model: Order,
-            attributes: [],
-            required: true,
-            where: monthWhere
+        where: {
+          createdAt: {
+            [Op.gte]: date,
+            [Op.lt]: nextDate
+          },
+          status: {
+            [Op.in]: ['paid', 'delivered']
           }
-        ],
-        raw: true
+        }
       });
 
       revenueByMonth.push({
         month: date.toLocaleString('default', { month: 'short', year: 'numeric' }),
         revenue: monthRevenue && monthRevenue.dataValues.revenue ? parseInt(monthRevenue.dataValues.revenue) : 0,
-        profit: monthProfit && monthProfit.profit != null ? parseInt(monthProfit.profit) || 0 : 0,
         orders: monthRevenue && monthRevenue.dataValues.orderCount ? parseInt(monthRevenue.dataValues.orderCount) : 0
       });
     }
@@ -882,8 +798,6 @@ const getDashboardStats = async (req, res) => {
         totalOrders,
         ordersByStatus,
         revenueLast30Days,
-        profitLast30Days,
-        merchandiseCostLast30Days: merchandiseCostCents,
         revenuePrevious30Days,
         revenueGrowth,
         ordersGrowth,

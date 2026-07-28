@@ -19,18 +19,6 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 ```
 Use the same OAuth Web client ID as on Vercel (`NEXT_PUBLIC_GOOGLE_CLIENT_ID`). See [GOOGLE_SIGNIN.md](./GOOGLE_SIGNIN.md).
 
-### Email (OVHcloud SMTP):
-```
-SMTP_HOST=smtp.mail.ovh.net
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=admin@swisia.store
-SMTP_PASS=your_ovh_mailbox_password
-MAIL_FROM=Swisia <admin@swisia.store>
-ADMIN_NOTIFY_EMAIL=admin@swisia.store
-```
-Sends order confirmations, password resets, email verification, and contact-form notifications from `admin@swisia.store`. Redeploy after setting these.
-
 ### Sign in with Google (Vercel frontend):
 In the Vercel project → Environment Variables:
 ```

@@ -5,7 +5,7 @@ const { sequelize } = require('../config/database');
 require('../models/associations');
 
 // Then import models from associations
-const { User, Product, ProductVariant, Order, OrderItem } = require('../models/associations');
+const { User, Product, Order, OrderItem } = require('../models/associations');
 
 const {
 	checkItemStockAvailability,
@@ -13,19 +13,6 @@ const {
 	restoreItemStock
 } = require('../utils/stockHelpers');
 const { verifyAdminPassword } = require('../utils/adminAuth');
-const {
-	hasMailTransport,
-	sendOrderConfirmationEmail,
-	sendOrderAdminNotificationEmail,
-	sendPersonalizedOrderEmails,
-	sendTransactional,
-} = require('../utils/mail');
-
-const notifyOrderEmails = (order) => {
-	if (!hasMailTransport() || !order) return;
-	sendTransactional(sendOrderConfirmationEmail(order), 'order-confirmation');
-	sendTransactional(sendOrderAdminNotificationEmail(order), 'order-admin');
-};
 
 const formatStockErrorMessage = (product, item) => {
 	const parts = [];
@@ -35,36 +22,12 @@ const formatStockErrorMessage = (product, item) => {
 	return `Sorry, we don't have enough ${product.name}${suffix} in stock to fulfill your order. Please reduce the quantity or contact us for availability.`;
 };
 
-const toCents = (value) => {
-	if (value == null || value === '') return null;
-	const n = parseFloat(value);
-	if (!Number.isFinite(n) || n < 0) return null;
-	return Math.round(n * 100);
-};
-
-/** Resolve buy cost from variant override, else product cost. */
-const resolveUnitCostCents = async (item, product, transaction) => {
-	if (item.variantId) {
-		const variant = await ProductVariant.findByPk(item.variantId, { transaction });
-		const variantCost = toCents(variant?.costPrice);
-		if (variantCost != null) return variantCost;
-	}
-	const productCost = toCents(product?.costPrice);
-	return productCost != null ? productCost : 0;
-};
-
 const createOrderItemRecord = async (orderId, item, transaction) => {
-	const product = await Product.findByPk(item.productId, {
-		transaction,
-		attributes: ['id', 'costPrice']
-	});
-	const unitCostCents = await resolveUnitCostCents(item, product, transaction);
 	return OrderItem.create({
 		orderId,
 		productId: item.productId,
 		quantity: item.quantity,
 		unitPriceCents: item.unitPriceCents,
-		unitCostCents,
 		size: item.size || null,
 		color: item.color || null,
 		variantId: item.variantId || null
@@ -374,7 +337,6 @@ const createOrder = async (req, res) => {
         { model: OrderItem, as: 'items', include: [{ model: Product, as: 'Product', attributes: ['id', 'name', 'slug', 'SKU', 'description', 'price', 'compareAtPrice', 'imageUrl', 'images', 'mainThumbnailIndex', 'quantity', 'weightGrams', 'barcode', 'isActive'] }] }
       ]
     });
-    notifyOrderEmails(created);
     res.status(201).json({ success: true, data: { order: created } });
   } catch (error) {
     await t.rollback();
@@ -452,7 +414,6 @@ const createUserOrder = async (req, res) => {
         { model: OrderItem, as: 'items', include: [{ model: Product, as: 'Product', attributes: ['id', 'name', 'slug', 'SKU', 'description', 'price', 'compareAtPrice', 'imageUrl', 'images', 'mainThumbnailIndex', 'quantity', 'weightGrams', 'barcode', 'isActive'] }] }
       ]
     });
-    notifyOrderEmails(created);
     res.status(201).json({ success: true, data: { order: created } });
   } catch (error) {
     if (!t.finished) {
@@ -536,7 +497,6 @@ const createGuestOrder = async (req, res) => {
         { model: OrderItem, as: 'items', include: [{ model: Product, as: 'Product', attributes: ['id', 'name', 'slug', 'SKU', 'description', 'price', 'compareAtPrice', 'imageUrl', 'images', 'mainThumbnailIndex', 'quantity', 'weightGrams', 'barcode', 'isActive'] }] }
       ]
     });
-    notifyOrderEmails(created);
     res.status(201).json({ success: true, data: { order: created } });
   } catch (error) {
     if (!t.finished) {
@@ -804,13 +764,6 @@ const createPersonalizedTShirtOrder = async (req, res) => {
         { model: User, as: 'User', attributes: ['id', 'email', 'firstName', 'lastName'], required: false }
       ]
     });
-
-    if (hasMailTransport() && created) {
-      sendTransactional(
-        sendPersonalizedOrderEmails(created, { designImageUrl, tshirtColor }),
-        'personalized-order'
-      );
-    }
     
     res.status(201).json({ 
       success: true, 

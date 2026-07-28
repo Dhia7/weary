@@ -25,9 +25,7 @@ interface OrderItem {
   }; 
   quantity: number; 
   unitPriceCents: number;
-  unitCostCents?: number;
   size?: string | null;
-  color?: string | null;
 }
 interface Order {
   id: string; // Changed from number to string for UUID
@@ -418,16 +416,6 @@ export default function AdminOrdersPage() {
     return items.reduce((sum, item) => sum + (item.unitPriceCents * item.quantity), 0);
   };
 
-  const getItemRealIncomeCents = (item: OrderItem): number => {
-    const unitCost = item.unitCostCents ?? 0;
-    return item.quantity * (item.unitPriceCents - unitCost);
-  };
-
-  const calculateRealIncome = (items: OrderItem[]): number => {
-    if (!items || items.length === 0) return 0;
-    return items.reduce((sum, item) => sum + getItemRealIncomeCents(item), 0);
-  };
-
   return (
     <AdminGuard>
       <div className="max-w-6xl mx-auto p-6">
@@ -728,14 +716,8 @@ export default function AdminOrdersPage() {
                                             <p className="text-gray-600 dark:text-gray-400">
                                               <span className="font-medium">Unit Price:</span> {formatOrderPrice(item.unitPriceCents, o.currency || 'TND')}
                                             </p>
-                                            <p className="text-gray-600 dark:text-gray-400">
-                                              <span className="font-medium">Bought for:</span> {formatOrderPrice(item.unitCostCents ?? 0, o.currency || 'TND')}
-                                            </p>
                                             <p className="font-semibold text-gray-900 dark:text-gray-100">
                                               <span className="font-medium">Item Total:</span> {formatOrderPrice(item.unitPriceCents * item.quantity, o.currency || 'TND')}
-                                            </p>
-                                            <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                                              <span className="font-medium">Real Income:</span> {formatOrderPrice(getItemRealIncomeCents(item), o.currency || 'TND')}
                                             </p>
                                           </div>
                                         </div>
@@ -751,12 +733,6 @@ export default function AdminOrdersPage() {
                                 <span className="font-semibold text-gray-700 dark:text-gray-300">Items Total:</span>
                                 <span className="font-bold text-lg text-gray-900 dark:text-gray-100">
                                   {formatOrderPrice(calculateItemsTotal(o.items || []), o.currency || 'TND')}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center mt-2">
-                                <span className="font-semibold text-emerald-700 dark:text-emerald-400">Real Income:</span>
-                                <span className="font-bold text-lg text-emerald-700 dark:text-emerald-400">
-                                  {formatOrderPrice(calculateRealIncome(o.items || []), o.currency || 'TND')}
                                 </span>
                               </div>
                               {o.totalAmountCents !== calculateItemsTotal(o.items || []) && (
@@ -974,9 +950,6 @@ export default function AdminOrdersPage() {
                       )}
                     </div>
                     <p><strong>Items Total:</strong> {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}</p>
-                    <p className="text-emerald-700 dark:text-emerald-400">
-                      <strong>Real Income:</strong> {formatOrderPrice(calculateRealIncome(selectedOrder.items || []), selectedOrder.currency || 'TND')}
-                    </p>
                     {selectedOrder.totalAmountCents !== calculateItemsTotal(selectedOrder.items || []) && (
                       <>
                         <p><strong>Order Total (includes shipping):</strong> {formatOrderPrice(selectedOrder.totalAmountCents, selectedOrder.currency || 'TND')}</p>
@@ -1176,11 +1149,8 @@ export default function AdminOrdersPage() {
                 <div className="mt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Order Items ({selectedOrder.items.length})</h3>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-3">
-                      <span>Items Total: {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}</span>
-                      <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                        Real Income: {formatOrderPrice(calculateRealIncome(selectedOrder.items || []), selectedOrder.currency || 'TND')}
-                      </span>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Items Total: {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}
                     </div>
                   </div>
                   
@@ -1273,21 +1243,11 @@ export default function AdminOrdersPage() {
                                       <span className="text-blue-700 dark:text-blue-300">Unit Price:</span>
                                       <span className="font-semibold text-blue-900 dark:text-blue-100">{formatOrderPrice(item.unitPriceCents, selectedOrder.currency || 'TND')}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-blue-700 dark:text-blue-300">Bought for:</span>
-                                      <span className="font-semibold text-blue-900 dark:text-blue-100">{formatOrderPrice(item.unitCostCents ?? 0, selectedOrder.currency || 'TND')}</span>
-                                    </div>
                                     <hr className="border-blue-200 dark:border-blue-700" />
                                     <div className="flex justify-between">
                                       <span className="font-semibold text-blue-900 dark:text-blue-100">Item Total:</span>
                                       <span className="font-bold text-lg text-blue-900 dark:text-blue-100">
                                         {formatOrderPrice(item.unitPriceCents * item.quantity, selectedOrder.currency || 'TND')}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="font-semibold text-emerald-700 dark:text-emerald-400">Real Income:</span>
-                                      <span className="font-bold text-lg text-emerald-700 dark:text-emerald-400">
-                                        {formatOrderPrice(getItemRealIncomeCents(item), selectedOrder.currency || 'TND')}
                                       </span>
                                     </div>
                                   </div>
@@ -1374,12 +1334,6 @@ export default function AdminOrdersPage() {
                         <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">Items Total:</span>
                         <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                           {formatOrderPrice(calculateItemsTotal(selectedOrder.items || []), selectedOrder.currency || 'TND')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">Real Income:</span>
-                        <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                          {formatOrderPrice(calculateRealIncome(selectedOrder.items || []), selectedOrder.currency || 'TND')}
                         </span>
                       </div>
                       {selectedOrder.totalAmountCents !== calculateItemsTotal(selectedOrder.items || []) && (

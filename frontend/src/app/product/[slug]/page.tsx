@@ -69,7 +69,6 @@ export default function ProductDetailPage() {
   const { text: productDescription, isLoading: descriptionTranslating } =
     useTranslatedText(product?.description, isFrench);
   const { text: outerMaterialText } = useTranslatedText(product?.outerMaterial, isFrench);
-  const { text: dimensionsText } = useTranslatedText(product?.dimensions, isFrench);
 
   const selectedVariant = useMemo(() => {
     if (!product?.hasVariants) return undefined;
@@ -425,31 +424,22 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {(product.dimensions?.trim() ||
-              product.depthCm ||
-              product.widthCm ||
-              product.heightCm) && (
+            {(product.depthCm || product.widthCm || product.heightCm) && (
               <div className={`text-sm space-y-2 ${bodyTextClass}`}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
                   {t.dimensions}
                 </p>
-                {product.dimensions?.trim() ? (
-                  <p>
-                    {isFrench && dimensionsText ? dimensionsText : product.dimensions}
-                  </p>
-                ) : (
-                  <ul className="space-y-1">
-                    {product.depthCm != null && product.depthCm > 0 && (
-                      <li><span className="text-swisse-ink/80 dark:text-foreground">{t.depth}:</span> {Number(product.depthCm)} cm</li>
-                    )}
-                    {product.widthCm != null && product.widthCm > 0 && (
-                      <li><span className="text-swisse-ink/80 dark:text-foreground">{t.width}:</span> {Number(product.widthCm)} cm</li>
-                    )}
-                    {product.heightCm != null && product.heightCm > 0 && (
-                      <li><span className="text-swisse-ink/80 dark:text-foreground">{t.height}:</span> {Number(product.heightCm)} cm</li>
-                    )}
-                  </ul>
-                )}
+                <ul className="space-y-1">
+                  {product.depthCm != null && product.depthCm > 0 && (
+                    <li><span className="text-swisse-ink/80 dark:text-foreground">{t.depth}:</span> {Number(product.depthCm)} cm</li>
+                  )}
+                  {product.widthCm != null && product.widthCm > 0 && (
+                    <li><span className="text-swisse-ink/80 dark:text-foreground">{t.width}:</span> {Number(product.widthCm)} cm</li>
+                  )}
+                  {product.heightCm != null && product.heightCm > 0 && (
+                    <li><span className="text-swisse-ink/80 dark:text-foreground">{t.height}:</span> {Number(product.heightCm)} cm</li>
+                  )}
+                </ul>
               </div>
             )}
 
