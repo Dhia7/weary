@@ -30,23 +30,33 @@ interface Product {
   updatedAt: string;
 }
 
+const PRODUCT_LIMIT = 6;
+
 const FeaturedProducts = () => {
   const { isFrench } = useLanguage();
-  const { products, loading } = useProducts({ limit: 8, active: true });
+  const { products, loading } = useProducts({ limit: PRODUCT_LIMIT, active: true });
+
+  const heading = isFrench ? 'Coups de cœur' : 'Bestsellers';
+  const subcopy = isFrench
+    ? 'Des pièces sélectionnées, prêtes à commander — photos réelles, prix en TND.'
+    : 'Handpicked pieces ready to order — real photos, prices in TND.';
 
   if (loading) {
     return (
-      <section id="most-loved" className="py-24 md:py-32 bg-swisse-canvas dark:bg-background">
+      <section id="most-loved" className="py-20 md:py-28 bg-swisse-canvas dark:bg-background">
         <div className="max-w-swisse mx-auto px-6 md:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-16 md:mb-20">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-14 md:mb-16">
             <div>
               <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
-                {isFrench ? 'Produits en vedette' : 'Featured Products'}
+                {heading}
               </h2>
+              <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
+                {subcopy}
+              </p>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
-            {[...Array(8)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+            {[...Array(PRODUCT_LIMIT)].map((_, i) => (
               <div key={i} className="animate-pulse">
                 <div className="aspect-[3/4] bg-swisse-mist dark:bg-muted rounded-sm mb-6" />
                 <div className="h-4 bg-swisse-mist dark:bg-muted rounded w-3/4 mb-2" />
@@ -73,13 +83,16 @@ const FeaturedProducts = () => {
   };
 
   return (
-    <section id="most-loved" className="py-24 md:py-32 bg-swisse-canvas dark:bg-background">
+    <section id="most-loved" className="py-20 md:py-28 bg-swisse-canvas dark:bg-background">
       <div className="max-w-swisse mx-auto px-6 md:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-16 md:mb-20">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-14 md:mb-16">
           <div>
             <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
-              {isFrench ? 'Produits en vedette' : 'Featured Products'}
+              {heading}
             </h2>
+            <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
+              {subcopy}
+            </p>
           </div>
           <Link
             href="/products"
@@ -95,21 +108,21 @@ const FeaturedProducts = () => {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: '-60px' }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-14 md:gap-y-16"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14 md:gap-y-16"
           >
             {products.map((item) => {
               const product = item as Product;
               return (
-              <motion.div key={product.id} variants={itemVariants}>
-                <ProductCard product={product} variant="editorial" />
-              </motion.div>
+                <motion.div key={product.id} variants={itemVariants}>
+                  <ProductCard product={product} variant="editorial" />
+                </motion.div>
               );
             })}
           </motion.div>
         ) : (
           <p className="text-center text-swisse-ink/60 dark:text-muted-foreground text-lg py-12">
             {isFrench
-              ? 'Aucun produit disponible pour le moment. Revenez bientot !'
+              ? 'Aucun produit disponible pour le moment. Revenez bientôt !'
               : 'No products available yet. Check back soon!'}
           </p>
         )}

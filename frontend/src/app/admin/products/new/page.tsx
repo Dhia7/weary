@@ -372,6 +372,8 @@ export default function NewProductPage() {
         if (variantPrices.length > 0) {
           const minPrice = Math.min(...variantPrices);
           formData.set('price', String(minPrice));
+        } else if (price !== '' && price != null) {
+          formData.set('price', String(price));
         } else {
           formData.set('price', '0');
         }
@@ -382,6 +384,8 @@ export default function NewProductPage() {
         if (compareAtPrices.length > 0) {
           const minCompareAt = Math.min(...compareAtPrices);
           formData.set('compareAtPrice', String(minCompareAt));
+        } else if (compareAtPrice !== '' && compareAtPrice != null) {
+          formData.set('compareAtPrice', String(compareAtPrice));
         }
 
         const variantCosts = variants
@@ -565,7 +569,16 @@ export default function NewProductPage() {
                       className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" 
                     />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The original price if the item is on sale (e.g., Price: 49.99 TND | Compare at: 79.99 TND)</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    The original/was price — must be higher than Price to show struck through on the store (e.g. Price: 490 | Compare at: 550)
+                  </p>
+                  {compareAtPrice !== '' &&
+                    price !== '' &&
+                    Number(compareAtPrice) <= Number(price) && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Compare at must be higher than Price or it will not appear on the landing page.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -593,27 +606,78 @@ export default function NewProductPage() {
 
           {hasVariants && (
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Cost</h2>
-              <div className="max-w-sm">
-                <label htmlFor="costPriceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Bought for (base)</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">TND</span>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Pricing &amp; Cost</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div>
+                  <label htmlFor="priceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Price (base)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input
+                      id="priceBase"
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    />
                   </div>
-                  <input
-                    id="costPriceBase"
-                    placeholder="0.00"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={costPrice}
-                    onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Base selling price — override per color in the variants table
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Base purchase cost — override per color in the variants table below
-                </p>
+                <div>
+                  <label htmlFor="compareAtPriceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at (base)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input
+                      id="compareAtPriceBase"
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={compareAtPrice}
+                      onChange={(e) => setCompareAtPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Original/sale price shown struck through — must be higher than Price (independent of bought-for cost)
+                  </p>
+                  {compareAtPrice !== '' &&
+                    price !== '' &&
+                    Number(compareAtPrice) <= Number(price) && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Compare at must be higher than Price or it will not appear on the store.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="costPriceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Bought for (base)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">TND</span>
+                    </div>
+                    <input
+                      id="costPriceBase"
+                      placeholder="0.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={costPrice}
+                      onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Purchase cost for dashboard income — can differ per color
+                  </p>
+                </div>
               </div>
             </div>
           )}

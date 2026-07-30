@@ -520,8 +520,8 @@ export default function VariantEditor({
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           One style, one slug. Each color (and size for shoes) gets its own SKU, stock, and optional price.
           Leave price empty to use the product&apos;s base price, or set a different price per row (e.g. premium colors).
-          Compare-at works the same way per color — useful when a special color costs more than black or white.
-          Bought-for is the purchase cost used for real income on the dashboard.
+          Compare-at is the crossed-out sale price and works independently of bought-for cost — set it once above and apply to all, or override per color.
+          Bought-for is the purchase cost used for real income on the dashboard and can differ per color.
         </p>
         {variants.length > 0 && (basePrice !== '' || baseCompareAtPrice !== '' || baseCostPrice !== '') && (
           <div className="flex flex-wrap gap-x-4 gap-y-1">

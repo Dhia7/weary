@@ -2,16 +2,10 @@ import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
+import TrustBar from "@/components/TrustBar";
 import Footer from "@/components/Footer";
 import HomeUrlNotifications from "../components/HomeUrlNotifications";
 
-const HomeFeaturedCollections = dynamic(
-  () => import("@/components/HomeFeaturedCollections"),
-  { loading: () => <HomeSectionSkeleton /> }
-);
-const ManifestoBanner = dynamic(() => import("@/components/ManifestoBanner"), {
-  loading: () => <HomeSectionSkeleton compact />,
-});
 const FeaturedProducts = dynamic(() => import("@/components/FeaturedProducts"), {
   loading: () => <HomeSectionSkeleton />,
 });
@@ -42,8 +36,7 @@ export default function Home() {
       <Navigation />
       <main id="main-content">
         <Hero />
-        <HomeFeaturedCollections />
-        <ManifestoBanner />
+        <TrustBar />
         <FeaturedProducts />
         <BrandStory />
         <NewsletterSignup />

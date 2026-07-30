@@ -197,6 +197,27 @@ export const getEffectiveCompareAtPrice = (
 ): number | null =>
   toPriceNumber(selectedVariant?.compareAtPrice ?? product.compareAtPrice);
 
+/** Compare-at for a color before size is chosen (min across that color's variants). */
+export const getColorCompareAtPrice = (
+  product: Product,
+  colorName: string
+): number | null => {
+  if (!product.variants?.length) {
+    return toPriceNumber(product.compareAtPrice);
+  }
+  const matches = product.variants.filter(
+    (v) => v.color.trim().toLowerCase() === colorName.trim().toLowerCase()
+  );
+  if (!matches.length) {
+    return toPriceNumber(product.compareAtPrice);
+  }
+  const values = matches
+    .map((v) => toPriceNumber(v.compareAtPrice ?? product.compareAtPrice))
+    .filter((n): n is number => n != null);
+  if (!values.length) return null;
+  return Math.min(...values);
+};
+
 /** Show strikethrough compare-at only when it is strictly higher than the active price. */
 export const shouldShowCompareAtPrice = (
   compareAt: number | string | null | undefined,

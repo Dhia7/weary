@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/contexts/LanguageContext';
 import type { Product, ProductDisplayBadge } from '@/lib/types/product';
 import {
   formatProductPriceLabel,
+  getColorCompareAtPrice,
   getColorPrice,
   getListingPrice,
   getProductHref,
@@ -111,18 +112,16 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     }
     return getListingPrice(product);
   }, [product, selectedColor]);
-  const showCompareAt = useMemo(() => {
-    const hasColorSpecificPrice =
-      Boolean(
-        selectedColor &&
-          product.hasVariants &&
-          getColorPrice(product, selectedColor) != null
-      );
-    if (product.priceRange?.hasVariablePricing && !hasColorSpecificPrice) {
-      return false;
+  const compareAtPrice = useMemo(() => {
+    if (selectedColor && product.hasVariants) {
+      return getColorCompareAtPrice(product, selectedColor);
     }
-    return shouldShowCompareAtPrice(product.compareAtPrice, displayPrice);
-  }, [product, selectedColor, displayPrice]);
+    return toPriceNumber(product.compareAtPrice);
+  }, [product, selectedColor]);
+  const showCompareAt = useMemo(
+    () => shouldShowCompareAtPrice(compareAtPrice, displayPrice),
+    [compareAtPrice, displayPrice]
+  );
 
   const getCategoryEmoji = (categories?: Array<{ name: string }>) => {
     if (!categories || categories.length === 0) return '👕';
@@ -226,9 +225,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               <span className="text-sm font-medium text-swisse-ink dark:text-foreground">
                 {priceLabel}
               </span>
-              {showCompareAt && (
+              {showCompareAt && compareAtPrice != null && (
                 <p className="text-xs text-swisse-ink/50 line-through dark:text-muted-foreground">
-                  {`${toPriceNumber(product.compareAtPrice)!.toFixed(2)} TND`}
+                  {`${compareAtPrice.toFixed(2)} TND`}
                 </p>
               )}
             </div>
@@ -344,9 +343,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2">
               <span className="text-lg font-semibold text-foreground">{priceLabel}</span>
-              {showCompareAt && (
+              {showCompareAt && compareAtPrice != null && (
                 <span className="text-sm text-muted-foreground line-through">
-                  {`${toPriceNumber(product.compareAtPrice)!.toFixed(2)} TND`}
+                  {`${compareAtPrice.toFixed(2)} TND`}
                 </span>
               )}
             </div>

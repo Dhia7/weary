@@ -40,11 +40,10 @@ const normalizeProductPrices = (productData) => {
 	if (productData.price != null) {
 		productData.price = parsePriceField(productData.price);
 	}
+	// Persist compare-at as entered; storefront decides whether to show strikethrough.
+	// Do not tie it to sell price or bought/cost price.
 	if (productData.compareAtPrice != null) {
-		const compare = parsePriceField(productData.compareAtPrice);
-		const price = parsePriceField(productData.price);
-		productData.compareAtPrice =
-			compare != null && price != null && compare > price ? compare : null;
+		productData.compareAtPrice = parsePriceField(productData.compareAtPrice);
 	}
 	if (productData.costPrice != null) {
 		productData.costPrice = parsePriceField(productData.costPrice);
@@ -55,12 +54,7 @@ const normalizeProductPrices = (productData) => {
 			if (v.price != null) v.price = parsePriceField(v.price);
 			if (v.costPrice != null) v.costPrice = parsePriceField(v.costPrice);
 			if (v.compareAtPrice != null) {
-				const compare = parsePriceField(v.compareAtPrice);
-				const variantPrice = parsePriceField(v.price) ?? parsePriceField(productData.price);
-				v.compareAtPrice =
-					compare != null && variantPrice != null && compare > variantPrice
-						? compare
-						: null;
+				v.compareAtPrice = parsePriceField(v.compareAtPrice);
 			}
 			return v;
 		});
@@ -340,12 +334,9 @@ const createProduct = async (req, res) => {
 			defaultDisplayColor: defaultDisplayColor ?? null,
 			price: parseFloat(price),
 			compareAtPrice: (() => {
-				if (!compareAtPrice) return null;
+				if (compareAtPrice == null || compareAtPrice === '') return null;
 				const compare = parseFloat(compareAtPrice);
-				const basePrice = parseFloat(price);
-				return Number.isFinite(compare) && Number.isFinite(basePrice) && compare > basePrice
-					? compare
-					: null;
+				return Number.isFinite(compare) && compare >= 0 ? compare : null;
 			})(),
 			costPrice: (() => {
 				if (costPrice == null || costPrice === '') return null;
@@ -705,12 +696,13 @@ const updateProduct = async (req, res) => {
 		}
 		if (price !== undefined) product.price = parseFloat(price);
 		if (compareAtPrice !== undefined) {
-			const compare = compareAtPrice ? parseFloat(compareAtPrice) : null;
-			const basePrice = price !== undefined ? parseFloat(price) : parseFloat(product.price);
-			product.compareAtPrice =
-				compare != null && Number.isFinite(compare) && Number.isFinite(basePrice) && compare > basePrice
-					? compare
-					: null;
+			if (compareAtPrice === '' || compareAtPrice == null) {
+				product.compareAtPrice = null;
+			} else {
+				const compare = parseFloat(compareAtPrice);
+				product.compareAtPrice =
+					Number.isFinite(compare) && compare >= 0 ? compare : null;
+			}
 		}
 		if (costPrice !== undefined) {
 			if (costPrice === '' || costPrice == null) {

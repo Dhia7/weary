@@ -33,12 +33,12 @@ const NewsletterSignup = () => {
           transition={{ duration: 0.7 }}
         >
           <h2 className="font-serif text-3xl md:text-4xl mb-6 text-swisse-ink dark:text-foreground">
-            {isFrench ? 'Le cercle Swisia' : 'The Swisia Circle'}
+            {isFrench ? 'Nouvelles arrivées' : 'New arrivals'}
           </h2>
           <p className="text-swisse-ink/70 dark:text-muted-foreground mb-12 leading-relaxed">
             {isFrench
-              ? 'Inscrivez-vous a notre liste privee pour un acces anticipe aux collections limitees et des invitations a nos presentations regionales.'
-              : 'Join our private mailing list for early access to limited collections and invitations to regional trunk shows.'}
+              ? 'Soyez les premiers informés des nouvelles arrivées — pièces limitées, sélection Suisse → Tunisie.'
+              : 'Be the first to know about new arrivals — limited pieces, curated Switzerland → Tunisia.'}
           </p>
 
           <form

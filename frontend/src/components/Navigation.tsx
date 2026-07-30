@@ -35,7 +35,7 @@ type MainNavItem = {
 
 const mainNav: MainNavItem[] = [
   { name: 'Home', href: '/' },
-  { name: 'Collections', href: '/collections', sectionId: 'collections' },
+  { name: 'Collections', href: '/collections' },
   { name: 'Featured', href: '/products', sectionId: 'most-loved' },
   { name: 'How it Works', href: '/', sectionId: 'brand-story' },
 ];
