@@ -59,7 +59,8 @@
   }
 
   #most-loved,
-  #brand-story {
+  #brand-story,
+  #nouvelle-collection {
     scroll-margin-top: 5.5rem;
   }
 
@@ -102,6 +103,15 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }
 

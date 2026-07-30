@@ -6,6 +6,9 @@ import TrustBar from "@/components/TrustBar";
 import Footer from "@/components/Footer";
 import HomeUrlNotifications from "../components/HomeUrlNotifications";
 
+const NouvelleCollection = dynamic(() => import("@/components/NouvelleCollection"), {
+  loading: () => <HomeSectionSkeleton />,
+});
 const FeaturedProducts = dynamic(() => import("@/components/FeaturedProducts"), {
   loading: () => <HomeSectionSkeleton />,
 });
@@ -37,6 +40,7 @@ export default function Home() {
       <main id="main-content">
         <Hero />
         <TrustBar />
+        <NouvelleCollection />
         <FeaturedProducts />
         <BrandStory />
         <NewsletterSignup />
