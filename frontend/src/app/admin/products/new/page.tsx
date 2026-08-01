@@ -51,6 +51,7 @@ export default function NewProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [mainThumbnailIndex, setMainThumbnailIndex] = useState<number>(0);
+  const [hoverImageIndex, setHoverImageIndex] = useState<number | null>(null);
   const [defaultDisplayColor, setDefaultDisplayColor] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -163,6 +164,17 @@ export default function NewProductPage() {
       }
       return prev.filter((_, i) => i !== index);
     });
+    setMainThumbnailIndex((prev) => {
+      if (index === prev && prev > 0) return prev - 1;
+      if (index < prev) return prev - 1;
+      return prev;
+    });
+    setHoverImageIndex((prev) => {
+      if (prev == null) return null;
+      if (index === prev) return null;
+      if (index < prev) return prev - 1;
+      return prev;
+    });
   };
 
   // Move image up in order
@@ -177,6 +189,17 @@ export default function NewProductPage() {
         const newPreviews = [...prev];
         [newPreviews[index - 1], newPreviews[index]] = [newPreviews[index], newPreviews[index - 1]];
         return newPreviews;
+      });
+      setMainThumbnailIndex((prev) => {
+        if (index === prev) return index - 1;
+        if (index - 1 === prev) return index;
+        return prev;
+      });
+      setHoverImageIndex((prev) => {
+        if (prev == null) return null;
+        if (index === prev) return index - 1;
+        if (index - 1 === prev) return index;
+        return prev;
       });
     }
   };
@@ -193,6 +216,17 @@ export default function NewProductPage() {
         const newPreviews = [...prev];
         [newPreviews[index], newPreviews[index + 1]] = [newPreviews[index + 1], newPreviews[index]];
         return newPreviews;
+      });
+      setMainThumbnailIndex((prev) => {
+        if (index === prev) return index + 1;
+        if (index + 1 === prev) return index;
+        return prev;
+      });
+      setHoverImageIndex((prev) => {
+        if (prev == null) return null;
+        if (index === prev) return index + 1;
+        if (index + 1 === prev) return index;
+        return prev;
       });
     }
   };
@@ -399,6 +433,10 @@ export default function NewProductPage() {
       formData.append('allowCustomerQuantity', String(allowCustomerQuantity));
       formData.append('categoryIds', JSON.stringify(selectedCategories));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
+      formData.append(
+        'hoverImageIndex',
+        hoverImageIndex != null ? hoverImageIndex.toString() : ''
+      );
       formData.append('defaultDisplayColor', defaultDisplayColor || '');
       
       // Add multiple images (either original files or edited images)
@@ -506,11 +544,16 @@ export default function NewProductPage() {
           <ProductImagesMedia
             imagePreviews={imagePreviews}
             mainThumbnailIndex={mainThumbnailIndex}
+            hoverImageIndex={hoverImageIndex}
             onImageChange={handleImageChange}
             onRemoveImage={removeImage}
             onMoveImageUp={moveImageUp}
             onMoveImageDown={moveImageDown}
-            onSetMainThumbnail={setMainThumbnailIndex}
+            onSetMainThumbnail={(index) => {
+              setMainThumbnailIndex(index);
+              setHoverImageIndex((prev) => (prev === index ? null : prev));
+            }}
+            onSetHoverImage={setHoverImageIndex}
             onEditImage={(index) => {
               setEditingImageIndex(index);
               setShowImageEditor(true);

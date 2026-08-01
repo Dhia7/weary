@@ -13,6 +13,7 @@ export interface ProductVariant {
   costPrice?: number | null;
   imageUrl?: string | null;
   images?: string[];
+  hoverImageIndex?: number | null;
   isActive?: boolean;
   sortOrder?: number;
   stockInfo?: {
@@ -59,6 +60,7 @@ export interface Product {
   imageUrl?: string;
   images?: string[];
   mainThumbnailIndex?: number;
+  hoverImageIndex?: number | null;
   defaultDisplayColor?: string | null;
   price: number;
   compareAtPrice?: number;

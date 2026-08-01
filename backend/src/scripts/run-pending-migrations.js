@@ -22,6 +22,10 @@ async function main() {
 		await require('./add-product-fr-fields')();
 		console.log('');
 		await require('./add-cost-price')();
+		console.log('');
+		await require('./add-hover-image-index')();
+		console.log('');
+		await require('./ensure-hover-image-index')();
 		console.log('\n✅ All migrations finished.');
 	} catch (error) {
 		console.error('\n❌ Migration run failed:', error.message);

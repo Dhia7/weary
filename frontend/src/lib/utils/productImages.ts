@@ -6,6 +6,7 @@ export type VariantImagesRow = {
   imageUrl?: string | null;
   images?: string[] | null;
   colorHex?: string | null;
+  hoverImageIndex?: number | null;
 };
 
 /** Order product gallery with main thumbnail first */
@@ -133,12 +134,110 @@ export function applyImagesToColorVariants<T extends VariantImagesRow>(
   const cleaned = uniqueUrls(imageUrls);
   return variants.map((v) => {
     if (v.color.trim().toLowerCase() !== normalized) return v;
+    const prevHover = v.hoverImageIndex;
+    const hoverImageIndex =
+      prevHover != null &&
+      Number.isFinite(prevHover) &&
+      cleaned.length > 0 &&
+      prevHover >= 0 &&
+      prevHover < cleaned.length
+        ? prevHover
+        : null;
     return {
       ...v,
       imageUrl: cleaned[0] || null,
       images: cleaned,
+      hoverImageIndex,
     };
   });
+}
+
+/** Set hoverImageIndex on every variant row matching a color */
+export function applyHoverIndexToColorVariants<T extends VariantImagesRow>(
+  variants: T[],
+  colorName: string,
+  hoverImageIndex: number | null
+): T[] {
+  const normalized = colorName.trim().toLowerCase();
+  const colorImages = getVariantImagesForColor(variants, colorName);
+  const clamped =
+    hoverImageIndex != null &&
+    Number.isFinite(hoverImageIndex) &&
+    colorImages.length > 0 &&
+    hoverImageIndex >= 0 &&
+    hoverImageIndex < colorImages.length
+      ? hoverImageIndex
+      : null;
+
+  return variants.map((v) => {
+    if (v.color.trim().toLowerCase() !== normalized) return v;
+    return { ...v, hoverImageIndex: clamped };
+  });
+}
+
+/** Read hoverImageIndex from the first matching color row */
+export function getHoverIndexForColor(
+  variants: VariantImagesRow[] | undefined | null,
+  colorName: string
+): number | null {
+  if (!variants?.length || !colorName.trim()) return null;
+  const normalized = colorName.trim().toLowerCase();
+  for (const v of variants) {
+    if (v.color.trim().toLowerCase() !== normalized) continue;
+    if (v.hoverImageIndex == null || !Number.isFinite(v.hoverImageIndex)) continue;
+    return v.hoverImageIndex;
+  }
+  return null;
+}
+
+/**
+ * Hover/swap image URL for orbit (and similar). Returns undefined when unset or same as primary.
+ */
+export function getHoverDisplayImage(
+  product: Product | null | undefined,
+  options: DisplayImageOptions = {}
+): string | undefined {
+  if (!product) return undefined;
+
+  const primary = getPrimaryDisplayImage(product, options);
+  const { selectedColor, selectedVariant } = options;
+
+  if (selectedVariant) {
+    const list = variantImageList(selectedVariant);
+    const idx = selectedVariant.hoverImageIndex;
+    if (idx == null || !Number.isFinite(idx) || idx < 0 || idx >= list.length) return undefined;
+    const hover = list[idx];
+    return hover && hover !== primary ? hover : undefined;
+  }
+
+  if (selectedColor && product.hasVariants) {
+    const list = getImagesForColor(product, selectedColor);
+    const idx = getHoverIndexForColor(product.variants, selectedColor);
+    if (idx == null || idx < 0 || idx >= list.length) return undefined;
+    const hover = list[idx];
+    return hover && hover !== primary ? hover : undefined;
+  }
+
+  if (product.hasVariants && product.defaultDisplayColor) {
+    const list = getImagesForColor(product, product.defaultDisplayColor);
+    if (list.length) {
+      const idx = getHoverIndexForColor(product.variants, product.defaultDisplayColor);
+      if (idx != null && idx >= 0 && idx < list.length) {
+        const hover = list[idx];
+        return hover && hover !== primary ? hover : undefined;
+      }
+    }
+  }
+
+  const images = product.images?.length
+    ? product.images
+    : product.imageUrl
+      ? [product.imageUrl]
+      : [];
+  const idx = product.hoverImageIndex;
+  if (idx == null || !Number.isFinite(idx) || idx < 0 || idx >= images.length) return undefined;
+  const hover = images[idx];
+  return hover && hover !== primary ? hover : undefined;
 }
 
 export function parseImageUrlLines(text: string): string[] {

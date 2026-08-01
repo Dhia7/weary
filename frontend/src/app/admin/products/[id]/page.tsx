@@ -40,6 +40,7 @@ interface Product {
   imageUrl: string | null;
   images?: string[];
   mainThumbnailIndex?: number;
+  hoverImageIndex?: number | null;
   defaultDisplayColor?: string | null;
   categories: Category[];
 }
@@ -97,6 +98,7 @@ export default function EditProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [mainThumbnailIndex, setMainThumbnailIndex] = useState<number>(0);
+  const [hoverImageIndex, setHoverImageIndex] = useState<number | null>(null);
   const [defaultDisplayColor, setDefaultDisplayColor] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -235,6 +237,11 @@ export default function EditProductPage() {
                 console.log('Setting image preview URLs:', imageUrls);
                 setImagePreviews(imageUrls);
                 setMainThumbnailIndex(p.mainThumbnailIndex || 0);
+                setHoverImageIndex(
+                  p.hoverImageIndex != null && Number.isFinite(p.hoverImageIndex)
+                    ? p.hoverImageIndex
+                    : null
+                );
                 setDefaultDisplayColor(p.defaultDisplayColor || null);
               }
             } else if (p.imageUrl) {
@@ -244,6 +251,7 @@ export default function EditProductPage() {
                 console.log('Setting single image preview URL:', imageUrl);
                 setImagePreviews([imageUrl]);
                 setMainThumbnailIndex(0);
+                setHoverImageIndex(null);
               }
             }
           } else {
@@ -304,6 +312,12 @@ export default function EditProductPage() {
     } else if (index < mainThumbnailIndex) {
       setMainThumbnailIndex(mainThumbnailIndex - 1);
     }
+    setHoverImageIndex((prev) => {
+      if (prev == null) return null;
+      if (index === prev) return null;
+      if (index < prev) return prev - 1;
+      return prev;
+    });
   };
 
   // Move image up in order
@@ -326,6 +340,12 @@ export default function EditProductPage() {
       } else if (index - 1 === mainThumbnailIndex) {
         setMainThumbnailIndex(index);
       }
+      setHoverImageIndex((prev) => {
+        if (prev == null) return null;
+        if (index === prev) return index - 1;
+        if (index - 1 === prev) return index;
+        return prev;
+      });
     }
   };
 
@@ -349,6 +369,12 @@ export default function EditProductPage() {
       } else if (index + 1 === mainThumbnailIndex) {
         setMainThumbnailIndex(index);
       }
+      setHoverImageIndex((prev) => {
+        if (prev == null) return null;
+        if (index === prev) return index + 1;
+        if (index + 1 === prev) return index;
+        return prev;
+      });
     }
   };
 
@@ -557,6 +583,10 @@ export default function EditProductPage() {
       console.log('Saving with category IDs:', categoryIdsToSend);
       formData.append('categoryIds', JSON.stringify(categoryIdsToSend));
       formData.append('mainThumbnailIndex', mainThumbnailIndex.toString());
+      formData.append(
+        'hoverImageIndex',
+        hoverImageIndex != null ? hoverImageIndex.toString() : ''
+      );
       formData.append('defaultDisplayColor', defaultDisplayColor || '');
       // Include currently kept existing image paths (server-relative) so backend can remove others
       // Keep both local uploads and Cloudinary URLs
@@ -722,11 +752,16 @@ export default function EditProductPage() {
             <ProductImagesMedia
             imagePreviews={imagePreviews}
             mainThumbnailIndex={mainThumbnailIndex}
+            hoverImageIndex={hoverImageIndex}
             onImageChange={handleImageChange}
             onRemoveImage={removeImage}
             onMoveImageUp={moveImageUp}
             onMoveImageDown={moveImageDown}
-            onSetMainThumbnail={setMainThumbnailIndex}
+            onSetMainThumbnail={(index) => {
+              setMainThumbnailIndex(index);
+              setHoverImageIndex((prev) => (prev === index ? null : prev));
+            }}
+            onSetHoverImage={setHoverImageIndex}
             onEditImage={(index) => {
               setEditingImageIndex(index);
               setShowImageEditor(true);

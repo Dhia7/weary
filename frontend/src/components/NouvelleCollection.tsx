@@ -5,7 +5,11 @@ import OrbitImages from '@/components/OrbitImages';
 import { useProducts } from '@/lib/hooks/useProducts';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getImageUrl } from '@/lib/utils';
-import { getProductDisplayImages } from '@/lib/utils/productImages';
+import {
+  getHoverDisplayImage,
+  getPrimaryDisplayImage,
+  getProductDisplayImages,
+} from '@/lib/utils/productImages';
 import { getProductHref, type Product } from '@/lib/types/product';
 import { getProductDisplayName } from '@/lib/i18n/product';
 
@@ -76,17 +80,34 @@ export default function NouvelleCollection() {
 
   const orbitItems = pickCollectionProducts((products || []) as Product[])
     .map((p) => {
-      const src = getImageUrl(getProductDisplayImages(p)[0] || p.imageUrl);
+      const colorOpts =
+        p.hasVariants && p.defaultDisplayColor
+          ? { selectedColor: p.defaultDisplayColor }
+          : {};
+      const primary =
+        getPrimaryDisplayImage(p, colorOpts) ||
+        getProductDisplayImages(p, colorOpts)[0] ||
+        p.imageUrl;
+      const src = getImageUrl(primary);
       if (!src || !p.slug) return null;
+      const hoverRaw = getHoverDisplayImage(p, colorOpts);
+      const hoverSrc = hoverRaw ? getImageUrl(hoverRaw) : null;
       return {
         src,
+        hoverSrc: hoverSrc && hoverSrc !== src ? hoverSrc : null,
         href: getProductHref(p.slug),
         alt: getProductDisplayName(p, isFrench),
       };
     })
-    .filter((item): item is { src: string; href: string; alt: string } => item != null);
+    .filter(
+      (
+        item
+      ): item is { src: string; hoverSrc: string | null; href: string; alt: string } =>
+        item != null
+    );
 
   const images = orbitItems.map((item) => item.src);
+  const hoverImages = orbitItems.map((item) => item.hoverSrc);
   const links = orbitItems.map((item) => item.href);
   const alts = orbitItems.map((item) => item.alt);
 
@@ -120,6 +141,7 @@ export default function NouvelleCollection() {
 
         <OrbitImages
           images={images}
+          hoverImages={hoverImages}
           links={links}
           alts={alts}
           shape={ORBIT.shape}
@@ -133,7 +155,7 @@ export default function NouvelleCollection() {
           responsive={true}
           direction="normal"
           fill
-          showPath
+          showPath={false}
           paused={false}
           pathColor="rgba(197, 160, 89, 0.25)"
           altPrefix={heading}

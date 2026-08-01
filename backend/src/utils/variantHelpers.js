@@ -75,6 +75,18 @@ const syncProductVariants = async (productId, variantsPayload, parentSku, transa
 					: null,
 			imageUrl: row.imageUrl || null,
 			images: Array.isArray(row.images) ? row.images : row.imageUrl ? [row.imageUrl] : [],
+			hoverImageIndex: (() => {
+				const imgs = Array.isArray(row.images)
+					? row.images
+					: row.imageUrl
+						? [row.imageUrl]
+						: [];
+				if (row.hoverImageIndex == null || row.hoverImageIndex === '') return null;
+				const idx = parseInt(row.hoverImageIndex, 10);
+				if (!Number.isFinite(idx) || imgs.length === 0) return null;
+				if (idx < 0 || idx >= imgs.length) return null;
+				return idx;
+			})(),
 			isActive: row.isActive !== false && row.isActive !== 'false',
 			sortOrder: row.sortOrder != null ? parseInt(row.sortOrder, 10) : i
 		};

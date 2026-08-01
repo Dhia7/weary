@@ -3,7 +3,9 @@
 import { useMemo } from 'react';
 import type { VariantDraft } from '@/components/admin/VariantEditor';
 import {
+  applyHoverIndexToColorVariants,
   applyImagesToColorVariants,
+  getHoverIndexForColor,
   getUniqueVariantColors,
   getVariantImagesForColor,
   imagesToUrlLines,
@@ -21,11 +23,13 @@ function colorHexForName(variants: VariantDraft[], colorName: string): string | 
 export interface ProductImagesMediaProps {
   imagePreviews: string[];
   mainThumbnailIndex: number;
+  hoverImageIndex: number | null;
   onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: (index: number) => void;
   onMoveImageUp: (index: number) => void;
   onMoveImageDown: (index: number) => void;
   onSetMainThumbnail: (index: number) => void;
+  onSetHoverImage: (index: number | null) => void;
   onEditImage?: (index: number) => void;
   uploadInputId?: string;
   videoPreview: string | null;
@@ -42,11 +46,13 @@ export interface ProductImagesMediaProps {
 export default function ProductImagesMedia({
   imagePreviews,
   mainThumbnailIndex,
+  hoverImageIndex,
   onImageChange,
   onRemoveImage,
   onMoveImageUp,
   onMoveImageDown,
   onSetMainThumbnail,
+  onSetHoverImage,
   onEditImage,
   uploadInputId = 'image-upload',
   videoPreview,
@@ -82,10 +88,19 @@ export default function ProductImagesMedia({
     onVariantsChange(applyImagesToColorVariants(variants, colorName, imageUrls));
   };
 
+  const setColorHoverIndex = (colorName: string, index: number | null) => {
+    onVariantsChange(applyHoverIndexToColorVariants(variants, colorName, index));
+  };
+
   const appendGalleryImageToColor = (colorName: string, url: string) => {
     const current = getVariantImagesForColor(variants, colorName);
     if (current.includes(url)) return;
     updateColorImages(colorName, [...current, url]);
+  };
+
+  const toggleSharedHover = (index: number) => {
+    if (index === mainThumbnailIndex) return;
+    onSetHoverImage(hoverImageIndex === index ? null : index);
   };
 
   return (
@@ -104,7 +119,8 @@ export default function ProductImagesMedia({
           Shared product gallery
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Default images for the product and fallback when a color has no dedicated images.
+          Default images for the product and fallback when a color has no dedicated images. Use ★ for
+          the main thumbnail and H for the orbit hover image.
         </p>
 
         <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -150,7 +166,9 @@ export default function ProductImagesMedia({
                 className={`flex items-center space-x-3 p-3 border rounded-lg ${
                   index === mainThumbnailIndex
                     ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                    : 'border-gray-200 dark:border-gray-600'
+                    : index === hoverImageIndex
+                      ? 'border-amber-400 bg-amber-50/80 dark:bg-amber-900/20'
+                      : 'border-gray-200 dark:border-gray-600'
                 }`}
               >
                 <div className="flex-shrink-0 relative">
@@ -164,6 +182,11 @@ export default function ProductImagesMedia({
                       <span className="text-white text-xs font-bold">★</span>
                     </div>
                   )}
+                  {index === hoverImageIndex && (
+                    <div className="absolute -top-1 -left-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-[10px] font-bold">H</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -171,6 +194,11 @@ export default function ProductImagesMedia({
                     {index === mainThumbnailIndex && (
                       <span className="ml-2 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded">
                         Main thumbnail
+                      </span>
+                    )}
+                    {index === hoverImageIndex && (
+                      <span className="ml-2 text-xs bg-amber-100 dark:bg-amber-900 text-amber-900 dark:text-amber-100 px-2 py-1 rounded">
+                        Hover image
                       </span>
                     )}
                   </p>
@@ -188,6 +216,23 @@ export default function ProductImagesMedia({
                     title="Set as main thumbnail"
                   >
                     ★
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleSharedHover(index)}
+                    disabled={index === mainThumbnailIndex}
+                    className={`p-1 text-xs rounded font-bold disabled:opacity-40 disabled:cursor-not-allowed ${
+                      index === hoverImageIndex
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-amber-100 dark:hover:bg-amber-900'
+                    }`}
+                    title={
+                      index === mainThumbnailIndex
+                        ? 'Hover image must differ from main thumbnail'
+                        : 'Set as hover image (orbit)'
+                    }
+                  >
+                    H
                   </button>
                   {onEditImage && (
                     <button
@@ -316,14 +361,16 @@ export default function ProductImagesMedia({
             Images by color
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Shoppers see these images when they select a color. One URL per line, or pick from the
-            shared gallery after images are uploaded and saved.
+            Shoppers see these images when they select a color. Click H on a thumb to set that color’s
+            orbit hover image. One URL per line, or pick from the shared gallery after images are
+            uploaded and saved.
           </p>
 
           <div className="space-y-6">
             {uniqueColors.map((colorName) => {
               const colorImages = getVariantImagesForColor(variants, colorName);
               const hex = colorHexForName(variants, colorName);
+              const colorHoverIndex = getHoverIndexForColor(variants, colorName);
 
               return (
                 <div
@@ -337,18 +384,51 @@ export default function ProductImagesMedia({
                       title={colorName}
                     />
                     <span className="font-medium text-gray-900 dark:text-gray-100">{colorName}</span>
+                    {colorHoverIndex != null && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        Hover set
+                      </span>
+                    )}
                   </div>
 
                   {colorImages.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
-                      {colorImages.map((url, i) => (
-                        <img
-                          key={`${url}-${i}`}
-                          src={getImageUrl(url) || url}
-                          alt={`${colorName} ${i + 1}`}
-                          className="w-14 h-14 object-cover rounded border border-gray-200 dark:border-gray-600"
-                        />
-                      ))}
+                      {colorImages.map((url, i) => {
+                        const isHover = colorHoverIndex === i;
+                        const isPrimary = i === 0;
+                        return (
+                          <div key={`${url}-${i}`} className="relative group/thumb">
+                            <img
+                              src={getImageUrl(url) || url}
+                              alt={`${colorName} ${i + 1}`}
+                              className={`w-14 h-14 object-cover rounded border ${
+                                isHover
+                                  ? 'border-amber-400 ring-2 ring-amber-400/40'
+                                  : 'border-gray-200 dark:border-gray-600'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setColorHoverIndex(colorName, isHover ? null : i)
+                              }
+                              disabled={isPrimary && colorImages.length === 1}
+                              className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shadow ${
+                                isHover
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
+                              } disabled:opacity-40`}
+                              title={
+                                isPrimary && colorImages.length === 1
+                                  ? 'Add a second image to set hover'
+                                  : 'Set as hover image for this color'
+                              }
+                            >
+                              H
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

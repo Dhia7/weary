@@ -71,6 +71,12 @@ const Product = sequelize.define('Product', {
 		defaultValue: 0,
 		comment: 'Index of the main thumbnail image in the images array'
 	},
+	hoverImageIndex: {
+		type: DataTypes.INTEGER,
+		allowNull: true,
+		defaultValue: null,
+		comment: 'Index of the orbit/listing hover image in the images array'
+	},
 	defaultDisplayColor: {
 		type: DataTypes.STRING(100),
 		allowNull: true,

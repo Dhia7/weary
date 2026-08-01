@@ -20,6 +20,8 @@ interface OrbitImagesProps {
   images?: string[];
   /** Optional product (or page) hrefs aligned with `images` indices */
   links?: (string | null | undefined)[];
+  /** Optional hover/swap images aligned with `images` indices */
+  hoverImages?: (string | null | undefined)[];
   altPrefix?: string;
   /** Optional per-image alt text; falls back to `${altPrefix} ${index + 1}` */
   alts?: string[];
@@ -153,6 +155,7 @@ function OrbitItem({ item, index, totalItems, path, itemSize, rotation, progress
 export default function OrbitImages({
   images = [],
   links,
+  hoverImages,
   altPrefix = 'Orbiting image',
   alts,
   shape = 'ellipse',
@@ -244,26 +247,44 @@ export default function OrbitImages({
   const items = images.map((src, index) => {
     const alt = alts?.[index] || `${altPrefix} ${index + 1}`;
     const href = links?.[index];
+    const hoverSrc = hoverImages?.[index] || null;
     const image = (
-      <img
-        src={src}
-        alt={alt}
-        draggable={false}
-        loading="lazy"
-        decoding="async"
-        className="h-full w-full rounded-full object-cover transition-transform duration-300 hover:scale-105"
-      />
+      <span className="relative block h-full w-full overflow-hidden rounded-full">
+        <img
+          src={src}
+          alt={alt}
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full rounded-full object-cover"
+        />
+        {hoverSrc ? (
+          <img
+            src={hoverSrc}
+            alt=""
+            aria-hidden
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 h-full w-full rounded-full object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
+          />
+        ) : null}
+      </span>
     );
 
     if (!href) {
-      return <div key={`${src}-${index}`} className="h-full w-full">{image}</div>;
+      return (
+        <div key={`${src}-${index}`} className="group h-full w-full">
+          {image}
+        </div>
+      );
     }
 
     return (
       <Link
         key={`${src}-${index}`}
         href={href}
-        className="block h-full w-full cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swisse-gold"
+        className="group block h-full w-full cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swisse-gold"
         aria-label={alt}
       >
         {image}

@@ -310,6 +310,15 @@ const createProduct = async (req, res) => {
 
 		// Get main thumbnail index from request body
 		const mainThumbnailIndex = parseInt(req.body.mainThumbnailIndex) || 0;
+		const requestedHoverIndex = parseInt(req.body.hoverImageIndex, 10);
+		const hoverImageIndex =
+			Number.isFinite(requestedHoverIndex) &&
+			imageUrls.length > 0 &&
+			requestedHoverIndex >= 0 &&
+			requestedHoverIndex < imageUrls.length &&
+			requestedHoverIndex !== mainThumbnailIndex
+				? requestedHoverIndex
+				: null;
 		const variantsPayload = req.body.variants;
 		const parsedVariants = parseVariantsPayload(variantsPayload);
 		const defaultDisplayColor = parseDefaultDisplayColor(
@@ -331,6 +340,7 @@ const createProduct = async (req, res) => {
 			imageUrl: imageUrls.length > 0 ? imageUrls[mainThumbnailIndex] || imageUrls[0] : null, // Use selected thumbnail as main image
 			images: imageUrls, // Store all images
 			mainThumbnailIndex: mainThumbnailIndex, // Store the selected thumbnail index
+			hoverImageIndex,
 			defaultDisplayColor: defaultDisplayColor ?? null,
 			price: parseFloat(price),
 			compareAtPrice: (() => {
@@ -675,10 +685,20 @@ const updateProduct = async (req, res) => {
 		// Get main thumbnail index from request body and clamp
 		const requestedMainIndex = parseInt(req.body.mainThumbnailIndex);
 		const mainThumbnailIndex = Number.isFinite(requestedMainIndex) ? Math.max(0, Math.min(requestedMainIndex, Math.max(workingImages.length - 1, 0))) : 0;
+		const requestedHoverIndex = parseInt(req.body.hoverImageIndex, 10);
+		const hoverImageIndex =
+			Number.isFinite(requestedHoverIndex) &&
+			workingImages.length > 0 &&
+			requestedHoverIndex >= 0 &&
+			requestedHoverIndex < workingImages.length &&
+			requestedHoverIndex !== mainThumbnailIndex
+				? requestedHoverIndex
+				: null;
 
 		// Update product with final images
 		product.images = workingImages;
 		product.mainThumbnailIndex = mainThumbnailIndex;
+		product.hoverImageIndex = hoverImageIndex;
 		product.imageUrl = workingImages.length > 0 ? (workingImages[mainThumbnailIndex] || workingImages[0]) : null;
 
 		if (name !== undefined) product.name = name;

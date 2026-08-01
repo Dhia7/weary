@@ -24,7 +24,7 @@ import {
   toPriceNumber,
 } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
-import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
+import { getHoverDisplayImage, getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import { getProductDisplayName } from '@/lib/i18n/product';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
@@ -50,9 +50,15 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   }, [product.id, product.colorOptions, product.defaultDisplayColor]);
 
   const productHref = getProductHref(product.slug, selectedColor || undefined);
+  const colorOpts = { selectedColor: selectedColor || undefined };
   const displayImage =
-    getPrimaryDisplayImage(product, { selectedColor: selectedColor || undefined }) ||
-    product.imageUrl;
+    getPrimaryDisplayImage(product, colorOpts) || product.imageUrl;
+  const hoverImage = getHoverDisplayImage(product, colorOpts);
+  const hoverImageUrl = hoverImage ? getImageUrl(hoverImage) : null;
+  const primaryImageUrl = displayImage ? getImageUrl(displayImage) : null;
+  const showHoverSwap = Boolean(
+    hoverImageUrl && primaryImageUrl && hoverImageUrl !== primaryImageUrl
+  );
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
@@ -165,14 +171,26 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
       <div className="group">
         <div className="relative aspect-[3/4] overflow-hidden mb-6 bg-swisse-mist dark:bg-muted">
           <Link href={productHref} className="absolute inset-0 z-0 block">
-            {displayImage ? (
-              <Image
-                src={getImageUrl(displayImage) || ''}
-                alt={displayName}
-                fill
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-              />
+            {primaryImageUrl ? (
+              <>
+                <Image
+                  src={primaryImageUrl}
+                  alt={displayName}
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                />
+                {showHoverSwap && hoverImageUrl ? (
+                  <Image
+                    src={hoverImageUrl}
+                    alt=""
+                    fill
+                    aria-hidden
+                    className="object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                  />
+                ) : null}
+              </>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-swisse-mist to-swisse-canvas dark:from-muted dark:to-secondary">
                 <span className="text-5xl">{getCategoryEmoji(product.categories)}</span>
@@ -252,14 +270,26 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     >
       <Link href={productHref} className="block">
         <div className="aspect-square bg-muted relative overflow-hidden">
-          {displayImage ? (
-            <Image
-              src={getImageUrl(displayImage) || ''}
-              alt={displayName}
-              fill
-              className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            />
+          {primaryImageUrl ? (
+            <>
+              <Image
+                src={primaryImageUrl}
+                alt={displayName}
+                fill
+                className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+              {showHoverSwap && hoverImageUrl ? (
+                <Image
+                  src={hoverImageUrl}
+                  alt=""
+                  fill
+                  aria-hidden
+                  className="object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              ) : null}
+            </>
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-muted to-secondary flex items-center justify-center">
               <span className="text-6xl">{getCategoryEmoji(product.categories)}</span>
@@ -371,6 +401,8 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     prevProps.variant === nextProps.variant &&
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.imageUrl === nextProps.product.imageUrl &&
+    prevProps.product.hoverImageIndex === nextProps.product.hoverImageIndex &&
+    prevProps.product.defaultDisplayColor === nextProps.product.defaultDisplayColor &&
     prevProps.product.price === nextProps.product.price &&
     prevProps.product.priceRange?.min === nextProps.product.priceRange?.min &&
     prevProps.product.priceRange?.max === nextProps.product.priceRange?.max &&
@@ -378,7 +410,8 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     prevProps.product.compareAtPrice === nextProps.product.compareAtPrice &&
     prevProps.product.stockInfo?.status === nextProps.product.stockInfo?.status &&
     prevProps.product.displayBadge === nextProps.product.displayBadge &&
-    prevProps.product.createdAt === nextProps.product.createdAt
+    prevProps.product.createdAt === nextProps.product.createdAt &&
+    prevProps.product.updatedAt === nextProps.product.updatedAt
   );
 });
 

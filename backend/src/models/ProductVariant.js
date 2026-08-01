@@ -66,6 +66,12 @@ const ProductVariant = sequelize.define('ProductVariant', {
 		allowNull: true,
 		defaultValue: []
 	},
+	hoverImageIndex: {
+		type: DataTypes.INTEGER,
+		allowNull: true,
+		defaultValue: null,
+		comment: 'Index of the hover/swap image in this color gallery (images array)'
+	},
 	isActive: {
 		type: DataTypes.BOOLEAN,
 		defaultValue: true
