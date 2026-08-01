@@ -6,6 +6,7 @@ const Category = require('../models/Category');
 const User = require('../models/User');
 const path = require('path');
 const { withTimeout, TIMEOUTS, handleTimeoutError } = require('../utils/queryTimeout');
+const { normalizeSearchQuery } = require('../utils/searchQuery');
 const {
 	parseVariantsPayload,
 	syncProductVariants,
@@ -400,20 +401,21 @@ const createProduct = async (req, res) => {
 
 		const where = {};
 		if (q) {
-			const searchTerm = q.trim();
+			const normalized = normalizeSearchQuery(q);
+			if (!normalized.ok) {
+				return res.status(400).json({ success: false, message: normalized.message });
+			}
+			const searchTerm = normalized.term;
 			
 			// Only proceed if we have a valid search term
 			if (searchTerm.length > 0) {
-				// Use a simpler, more reliable approach:
-				// Combine full-text search (if index exists) with ILIKE fallbacks
-				// This ensures the query works even if the full-text index hasn't been created yet
-				const escapedTerm = searchTerm.replace(/'/g, "''").replace(/[\\]/g, '\\\\');
-				
+				// Full-text search with bound parameter (via sequelize.fn) + ILIKE fallbacks
 				where[Op.or] = [
-					// Full-text search on name and description (uses GIN index if available)
-					// Using COALESCE to handle null values safely
-					sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", '')) @@ plainto_tsquery('english', '${escapedTerm}')`),
-					// Fallback ILIKE searches for partial matches and SKU
+					sequelize.where(
+						sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", ''))`),
+						'@@',
+						sequelize.fn('plainto_tsquery', 'english', searchTerm)
+					),
 					{ name: { [Op.iLike]: `%${searchTerm}%` } },
 					{ description: { [Op.iLike]: `%${searchTerm}%` } },
 					{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
@@ -900,8 +902,11 @@ const setProductCategories = async (req, res) => {
 // Search autocomplete - returns products, categories, and popular products
 const searchAutocomplete = async (req, res) => {
 	try {
-		const { q } = req.query;
-		const searchTerm = q ? q.trim() : '';
+		const normalized = normalizeSearchQuery(req.query.q);
+		if (!normalized.ok) {
+			return res.status(400).json({ success: false, message: normalized.message });
+		}
+		const searchTerm = normalized.term;
 		const limit = 5; // Limit results per type
 
 		const results = {
@@ -914,12 +919,15 @@ const searchAutocomplete = async (req, res) => {
 		if (searchTerm.length > 0) {
 			// Search products
 			try {
-				const escapedTerm = searchTerm.replace(/'/g, "''").replace(/[\\]/g, '\\\\');
 				const products = await Product.findAll({
 					where: {
 						isActive: true,
 						[Op.or]: [
-							sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", '')) @@ plainto_tsquery('english', '${escapedTerm}')`),
+							sequelize.where(
+								sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", ''))`),
+								'@@',
+								sequelize.fn('plainto_tsquery', 'english', searchTerm)
+							),
 							{ name: { [Op.iLike]: `%${searchTerm}%` } },
 							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 						]

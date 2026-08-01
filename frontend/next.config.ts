@@ -13,6 +13,22 @@ const nextConfig: NextConfig = {
   // outputFileTracingRoot: __dirname,
   // Google Sign-In uses window.postMessage; default strict COOP can break the flow in some browsers.
   async headers() {
+    const contentSecurityPolicy = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://*.onrender.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.onrender.com http://localhost:3001",
+      "frame-src https://accounts.google.com",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+    ].join('; ');
+
     return [
       {
         source: '/:path*',
@@ -20,6 +36,26 @@ const nextConfig: NextConfig = {
           {
             key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin-allow-popups',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: contentSecurityPolicy,
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
           },
         ],
       },

@@ -24,8 +24,12 @@ const storage = isCloudinaryConfigured()
       }
     });
 
-// File filter for images only
+// File filter for images only (reject SVG — can carry script when served as a document)
 const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (file.mimetype === 'image/svg+xml' || ext === '.svg') {
+    return cb(new Error('SVG images are not allowed'), false);
+  }
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {

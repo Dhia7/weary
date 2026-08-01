@@ -13,6 +13,7 @@ const {
 	restoreItemStock
 } = require('../utils/stockHelpers');
 const { verifyAdminPassword } = require('../utils/adminAuth');
+const { normalizeSearchQuery } = require('../utils/searchQuery');
 const {
 	hasMailTransport,
 	sendOrderConfirmationEmail,
@@ -89,77 +90,76 @@ const listOrders = async (req, res) => {
 
     if (q) {
       console.log('Search query received:', q);
-      const searchTerm = q.trim();
-      const searchConditions = [
-        // Search by order ID (full or partial UUID)
-        sequelize.where(
-          sequelize.cast(sequelize.col('id'), 'TEXT'),
-          { [Op.iLike]: `%${searchTerm}%` }
-        ),
-        // Registered users with matching user data
-        sequelize.and(
-          { customerType: 'registered' },
-          { userId: { [Op.ne]: null } },
-          sequelize.or(
-            // Search in User table through association
-            sequelize.literal(`EXISTS (
-              SELECT 1 FROM "User" 
-              WHERE "User"."id" = "Order"."userId" 
-              AND (
-                "User"."email" ILIKE '%${searchTerm}%' 
-                OR "User"."firstName" ILIKE '%${searchTerm}%' 
-                OR "User"."lastName" ILIKE '%${searchTerm}%'
-              )
-            )`)
-          )
-        ),
-        // Guest orders with matching billing info (JSONB search)
-        sequelize.and(
-          { customerType: 'guest' },
-          sequelize.or(
-            // Search individual fields
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'firstName'), { [Op.iLike]: `%${searchTerm}%` }),
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'lastName'), { [Op.iLike]: `%${searchTerm}%` }),
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'email'), { [Op.iLike]: `%${searchTerm}%` }),
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'phone'), { [Op.iLike]: `%${searchTerm}%` }),
-            // Search full name combination (e.g., "Jane Smith" matches firstName + lastName)
-            sequelize.where(
-              sequelize.fn('concat', 
-                sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'firstName'),
-                ' ',
-                sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'lastName')
-              ), 
-              { [Op.iLike]: `%${searchTerm}%` }
-            )
-          )
-        ),
-        // Guest orders with matching customer info (JSONB search)
-        sequelize.and(
-          { customerType: 'guest' },
-          sequelize.or(
-            // Search individual fields
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'firstName'), { [Op.iLike]: `%${searchTerm}%` }),
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'lastName'), { [Op.iLike]: `%${searchTerm}%` }),
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'email'), { [Op.iLike]: `%${searchTerm}%` }),
-            sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'phone'), { [Op.iLike]: `%${searchTerm}%` }),
-            // Search full name combination
-            sequelize.where(
-              sequelize.fn('concat', 
-                sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'firstName'),
-                ' ',
-                sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'lastName')
-              ), 
-              { [Op.iLike]: `%${searchTerm}%` }
-            )
-          )
-        )
-      ];
-
-      if (/^\d+$/.test(searchTerm)) {
-        searchConditions.push({ userId: Number(searchTerm) });
+      const normalized = normalizeSearchQuery(q);
+      if (!normalized.ok) {
+        return res.status(400).json({ success: false, message: normalized.message });
       }
+      const searchTerm = normalized.term;
+      if (searchTerm) {
+        const searchConditions = [
+          // Search by order ID (full or partial UUID)
+          sequelize.where(
+            sequelize.cast(sequelize.col('id'), 'TEXT'),
+            { [Op.iLike]: `%${searchTerm}%` }
+          ),
+          // Registered users with matching user data (parameterized via association fields)
+          sequelize.and(
+            { customerType: 'registered' },
+            { userId: { [Op.ne]: null } },
+            sequelize.or(
+              { '$User.email$': { [Op.iLike]: `%${searchTerm}%` } },
+              { '$User.firstName$': { [Op.iLike]: `%${searchTerm}%` } },
+              { '$User.lastName$': { [Op.iLike]: `%${searchTerm}%` } }
+            )
+          ),
+          // Guest orders with matching billing info (JSONB search)
+          sequelize.and(
+            { customerType: 'guest' },
+            sequelize.or(
+              // Search individual fields
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'firstName'), { [Op.iLike]: `%${searchTerm}%` }),
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'lastName'), { [Op.iLike]: `%${searchTerm}%` }),
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'email'), { [Op.iLike]: `%${searchTerm}%` }),
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'phone'), { [Op.iLike]: `%${searchTerm}%` }),
+              // Search full name combination (e.g., "Jane Smith" matches firstName + lastName)
+              sequelize.where(
+                sequelize.fn('concat', 
+                  sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'firstName'),
+                  ' ',
+                  sequelize.fn('jsonb_extract_path_text', sequelize.col('billingInfo'), 'lastName')
+                ), 
+                { [Op.iLike]: `%${searchTerm}%` }
+              )
+            )
+          ),
+          // Guest orders with matching customer info (JSONB search)
+          sequelize.and(
+            { customerType: 'guest' },
+            sequelize.or(
+              // Search individual fields
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'firstName'), { [Op.iLike]: `%${searchTerm}%` }),
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'lastName'), { [Op.iLike]: `%${searchTerm}%` }),
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'email'), { [Op.iLike]: `%${searchTerm}%` }),
+              sequelize.where(sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'phone'), { [Op.iLike]: `%${searchTerm}%` }),
+              // Search full name combination
+              sequelize.where(
+                sequelize.fn('concat', 
+                  sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'firstName'),
+                  ' ',
+                  sequelize.fn('jsonb_extract_path_text', sequelize.col('customerInfo'), 'lastName')
+                ), 
+                { [Op.iLike]: `%${searchTerm}%` }
+              )
+            )
+          )
+        ];
 
-      where[Op.or] = searchConditions;
+        if (/^\d+$/.test(searchTerm)) {
+          searchConditions.push({ userId: Number(searchTerm) });
+        }
+
+        where[Op.or] = searchConditions;
+      }
     }
 
     // Use findAll instead of findAndCountAll to avoid issues with includes
@@ -168,11 +168,19 @@ const listOrders = async (req, res) => {
       include,
       order: [['createdAt', 'DESC']],
       limit,
-      offset
+      offset,
+      subQuery: false,
     });
     
-    // Get count separately
-    const count = await Order.count({ where });
+    // Get count separately — include User so $User.* filters in where resolve
+    const count = await Order.count({
+      where,
+      include: where[Op.or]
+        ? [{ model: User, as: 'User', attributes: [], required: false }]
+        : [],
+      distinct: true,
+      col: 'Order.id',
+    });
     
     // Transform orders to include user data for registered orders
     const ordersWithUsers = await Promise.all(rows.map(async (order) => {

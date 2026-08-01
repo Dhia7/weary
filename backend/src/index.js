@@ -196,17 +196,41 @@ app.use(cors(corsOptions));
 
 // Serve static files (uploads) - after CORS configuration
 const uploadsDir = path.resolve(__dirname, '..', 'uploads');
+const uploadsDirPrefix = uploadsDir.endsWith(path.sep) ? uploadsDir : uploadsDir + path.sep;
+
+const isPathInsideUploads = (resolvedPath) => {
+  const normalized = path.resolve(resolvedPath);
+  return normalized === uploadsDir || normalized.startsWith(uploadsDirPrefix);
+};
+
+const isSafeUploadFilename = (filename) => {
+  if (!filename || typeof filename !== 'string') return false;
+  if (filename.includes('..') || path.isAbsolute(filename)) return false;
+  // Reject path separators (Unix and Windows) so resolve cannot escape uploadsDir
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('\0')) return false;
+  return true;
+};
 
 // Direct file server to handle edge cases (Windows paths, uppercase extensions)
 app.get('/uploads/:filename', (req, res, next) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
+    if (!isSafeUploadFilename(filename)) {
+      return res.status(400).json({ success: false, message: 'Invalid filename' });
+    }
+
     let filePath = path.resolve(uploadsDir, filename);
+    if (!isPathInsideUploads(filePath)) {
+      return res.status(400).json({ success: false, message: 'Invalid filename' });
+    }
 
     // If the exact file doesn't exist, try common alternate extensions
     if (!fs.existsSync(filePath)) {
       const requestedExt = path.extname(filename).toLowerCase();
-      const baseName = filename.slice(0, -requestedExt.length);
+      const baseName = filename.slice(0, -requestedExt.length || filename.length);
+      if (!isSafeUploadFilename(`${baseName}.jpg`)) {
+        return res.status(400).json({ success: false, message: 'Invalid filename' });
+      }
       // Priority order of extensions to try
       const alternateExtensions = requestedExt === '.jpg' || requestedExt === '.jpeg'
         ? ['.jpg', '.jpeg', '.jfif', '.png', '.webp']
@@ -220,6 +244,7 @@ app.get('/uploads/:filename', (req, res, next) => {
 
       for (const ext of alternateExtensions) {
         const candidatePath = path.resolve(uploadsDir, `${baseName}${ext}`);
+        if (!isPathInsideUploads(candidatePath)) continue;
         if (fs.existsSync(candidatePath)) {
           filePath = candidatePath;
           break;
@@ -227,24 +252,29 @@ app.get('/uploads/:filename', (req, res, next) => {
       }
     }
 
-    if (!fs.existsSync(filePath)) {
+    if (!isPathInsideUploads(filePath) || !fs.existsSync(filePath)) {
       console.log(`File not found: ${filePath}`);
       return res.status(404).json({ success: false, message: 'Image not found' });
     }
 
     const ext = path.extname(filePath).toLowerCase();
-    // Treat .jfif as image/jpeg for widest compatibility
-    const contentType = (ext === '.jpg' || ext === '.jpeg' || ext === '.jfif')
-      ? 'image/jpeg'
-      : ext === '.png'
-        ? 'image/png'
-        : ext === '.gif'
-          ? 'image/gif'
-          : ext === '.webp'
-            ? 'image/webp'
-            : 'application/octet-stream';
+    // Treat .jfif as image/jpeg for widest compatibility; unknown types stay octet-stream
+    const allowlistedInline = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.jfif': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    const contentType = allowlistedInline[ext] || 'application/octet-stream';
 
     res.type(contentType);
+    if (allowlistedInline[ext]) {
+      res.setHeader('Content-Disposition', 'inline');
+    } else {
+      res.setHeader('Content-Disposition', 'attachment');
+    }
     return res.sendFile(filePath);
   } catch (e) {
     console.error('Error serving file:', e);
@@ -253,6 +283,7 @@ app.get('/uploads/:filename', (req, res, next) => {
 });
 
 app.use('/uploads', express.static(uploadsDir, {
+  index: false,
   setHeaders: (res, filePath) => {
     // Set proper headers for images (treat .jfif as JPEG)
     const lower = filePath.toLowerCase();
@@ -268,12 +299,15 @@ app.use('/uploads', express.static(uploadsDir, {
               ? 'image/webp'
               : 'application/octet-stream';
       res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', 'inline');
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
       const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
       res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    } else {
+      res.setHeader('Content-Disposition', 'attachment');
     }
   }
 }));
