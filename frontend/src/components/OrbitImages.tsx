@@ -78,7 +78,7 @@ function OrbitSwapImage({
   });
 
   return (
-    <span
+    <div
       ref={containerRef}
       className="relative block h-full w-full overflow-hidden rounded-full"
       {...imageSwapHandlers}
@@ -104,7 +104,7 @@ function OrbitSwapImage({
           }`}
         />
       ) : null}
-    </span>
+    </div>
   );
 }
 

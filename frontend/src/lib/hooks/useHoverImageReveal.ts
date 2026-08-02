@@ -36,19 +36,19 @@ export function useHoverImageReveal(
   enabled: boolean,
   options: HoverImageRevealOptions = {}
 ): {
-  containerRef: RefObject<HTMLElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   revealed: boolean;
   imageSwapHandlers: {
-    onPointerEnter: (e: ReactPointerEvent<HTMLElement>) => void;
-    onPointerLeave: (e: ReactPointerEvent<HTMLElement>) => void;
-    onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
-    onPointerUp: (e: ReactPointerEvent<HTMLElement>) => void;
-    onPointerCancel: (e: ReactPointerEvent<HTMLElement>) => void;
+    onPointerEnter: (e: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerLeave: (e: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerUp: (e: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerCancel: (e: ReactPointerEvent<HTMLDivElement>) => void;
   };
 } {
   const autoCycle = options.autoCycle !== false;
   const [revealed, setRevealed] = useState(false);
-  const containerRef = useRef<HTMLElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const touchPeekRef = useRef(false);
   const cycleActiveRef = useRef(false);
 
@@ -145,7 +145,7 @@ export function useHoverImageReveal(
   }, [enabled, autoCycle]);
 
   const onPointerEnter = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!enabled) return;
       if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
         setRevealed(true);
@@ -155,7 +155,7 @@ export function useHoverImageReveal(
   );
 
   const onPointerLeave = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!enabled) return;
       if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
         setRevealed(false);
@@ -174,7 +174,7 @@ export function useHoverImageReveal(
   }, []);
 
   const onPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!enabled) return;
       // When auto-cycling, in-view swap already covers touch devices;
       // peeking on pointerdown fights with scroll gestures on product grids.
@@ -188,7 +188,7 @@ export function useHoverImageReveal(
   );
 
   const onPointerUp = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!enabled || autoCycle) return;
       if (e.pointerType === 'touch') {
         // Keep the peek visible briefly through the tap so the swap is noticeable.
@@ -199,7 +199,7 @@ export function useHoverImageReveal(
   );
 
   const onPointerCancel = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!enabled || autoCycle) return;
       if (e.pointerType === 'touch') {
         endTouchPeek();
