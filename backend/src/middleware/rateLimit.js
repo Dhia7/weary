@@ -29,6 +29,21 @@ function getStore() {
     const { RedisStore } = require('rate-limit-redis');
     const { createClient } = require('redis');
 
+    // #region agent log
+    try {
+      process.stdout.write(
+        `[DBG431924] ${JSON.stringify({
+          sessionId: '431924',
+          hypothesisId: 'B',
+          location: 'rateLimit.js:getStore',
+          message: 'creating redis client for rate limit',
+          data: { hasRedisUrl: true },
+          timestamp: Date.now(),
+        })}\n`
+      );
+    } catch (_) {}
+    // #endregion
+
     const client = createClient({ url: redisUrl });
     client.on('error', (err) => {
       console.error('Redis rate-limit client error:', err.message || err);

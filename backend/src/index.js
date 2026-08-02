@@ -5,8 +5,49 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
+
+// #region agent log
+const __dbg = (hypothesisId, location, message, data = {}) => {
+  const payload = {
+    sessionId: '431924',
+    runId: process.env.DEBUG_RUN_ID || 'render-boot',
+    hypothesisId,
+    location,
+    message,
+    data: { ...data, pid: process.pid, nodeEnv: process.env.NODE_ENV || null },
+    timestamp: Date.now(),
+  };
+  try {
+    process.stdout.write(`[DBG431924] ${JSON.stringify(payload)}\n`);
+  } catch (_) {}
+  try {
+    fs.appendFileSync(path.join(__dirname, '..', '..', 'debug-431924.log'), `${JSON.stringify(payload)}\n`);
+  } catch (_) {}
+  try {
+    fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '431924' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  } catch (_) {}
+};
+__dbg('A', 'index.js:boot', 'index.js entered before heavy requires', {
+  cwd: process.cwd(),
+  portEnv: process.env.PORT || null,
+  hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+  hasJwt: Boolean(process.env.JWT_SECRET),
+  hasRedis: Boolean(process.env.REDIS_URL),
+});
+// #endregion
+
 const { globalLimiter, isRateLimitEnabled } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
+
+// #region agent log
+__dbg('B', 'index.js:after-rateLimit', 'rateLimit + csrf modules loaded', {
+  rateLimitEnabled: typeof isRateLimitEnabled === 'function' ? isRateLimitEnabled() : isRateLimitEnabled,
+});
+// #endregion
 
 // NOTE: This application only creates HTTP servers
 // SSL/HTTPS is handled by the deployment platform (Render) at the load balancer level
@@ -16,8 +57,14 @@ const { assertJwtConfigured } = require('./utils/jwt');
 
 try {
   assertJwtConfigured();
+  // #region agent log
+  __dbg('A', 'index.js:jwt-ok', 'JWT assert passed');
+  // #endregion
 } catch (error) {
   console.error(`❌ ${error.message}`);
+  // #region agent log
+  __dbg('A', 'index.js:jwt-fail', 'JWT assert failed — exiting', { error: error.message });
+  // #endregion
   process.exit(1);
 }
 
@@ -33,6 +80,10 @@ if (process.env.NODE_ENV === 'production') {
 
 const { connectDB } = require('./config/database');
 const dbMonitor = require('./utils/dbMonitor');
+
+// #region agent log
+__dbg('A', 'index.js:pre-models', 'about to require models/routes');
+// #endregion
 
 // Import models to ensure they are registered
 require('./models/User');
@@ -64,6 +115,10 @@ const orderRoutes = require('./routes/orders');
 const translateRoutes = require('./routes/translate');
 const contactRoutes = require('./routes/contact');
 const healthRoutes = require('./routes/health');
+
+// #region agent log
+__dbg('A', 'index.js:post-models', 'models/routes required successfully');
+// #endregion
 
 const app = express();
 
@@ -395,6 +450,15 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001; // Backend runs on port 3001
+const HOST = process.env.HOST || '0.0.0.0';
+
+// #region agent log
+__dbg('D', 'index.js:pre-listen', 'about to call app.listen', {
+  port: String(PORT),
+  host: HOST,
+  portFromEnv: Boolean(process.env.PORT),
+});
+// #endregion
 
 // Ensure we only run HTTP server (Render handles SSL termination)
 // Never attempt to create HTTPS server in production
@@ -402,15 +466,31 @@ if (process.env.NODE_ENV === 'production') {
   console.log('🚀 Starting in production mode - HTTP only (SSL handled by Render)');
 }
 
-// HTTP Server only
-const server = app.listen(PORT, () => {
-  console.log(`🌐 HTTP Server running on port ${PORT}`);
+// HTTP Server only — bind 0.0.0.0 so Render port scan can detect the service
+const server = app.listen(PORT, HOST, () => {
+  // #region agent log
+  const addr = server.address();
+  __dbg('C', 'index.js:listen-ok', 'app.listen callback fired', {
+    address: addr && typeof addr === 'object' ? addr : { raw: addr },
+  });
+  // #endregion
+  console.log(`🌐 HTTP Server running on ${HOST}:${PORT}`);
   console.log(`🌐 Access your API at: http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Server type: HTTP only (no SSL/TLS)`);
   
   // Start database monitoring
   dbMonitor.startMonitoring(30000); // Check every 30 seconds
+});
+
+server.on('error', (err) => {
+  // #region agent log
+  __dbg('C', 'index.js:listen-error', 'app.listen error', {
+    code: err.code,
+    message: err.message,
+  });
+  // #endregion
+  console.error('HTTP server error:', err);
 });
 
 // Graceful shutdown
