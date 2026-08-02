@@ -150,7 +150,7 @@ export default function SecuritySettings() {
         if (pending2FAEnable && result.data) {
           setTwoFactorSecret(result.data.secret ?? '');
           setOtpauthUrl(result.data.otpauthUrl ?? '');
-          setBackupCodes(result.data.backupCodes ?? []);
+          setBackupCodes([]);
           setShowTwoFactorSetup(true);
         } else {
           setShowTwoFactorSetup(false);
@@ -178,11 +178,18 @@ export default function SecuritySettings() {
       const result = await verifyTwoFactorCode(data.code);
       
       if (result.success) {
-        setSuccess('Two-factor authentication verified successfully!');
-        setShowTwoFactorSetup(false);
-        setTwoFactorSecret('');
-        setOtpauthUrl('');
-        setBackupCodes([]);
+        if (result.data?.backupCodes?.length) {
+          setBackupCodes(result.data.backupCodes);
+          setSuccess(
+            'Two-factor authentication enabled. Save your backup codes now — they will not be shown again.'
+          );
+        } else {
+          setSuccess('Two-factor authentication verified successfully!');
+          setShowTwoFactorSetup(false);
+          setTwoFactorSecret('');
+          setOtpauthUrl('');
+          setBackupCodes([]);
+        }
         reset2FAVerifyForm();
       } else {
         setError(result.message);

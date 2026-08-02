@@ -12,8 +12,7 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { getDelegationsForGovernorate } from '@/data/tunisiaDelegations';
 import { fetchLocalitiesForDelegation, type LocalityOption } from '@/lib/fetchTunisiaLocalities';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { apiFetch } from '@/lib/api';
 
 const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
 
@@ -274,14 +273,6 @@ export default function CheckoutPage() {
     try {
       // Use guest checkout endpoint if not authenticated, otherwise use authenticated endpoint
       const endpoint = token ? '/products/checkout/cod' : '/products/checkout/guest';
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Only add authorization header if user is authenticated
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
       const shippingAddress = {
         street: address.street.trim(),
@@ -292,9 +283,8 @@ export default function CheckoutPage() {
         country: CHECKOUT_COUNTRY,
       };
 
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           items: payloadItems,
           shippingAddress,

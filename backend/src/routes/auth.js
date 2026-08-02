@@ -46,10 +46,18 @@ const loginValidation = [
     .withMessage('Password is required'),
   body('twoFactorCode')
     .optional()
-    .isLength({ min: 6, max: 6 })
-    .withMessage('Two-factor code must be 6 digits')
-    .matches(/^\d{6}$/)
-    .withMessage('Two-factor code must contain only numbers')
+    .isLength({ min: 6, max: 16 })
+    .withMessage('Two-factor code must be 6–16 characters')
+];
+
+const completeTwoFactorLoginValidation = [
+  body('twoFactorToken')
+    .notEmpty()
+    .withMessage('twoFactorToken is required'),
+  body('twoFactorCode')
+    .notEmpty()
+    .isLength({ min: 6, max: 16 })
+    .withMessage('Two-factor code must be 6–16 characters')
 ];
 
 const updateProfileValidation = [
@@ -200,6 +208,12 @@ const verifyTwoFactorValidation = [
 router.post('/register', authLimiter, registerValidation, authController.register);
 router.post('/login', authLimiter, loginValidation, authController.login);
 router.post('/google', authLimiter, authController.googleAuth);
+router.post(
+  '/2fa/login',
+  authLimiter,
+  completeTwoFactorLoginValidation,
+  authController.completeTwoFactorLogin
+);
 router.get('/verify-email', authController.verifyEmail);
 router.post(
   '/resend-verification',
@@ -218,7 +232,8 @@ router.post('/profile/avatar', protect, uploadAvatarImage, authController.upload
 router.put('/change-password', protect, changePasswordValidation, authController.changePassword);
 router.put('/2fa', protect, toggleTwoFactorValidation, authController.toggleTwoFactorAuth);
 router.post('/2fa/verify', protect, verifyTwoFactorValidation, authController.verifyTwoFactorCode);
-router.post('/logout', protect, authController.logout);
+// Logout clears cookies even if the access token is already expired
+router.post('/logout', authController.logout);
 
 module.exports = router;
 

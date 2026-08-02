@@ -32,11 +32,12 @@ export default function LoginPage() {
   const [twoFactorStep, setTwoFactorStep] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [pendingGoogleTwoFactorToken, setPendingGoogleTwoFactorToken] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [logoutTitle, setLogoutTitle] = useState('');
   const [logoutBody, setLogoutBody] = useState('');
-  const { login, resendVerificationEmail, loginWithGoogle } = useAuth();
+  const { login, resendVerificationEmail, loginWithGoogle, completeTwoFactorLogin } = useAuth();
   const { isFrench } = useLanguage();
   const router = useRouter();
 
@@ -132,19 +133,33 @@ export default function LoginPage() {
 
   const onSubmitTwoFactor = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!pendingCredentials || twoFactorCode.length !== 6) return;
+    if (twoFactorCode.trim().length < 6) return;
 
     setIsLoading(true);
     setError('');
 
     try {
-      const result = await login(
-        pendingCredentials.email,
-        pendingCredentials.password,
-        twoFactorCode
-      );
-      if (!completeLogin(result)) {
-        setTwoFactorCode('');
+      if (pendingGoogleTwoFactorToken) {
+        const result = await completeTwoFactorLogin(
+          pendingGoogleTwoFactorToken,
+          twoFactorCode.trim()
+        );
+        if (result.success) {
+          setPendingGoogleTwoFactorToken(null);
+          completeLogin(result);
+        } else {
+          setError(result.message);
+          setTwoFactorCode('');
+        }
+      } else if (pendingCredentials) {
+        const result = await login(
+          pendingCredentials.email,
+          pendingCredentials.password,
+          twoFactorCode.trim()
+        );
+        if (!completeLogin(result)) {
+          setTwoFactorCode('');
+        }
       }
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -169,6 +184,13 @@ export default function LoginPage() {
     setGoogleLoading(true);
     try {
       const result = await loginWithGoogle(credential);
+      if (result.code === 'TWO_FACTOR_REQUIRED' && result.twoFactorToken) {
+        setPendingGoogleTwoFactorToken(result.twoFactorToken);
+        setPendingCredentials(null);
+        setTwoFactorStep(true);
+        setError('');
+        return;
+      }
       if (result.success) {
         if (result.user?.isAdmin) {
           router.push('/admin');
@@ -277,8 +299,8 @@ export default function LoginPage() {
             <form onSubmit={onSubmitTwoFactor} className="space-y-6">
               <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground">
                 {isFrench
-                  ? 'Saisissez le code à 6 chiffres de votre application d’authentification.'
-                  : 'Enter the 6-digit code from your authenticator app.'}
+                  ? 'Saisissez le code de votre application d’authentification ou un code de secours.'
+                  : 'Enter the code from your authenticator app or a backup code.'}
               </p>
               <div>
                 <label htmlFor="twoFactorCode" className="block text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-2">
@@ -286,11 +308,10 @@ export default function LoginPage() {
                 </label>
                 <input
                   id="twoFactorCode"
-                  inputMode="numeric"
                   autoComplete="one-time-code"
-                  maxLength={6}
+                  maxLength={16}
                   value={twoFactorCode}
-                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16))}
                   className="block w-full px-3 py-3 border border-swisse-gold/25 dark:border-border bg-transparent text-swisse-ink dark:text-foreground focus:outline-none focus:border-swisse-gold dark:focus:border-primary tracking-widest text-center text-lg transition-colors"
                   placeholder="000000"
                 />
@@ -302,7 +323,7 @@ export default function LoginPage() {
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
                 type="submit"
-                disabled={isLoading || twoFactorCode.length !== 6}
+                disabled={isLoading || twoFactorCode.trim().length < 6}
                 className="w-full bg-swisse-ink hover:bg-swisse-gold disabled:opacity-50 text-swisse-canvas text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors duration-300 dark:bg-foreground dark:text-background dark:hover:bg-primary"
               >
                 <span>{isLoading ? (isFrench ? 'Vérification…' : 'Verifying…') : (isFrench ? 'Vérifier et se connecter' : 'Verify and sign in')}</span>
@@ -312,6 +333,7 @@ export default function LoginPage() {
                 onClick={() => {
                   setTwoFactorStep(false);
                   setPendingCredentials(null);
+                  setPendingGoogleTwoFactorToken(null);
                   setTwoFactorCode('');
                   setError('');
                 }}

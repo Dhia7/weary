@@ -4,7 +4,9 @@ const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const cookieParser = require('cookie-parser');
 const { globalLimiter, isRateLimitEnabled } = require('./middleware/rateLimit');
+const { csrfProtection } = require('./middleware/csrf');
 
 // NOTE: This application only creates HTTP servers
 // SSL/HTTPS is handled by the deployment platform (Render) at the load balancer level
@@ -125,6 +127,7 @@ if (isRateLimitEnabled()) {
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
 // Compression middleware
 app.use(compression());
@@ -173,7 +176,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
   optionsSuccessStatus: 204
 };
 
@@ -184,7 +187,7 @@ app.use((req, res, next) => {
     res.header('Vary', 'Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-Token');
   }
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
@@ -193,6 +196,9 @@ app.use((req, res, next) => {
 });
 
 app.use(cors(corsOptions));
+
+// Double-submit CSRF for mutating API requests (after cookies are parsed)
+app.use('/api', csrfProtection);
 
 // Serve static files (uploads) - after CORS configuration
 const uploadsDir = path.resolve(__dirname, '..', 'uploads');

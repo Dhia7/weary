@@ -21,12 +21,17 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
   const [hue, setHue] = useState(0);
   const [crop, setCrop] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [aspectRatio, setAspectRatio] = useState<string>('free');
-  const [outputSize, setOutputSize] = useState<number>(512);
+  // 0 = Original (crop resolution, longest side capped at MAX_OUTPUT_SIDE)
+  const [outputSize, setOutputSize] = useState<number>(1024);
+  const [exportSize, setExportSize] = useState<{ w: number; h: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  // Same-origin object URL used for canvas export (avoids tainted canvas from cross-origin images)
+  const [corsSafeUrl, setCorsSafeUrl] = useState<string | null>(null);
+  const [loadNonce, setLoadNonce] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,6 +41,8 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
   console.log('ImageEditor - imageUrl length:', imageUrl?.length);
   console.log('ImageEditor - imageLoaded:', imageLoaded);
   console.log('ImageEditor - imageError:', imageError);
+
+  const MAX_OUTPUT_SIDE = 2048;
 
   const updatePreview = useCallback(() => {
     if (!previewCanvasRef.current || !imgRef.current) {
@@ -50,27 +57,6 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
       return;
     }
 
-    // Set canvas size based on selected aspect ratio and output size
-    const computeCanvasSize = () => {
-      if (aspectRatio === 'free') {
-        return { w: 256, h: 192 };
-      }
-      const [w, h] = aspectRatio.split(':').map(Number);
-      const baseW = outputSize;
-      const baseH = Math.round((outputSize * h) / w);
-      return { w: baseW, h: baseH };
-    };
-    const { w: canvasW, h: canvasH } = computeCanvasSize();
-    canvas.width = canvasW;
-    canvas.height = canvasH;
-
-    ctx.imageSmoothingQuality = 'high';
-    ctx.save();
-
-    // Apply filters
-    const filterString = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg)`;
-    ctx.filter = filterString;
-
     // Calculate crop area in pixels
     const cropX = (crop.x / 100) * image.naturalWidth;
     const cropY = (crop.y / 100) * image.naturalHeight;
@@ -78,44 +64,74 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
     const cropHeight = (crop.height / 100) * image.naturalHeight;
 
     // If no crop is selected, use full image
-    const sourceX = crop.width > 0 ? cropX : 0;
-    const sourceY = crop.height > 0 ? cropY : 0;
-    const sourceWidth = crop.width > 0 ? cropWidth : image.naturalWidth;
-    const sourceHeight = crop.height > 0 ? cropHeight : image.naturalHeight;
+    let sourceX = crop.width > 0 ? cropX : 0;
+    let sourceY = crop.height > 0 ? cropY : 0;
+    let sourceWidth = crop.width > 0 ? cropWidth : image.naturalWidth;
+    let sourceHeight = crop.height > 0 ? cropHeight : image.naturalHeight;
 
-    // Calculate destination size to fit canvas while maintaining aspect ratio
-    const canvasAspect = canvas.width / canvas.height;
-    const imageAspect = sourceWidth / sourceHeight;
-
-    let destWidth, destHeight, destX, destY;
-
-    if (imageAspect > canvasAspect) {
-      // Image is wider than canvas
-      destWidth = canvas.width;
-      destHeight = canvas.width / imageAspect;
-      destX = 0;
-      destY = (canvas.height - destHeight) / 2;
-    } else {
-      // Image is taller than canvas
-      destHeight = canvas.height;
-      destWidth = canvas.height * imageAspect;
-      destX = (canvas.width - destWidth) / 2;
-      destY = 0;
+    if (sourceWidth <= 0 || sourceHeight <= 0) {
+      return;
     }
 
-    // Apply transformations
-    const centerX = destX + destWidth / 2;
-    const centerY = destY + destHeight / 2;
+    const maxSide =
+      outputSize === 0 ? MAX_OUTPUT_SIDE : Math.min(outputSize, MAX_OUTPUT_SIDE);
+
+    // For fixed ratio: center-crop source to match target aspect (cover, no letterboxing)
+    if (aspectRatio !== 'free') {
+      const [rw, rh] = aspectRatio.split(':').map(Number);
+      const canvasAspect = rw / rh;
+      const sourceAspect = sourceWidth / sourceHeight;
+      if (sourceAspect > canvasAspect) {
+        const newWidth = sourceHeight * canvasAspect;
+        sourceX = sourceX + (sourceWidth - newWidth) / 2;
+        sourceWidth = newWidth;
+      } else if (sourceAspect < canvasAspect) {
+        const newHeight = sourceWidth / canvasAspect;
+        sourceY = sourceY + (sourceHeight - newHeight) / 2;
+        sourceHeight = newHeight;
+      }
+    }
+
+    // Size canvas from (possibly cover-cropped) source; never upscale
+    const longest = Math.max(sourceWidth, sourceHeight);
+    const scaleDown = longest > maxSide ? maxSide / longest : 1;
+    const canvasW = Math.max(1, Math.round(sourceWidth * scaleDown));
+    const canvasH = Math.max(1, Math.round(sourceHeight * scaleDown));
+
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    setExportSize((prev) =>
+      prev && prev.w === canvasW && prev.h === canvasH ? prev : { w: canvasW, h: canvasH }
+    );
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.save();
+
+    // Apply filters
+    const filterString = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg)`;
+    ctx.filter = filterString;
+
+    // Fill canvas edge-to-edge (exact for free; cover-cropped for fixed ratio)
+    const destWidth = canvasW;
+    const destHeight = canvasH;
+    const centerX = destWidth / 2;
+    const centerY = destHeight / 2;
 
     ctx.translate(centerX, centerY);
     ctx.rotate((rotate * Math.PI) / 180);
     ctx.scale(scale * (flipH ? -1 : 1), scale * (flipV ? -1 : 1));
 
-    // Draw the cropped image
     ctx.drawImage(
       image,
-      sourceX, sourceY, sourceWidth, sourceHeight, // Source crop area
-      -destWidth / 2, -destHeight / 2, destWidth, destHeight // Destination
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      -destWidth / 2,
+      -destHeight / 2,
+      destWidth,
+      destHeight
     );
 
     ctx.restore();
@@ -142,10 +158,71 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
       return;
     }
 
+    // Ensure the preview canvas is up to date before export
+    updatePreview();
+
     const canvas = previewCanvasRef.current;
-    const editedImageUrl = canvas.toDataURL('image/jpeg', 0.9);
-    onSave(editedImageUrl);
-  }, [onSave]);
+    try {
+      const editedImageUrl = canvas.toDataURL('image/jpeg', 0.92);
+      onSave(editedImageUrl);
+    } catch (err) {
+      console.error('Failed to export edited image (canvas may be tainted):', err);
+      alert(
+        'Unable to save this image. The image host did not allow canvas export (CORS). Try re-uploading the image or use a same-origin URL.'
+      );
+    }
+  }, [onSave, updatePreview]);
+
+  // Remote images need CORS so the canvas stays untainted for toDataURL.
+  // data:/blob: URLs are already same-origin and must not set crossOrigin.
+  const imageCrossOrigin =
+    corsSafeUrl && !corsSafeUrl.startsWith('data:') && !corsSafeUrl.startsWith('blob:')
+      ? 'anonymous'
+      : undefined;
+
+  // Load image as a same-origin blob when possible so toDataURL never hits a tainted canvas.
+  // Falls back to the original URL (with crossOrigin) if fetch/CORS fails.
+  React.useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    const loadImage = async () => {
+      setImageLoaded(false);
+      setImageError(false);
+      setCorsSafeUrl(null);
+
+      if (!imageUrl) return;
+
+      if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
+        if (!cancelled) setCorsSafeUrl(imageUrl);
+        return;
+      }
+
+      try {
+        const res = await fetch(imageUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+          // Avoid reusing a non-CORS cached response that would still taint the canvas
+          cache: 'no-cache',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setCorsSafeUrl(objectUrl);
+      } catch (err) {
+        console.warn('CORS-safe image fetch failed, falling back to direct URL:', err);
+        if (!cancelled) setCorsSafeUrl(imageUrl);
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [imageUrl, loadNonce]);
 
   // Crop selection handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -285,25 +362,25 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
 
   // Auto-set image as loaded if it's a blob URL (already loaded data)
   React.useEffect(() => {
-    if (imageUrl && imageUrl.startsWith('blob:')) {
-      console.log('Blob URL detected, setting image as loaded');
-      setImageLoaded(true);
+    if (corsSafeUrl && corsSafeUrl.startsWith('blob:')) {
+      // Still wait for <img onLoad>; just clear prior error state
       setImageError(false);
     }
-  }, [imageUrl]);
+  }, [corsSafeUrl]);
 
-  // Fallback: if image is still not loaded after 2 seconds, force it to loaded state
+  // Fallback: if image is still not loaded after 5 seconds, surface an error instead of forcing draw
   React.useEffect(() => {
+    if (!corsSafeUrl || imageLoaded || imageError) return;
     const timer = setTimeout(() => {
-      if (!imageLoaded && !imageError && imageUrl) {
-        console.log('Fallback: forcing image to loaded state');
-        setImageLoaded(true);
-        setImageError(false);
+      if (!imageLoaded && !imageError) {
+        console.error('Image load timed out:', corsSafeUrl);
+        setImageError(true);
+        setImageLoaded(false);
       }
-    }, 2000);
+    }, 5000);
 
     return () => clearTimeout(timer);
-  }, [imageLoaded, imageError, imageUrl]);
+  }, [imageLoaded, imageError, corsSafeUrl]);
 
   // Update preview when any relevant setting changes
   React.useEffect(() => {
@@ -376,25 +453,24 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
                     <option value="2:3">Portrait (2:3)</option>
                     <option value="3:2">Landscape (3:2)</option>
                   </select>
-                  {aspectRatio !== 'free' && (
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Output Size</label>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={outputSize}
-                          onChange={(e) => setOutputSize(Number(e.target.value))}
-                          className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          aria-label="Select output size"
-                        >
-                          <option value={256}>Small</option>
-                          <option value={512}>Medium</option>
-                          <option value={768}>Large</option>
-                          <option value={1024}>XL</option>
-                        </select>
-                        <span className="text-xs text-gray-500">Width; height adjusts to ratio</span>
-                      </div>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Output Size</label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={outputSize}
+                        onChange={(e) => setOutputSize(Number(e.target.value))}
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        aria-label="Select output size"
+                      >
+                        <option value={0}>Original (max 2048)</option>
+                        <option value={1024}>1024px</option>
+                        <option value={768}>768px</option>
+                        <option value={512}>512px</option>
+                        <option value={256}>256px</option>
+                      </select>
+                      <span className="text-xs text-gray-500">Longest side; never upscales</span>
                     </div>
-                  )}
+                  </div>
                 </div>
                 <div className="flex items-end space-x-2">
                   <button
@@ -659,30 +735,29 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
                     <p className="text-red-600 dark:text-red-400 mb-2">Failed to load image</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">URL: {imageUrl}</p>
                     <button
-                      onClick={() => {
-                        setImageError(false);
-                        setImageLoaded(false);
-                        if (imgRef.current) {
-                          imgRef.current.src = imageUrl;
-                        }
-                      }}
+                      onClick={() => setLoadNonce((n) => n + 1)}
                       className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                       aria-label="Retry loading image"
                     >
                       Retry
                     </button>
                   </div>
-                ) : !imageLoaded ? (
+                ) : !corsSafeUrl ? (
                   <div className="p-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                     <p className="text-gray-600 dark:text-gray-400">Loading image...</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">URL: {imageUrl}</p>
                   </div>
                 ) : (
-                  <div className="p-4 flex justify-center">
+                  <div className="p-4 flex justify-center relative min-h-[12rem]">
+                    {!imageLoaded && (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-800/80">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+                        <p className="text-gray-600 dark:text-gray-400">Loading image...</p>
+                      </div>
+                    )}
                     <div 
                       ref={containerRef}
-                      className="relative inline-block cursor-crosshair"
+                      className={`relative inline-block cursor-crosshair ${imageLoaded ? '' : 'invisible'}`}
                       tabIndex={0}
                       onKeyDown={handleKeyDown}
                       onMouseDown={handleMouseDown}
@@ -690,10 +765,12 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
                       onMouseUp={handleMouseUp}
                       onMouseLeave={handleMouseUp}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         ref={imgRef}
                         alt="Product image"
-                        src={imageUrl}
+                        src={corsSafeUrl}
+                        crossOrigin={imageCrossOrigin}
                         onLoad={onImageLoad}
                         onError={onImageError}
                         className="max-w-full max-h-96 object-contain transition-transform duration-200"
@@ -749,8 +826,10 @@ const ImageEditor = ({ imageUrl, onSave, onClose }: ImageEditorProps) => {
                   className="w-full h-48 object-cover"
                   aria-label="Image preview"
                 />
-                {aspectRatio !== 'free' && (
-                  <div className="p-2 text-xs text-gray-500">Output: {outputSize}px × {Math.round(outputSize * (aspectRatio.split(':').map(Number)[1] / aspectRatio.split(':').map(Number)[0]))}px</div>
+                {exportSize && (
+                  <div className="p-2 text-xs text-gray-500">
+                    Output: {exportSize.w}px × {exportSize.h}px
+                  </div>
                 )}
               </div>
             </div>

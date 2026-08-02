@@ -34,9 +34,28 @@ function verifyAccessToken(token) {
   return jwt.verify(token, getJwtSecret());
 }
 
+/** Short-lived token to complete 2FA after Google sign-in. */
+function signTwoFactorPendingToken(userId) {
+  return jwt.sign(
+    { userId, purpose: '2fa_pending' },
+    getJwtSecret(),
+    { expiresIn: '5m' }
+  );
+}
+
+function verifyTwoFactorPendingToken(token) {
+  const decoded = jwt.verify(token, getJwtSecret());
+  if (decoded.purpose !== '2fa_pending' || !decoded.userId) {
+    throw new Error('Invalid two-factor pending token');
+  }
+  return decoded;
+}
+
 module.exports = {
   getJwtSecret,
   assertJwtConfigured,
   signAccessToken,
   verifyAccessToken,
+  signTwoFactorPendingToken,
+  verifyTwoFactorPendingToken,
 };

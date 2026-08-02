@@ -3,6 +3,7 @@
 import { useMemo, useEffect, useLayoutEffect, useRef, useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { motion, useMotionValue, useTransform, animate, MotionValue } from 'motion/react';
+import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
 
 type OrbitShape =
   | 'ellipse'
@@ -59,6 +60,52 @@ interface OrbitItemProps {
   rotation: number;
   progress: MotionValue<number>;
   fill: boolean;
+}
+
+function OrbitSwapImage({
+  src,
+  hoverSrc,
+  alt,
+}: {
+  src: string;
+  hoverSrc: string | null;
+  alt: string;
+}) {
+  const showHoverSwap = Boolean(hoverSrc && hoverSrc !== src);
+  // Orbit items move continuously — use hover/press only (no in-view auto-cycle).
+  const { containerRef, revealed, imageSwapHandlers } = useHoverImageReveal(showHoverSwap, {
+    autoCycle: false,
+  });
+
+  return (
+    <span
+      ref={containerRef}
+      className="relative block h-full w-full overflow-hidden rounded-full"
+      {...imageSwapHandlers}
+    >
+      <img
+        src={src}
+        alt={alt}
+        draggable={false}
+        loading="lazy"
+        decoding="async"
+        className="h-full w-full rounded-full object-cover"
+      />
+      {showHoverSwap && hoverSrc ? (
+        <img
+          src={hoverSrc}
+          alt=""
+          aria-hidden
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          className={`absolute inset-0 h-full w-full rounded-full object-cover transition-opacity duration-500 ease-out ${
+            revealed ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+      ) : null}
+    </span>
+  );
 }
 
 function generateEllipsePath(cx: number, cy: number, rx: number, ry: number): string {
@@ -248,33 +295,11 @@ export default function OrbitImages({
     const alt = alts?.[index] || `${altPrefix} ${index + 1}`;
     const href = links?.[index];
     const hoverSrc = hoverImages?.[index] || null;
-    const image = (
-      <span className="relative block h-full w-full overflow-hidden rounded-full">
-        <img
-          src={src}
-          alt={alt}
-          draggable={false}
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full rounded-full object-cover"
-        />
-        {hoverSrc ? (
-          <img
-            src={hoverSrc}
-            alt=""
-            aria-hidden
-            draggable={false}
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 h-full w-full rounded-full object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
-          />
-        ) : null}
-      </span>
-    );
+    const image = <OrbitSwapImage src={src} hoverSrc={hoverSrc} alt={alt} />;
 
     if (!href) {
       return (
-        <div key={`${src}-${index}`} className="group h-full w-full">
+        <div key={`${src}-${index}`} className="h-full w-full">
           {image}
         </div>
       );
@@ -284,7 +309,7 @@ export default function OrbitImages({
       <Link
         key={`${src}-${index}`}
         href={href}
-        className="group block h-full w-full cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swisse-gold"
+        className="block h-full w-full cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swisse-gold"
         aria-label={alt}
       >
         {image}

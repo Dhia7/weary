@@ -27,13 +27,57 @@ export const buildApiUrl = (endpoint: string, params?: Record<string, string | n
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        url.searchParams.append(key, String(value));
+        url.searchParams.set(key, String(value));
       }
     });
   }
   
   return url.toString();
 };
+
+const CSRF_COOKIE_NAME = 'csrf_token';
+
+export function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${CSRF_COOKIE_NAME}=([^;]*)`)
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Browser API fetch with credentials (HttpOnly session cookie) and CSRF header
+ * on mutating methods. Paths are relative to /api (e.g. '/auth/me').
+ */
+export async function apiFetch(
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const method = (options.method || 'GET').toUpperCase();
+  const headers = new Headers(options.headers || {});
+
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type') && options.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const csrf = getCsrfToken();
+    if (csrf) {
+      headers.set('X-CSRF-Token', csrf);
+    }
+  }
+
+  const url = path.startsWith('http')
+    ? path
+    : `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
+
+  return fetch(url, {
+    ...options,
+    method,
+    headers,
+    credentials: 'include',
+  });
+}
 
 type ApiErrorPayload = {
   message?: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getApiBaseUrl, getApiErrorMessage } from '@/lib/api';
+import { apiFetch, getApiErrorMessage } from '@/lib/api';
 
 interface UserAddress {
   id?: number;
@@ -38,6 +38,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  /** Present when a cookie session exists (value is opaque; do not send as Bearer). */
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string, twoFactorCode?: string) => Promise<{ success: boolean; message: string; user?: User; code?: string }>;
@@ -49,7 +50,17 @@ interface AuthContextType {
     emailSent?: boolean;
   }>;
   resendVerificationEmail: (email: string) => Promise<{ success: boolean; message: string }>;
-  loginWithGoogle: (credential: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  loginWithGoogle: (credential: string) => Promise<{
+    success: boolean;
+    message: string;
+    user?: User;
+    code?: string;
+    twoFactorToken?: string;
+  }>;
+  completeTwoFactorLogin: (
+    twoFactorToken: string,
+    twoFactorCode: string
+  ) => Promise<{ success: boolean; message: string; user?: User }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   uploadAvatar: (file: File) => Promise<{ success: boolean; message: string }>;
@@ -75,8 +86,17 @@ interface AuthContextType {
     }>;
   }) => Promise<{ success: boolean; message: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  toggleTwoFactorAuth: (enable: boolean, password: string) => Promise<{ success: boolean; message: string; data?: { otpauthUrl?: string; secret?: string; backupCodes?: string[] } }>; 
-  verifyTwoFactorCode: (code: string) => Promise<{ success: boolean; message: string }>;
+  toggleTwoFactorAuth: (
+    enable: boolean,
+    password: string
+  ) => Promise<{
+    success: boolean;
+    message: string;
+    data?: { otpauthUrl?: string; secret?: string; backupCodes?: string[]; pending?: boolean };
+  }>;
+  verifyTwoFactorCode: (
+    code: string
+  ) => Promise<{ success: boolean; message: string; data?: { backupCodes?: string[]; enabled?: boolean } }>;
 }
 
 interface SignupData {
@@ -86,6 +106,8 @@ interface SignupData {
   lastName: string;
   phone?: string;
 }
+
+const SESSION_FLAG = 'cookie-session';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -102,48 +124,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing token on mount
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsLoading(false);
       return;
     }
-    
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUserProfile(storedToken);
-    } else {
-      setIsLoading(false);
-    }
+    // Clear legacy localStorage JWT if present
+    localStorage.removeItem('token');
+    fetchUserProfile();
   }, []);
 
-  const fetchUserProfile = async (authToken: string) => {
+  const fetchUserProfile = async () => {
     try {
-      console.log('fetchUserProfile: Fetching user profile from:', `${getApiBaseUrl()}/auth/me`);
-      const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('fetchUserProfile: Response status:', response.status);
+      const response = await apiFetch('/auth/me');
       if (response.ok) {
         const data = await response.json();
-        console.log('fetchUserProfile: Received user data:', data.data.user);
         setUser(data.data.user);
+        setToken(SESSION_FLAG);
       } else {
-        console.log('fetchUserProfile: Response not ok, removing token');
-        // Token is invalid, remove it
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('token');
-        }
+        setUser(null);
         setToken(null);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      localStorage.removeItem('token');
+      setUser(null);
       setToken(null);
     } finally {
       setIsLoading(false);
@@ -152,11 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string, twoFactorCode?: string) => {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+      const response = await apiFetch('/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           email,
           password,
@@ -168,18 +169,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (response.ok) {
         setUser(data.data.user);
-        setToken(data.data.token);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', data.data.token);
-        }
+        setToken(SESSION_FLAG);
         return { success: true, message: data.message, user: data.data.user };
-      } else {
-        return {
-          success: false,
-          message: getApiErrorMessage(response, data),
-          code: data.code,
-        };
       }
+      return {
+        success: false,
+        message: getApiErrorMessage(response, data),
+        code: data.code,
+      };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -188,11 +185,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (userData: SignupData) => {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
+      const response = await apiFetch('/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(userData),
       });
 
@@ -200,19 +194,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (response.ok) {
         const payload = data.data;
-        if (payload?.token) {
-          setUser(payload.user);
-          setToken(payload.token);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('token', payload.token);
-          }
-        } else {
-          setUser(null);
-          setToken(null);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('token');
-          }
-        }
+        setUser(null);
+        setToken(null);
         return {
           success: true,
           message: data.message,
@@ -220,9 +203,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           requiresEmailVerification: payload?.requiresEmailVerification,
           emailSent: payload?.emailSent,
         };
-      } else {
-        return { success: false, message: getApiErrorMessage(response, data) };
       }
+      return { success: false, message: getApiErrorMessage(response, data) };
     } catch (error) {
       console.error('Signup error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -231,32 +213,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async (credential: string) => {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/google`, {
+      const response = await apiFetch('/auth/google', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential }),
       });
       const data = await response.json();
       if (response.ok) {
         setUser(data.data.user);
-        setToken(data.data.token);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', data.data.token);
-        }
+        setToken(SESSION_FLAG);
         return { success: true, message: data.message, user: data.data.user };
       }
-      return { success: false, message: getApiErrorMessage(response, data) };
+      return {
+        success: false,
+        message: getApiErrorMessage(response, data),
+        code: data.code,
+        twoFactorToken: data.data?.twoFactorToken,
+      };
     } catch (error) {
       console.error('Google login error:', error);
       return { success: false, message: 'Network error. Please try again.' };
     }
   };
 
+  const completeTwoFactorLogin = async (twoFactorToken: string, twoFactorCode: string) => {
+    try {
+      const response = await apiFetch('/auth/2fa/login', {
+        method: 'POST',
+        body: JSON.stringify({ twoFactorToken, twoFactorCode }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUser(data.data.user);
+        setToken(SESSION_FLAG);
+        return { success: true, message: data.message, user: data.data.user };
+      }
+      return { success: false, message: getApiErrorMessage(response, data) };
+    } catch (error) {
+      console.error('Complete 2FA login error:', error);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
   const resendVerificationEmail = async (email: string) => {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/resend-verification`, {
+      const response = await apiFetch('/auth/resend-verification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
       const data = await response.json();
@@ -271,6 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    void apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     setUser(null);
     setToken(null);
     if (typeof window !== 'undefined') {
@@ -279,22 +281,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshUser = async () => {
-    if (!token) {
-      console.log('refreshUser: No token available');
-      return;
-    }
-    
-    console.log('refreshUser: Starting user profile refresh...');
     try {
-      await fetchUserProfile(token);
-      console.log('refreshUser: User profile refreshed successfully');
+      await fetchUserProfile();
     } catch (error) {
       console.error('Error refreshing user profile:', error);
     }
   };
 
   const uploadAvatar = async (file: File) => {
-    if (!token) {
+    if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
 
@@ -302,11 +297,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const response = await fetch(`${getApiBaseUrl()}/auth/profile/avatar`, {
+      const response = await apiFetch('/auth/profile/avatar', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
 
@@ -325,28 +317,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateProfile = async (data: Partial<User>) => {
-    if (!token) {
+    if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/profile`, {
+      const response = await apiFetch('/auth/profile', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(data),
       });
 
       const responseData = await response.json();
 
       if (response.ok) {
-        setUser(prev => prev ? { ...prev, ...responseData.data.user } : null);
+        setUser((prev) => (prev ? { ...prev, ...responseData.data.user } : null));
         return { success: true, message: responseData.message };
-      } else {
-        return { success: false, message: responseData.message || 'Update failed' };
       }
+      return { success: false, message: responseData.message || 'Update failed' };
     } catch (error) {
       console.error('Update profile error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -373,28 +360,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isDefault: boolean;
     }>;
   }) => {
-    if (!token) {
+    if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/profile/update`, {
+      const response = await apiFetch('/auth/profile/update', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(data),
       });
 
       const responseData = await response.json();
 
       if (response.ok) {
-        setUser(prev => prev ? { ...prev, ...responseData.data.user } : null);
+        setUser((prev) => (prev ? { ...prev, ...responseData.data.user } : null));
         return { success: true, message: responseData.message };
-      } else {
-        return { success: false, message: responseData.message || 'Update failed' };
       }
+      return { success: false, message: responseData.message || 'Update failed' };
     } catch (error) {
       console.error('Update profile comprehensive error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -402,41 +384,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
-    if (!token) {
+    if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/change-password`, {
+      const response = await apiFetch('/auth/change-password', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
 
       const responseData = await response.json();
 
       if (response.ok) {
-        // Password changed successfully, refresh user profile to ensure everything is in sync
         try {
-          await fetchUserProfile(token);
+          await fetchUserProfile();
         } catch (profileError) {
           console.warn('Could not refresh user profile after password change:', profileError);
-          // This is not critical, the password change was successful
         }
-        
         return { success: true, message: responseData.message };
-      } else {
-        // Handle specific error cases
-        if (response.status === 401) {
-          // Token might be invalid, clear it
-          logout();
-          return { success: false, message: 'Session expired. Please log in again.' };
-        }
-        return { success: false, message: responseData.message || 'Password change failed' };
       }
+      if (response.status === 401) {
+        logout();
+        return { success: false, message: 'Session expired. Please log in again.' };
+      }
+      return { success: false, message: responseData.message || 'Password change failed' };
     } catch (error) {
       console.error('Change password error:', error);
       return { success: false, message: 'Network error. Please check your connection and try again.' };
@@ -444,17 +416,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleTwoFactorAuth = async (enable: boolean, password: string) => {
-    if (!token) {
+    if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/2fa`, {
+      const response = await apiFetch('/auth/2fa', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ enable, password }),
       });
 
@@ -463,13 +431,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.ok) {
         if (!enable) {
           await refreshUser();
-        } else {
-          setUser(prev => prev ? { ...prev, twoFactorEnabled: true } : null);
         }
+        // Pending enable: do not mark twoFactorEnabled until verify
         return { success: true, message: responseData.message, data: responseData.data };
-      } else {
-        return { success: false, message: responseData.message || '2FA toggle failed' };
       }
+      return { success: false, message: responseData.message || '2FA toggle failed' };
     } catch (error) {
       console.error('Toggle 2FA error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -477,17 +443,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const verifyTwoFactorCode = async (code: string) => {
-    if (!token) {
+    if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/2fa/verify`, {
+      const response = await apiFetch('/auth/2fa/verify', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ code }),
       });
 
@@ -495,10 +457,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (response.ok) {
         await refreshUser();
-        return { success: true, message: responseData.message };
-      } else {
-        return { success: false, message: responseData.message || '2FA verification failed' };
+        return {
+          success: true,
+          message: responseData.message,
+          data: responseData.data,
+        };
       }
+      return { success: false, message: responseData.message || '2FA verification failed' };
     } catch (error) {
       console.error('Verify 2FA error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -513,6 +478,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     resendVerificationEmail,
     loginWithGoogle,
+    completeTwoFactorLogin,
     logout,
     refreshUser,
     uploadAvatar,
@@ -529,4 +495,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-

@@ -5,7 +5,7 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
-import { buildApiUrl, getApiErrorMessage } from '@/lib/api';
+import { apiFetch, getApiErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 const inputClassName =
@@ -15,7 +15,7 @@ const labelClassName =
   'block text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-2';
 
 export default function ContactPage() {
-  const { token } = useAuth();
+  useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,16 +44,8 @@ export default function ContactPage() {
     };
 
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
-      const res = await fetch(buildApiUrl('/contact'), {
+      const res = await apiFetch('/contact', {
         method: 'POST',
-        headers,
         body: JSON.stringify(payload),
       });
 

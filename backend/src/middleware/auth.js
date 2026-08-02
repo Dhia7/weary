@@ -1,100 +1,85 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { withTimeout, TIMEOUTS } = require('../utils/queryTimeout');
 const { verifyAccessToken } = require('../utils/jwt');
+const { getAccessTokenFromRequest } = require('../utils/authCookies');
 const { userIsAdmin } = require('../config/roles');
 
-// Protect routes - require authentication
+async function loadUserFromToken(token) {
+  const decoded = verifyAccessToken(token);
+  const user = await withTimeout(
+    User.findByPk(decoded.userId, {
+      attributes: { exclude: ['password'] },
+    }),
+    TIMEOUTS.AUTH,
+    'User authentication query'
+  );
+  return { decoded, user };
+}
+
+// Protect routes - require authentication (cookie first, Bearer fallback)
 const protect = async (req, res, next) => {
-  let token;
-
-  // Check for token in headers
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      // Get token from header
-      token = req.headers.authorization.split(' ')[1];
-
-      // Verify token
-      const decoded = verifyAccessToken(token);
-
-      // Get user from token with timeout
-      const user = await withTimeout(
-        User.findByPk(decoded.userId, {
-          attributes: { exclude: ['password'] }
-        }),
-        TIMEOUTS.AUTH,
-        'User authentication query'
-      );
-      
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      // Check if user is active
-      if (!user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'Account is deactivated'
-        });
-      }
-
-      req.user = decoded;
-      req.userData = user;
-      next();
-    } catch (error) {
-      console.error('Token verification error:', error);
-      
-      // Provide more specific error messages
-      if (error.message && error.message.includes('timeout')) {
-        console.error('Database query timeout during token verification');
-        return res.status(408).json({
-          success: false,
-          message: 'Authentication timeout - please try again'
-        });
-      }
-      
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized, token failed'
-      });
-    }
-  }
+  const token = getAccessTokenFromRequest(req);
 
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: 'Not authorized, no token'
+      message: 'Not authorized, no token',
+    });
+  }
+
+  try {
+    const { decoded, user } = await loadUserFromToken(token);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated',
+      });
+    }
+
+    req.user = decoded;
+    req.userData = user;
+    next();
+  } catch (error) {
+    console.error('Token verification error:', error);
+
+    if (error.message && error.message.includes('timeout')) {
+      console.error('Database query timeout during token verification');
+      return res.status(408).json({
+        success: false,
+        message: 'Authentication timeout - please try again',
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized, token failed',
     });
   }
 };
 
 // Optional auth - doesn't require authentication but adds user if available
 const optionalAuth = async (req, res, next) => {
-  let token;
+  const token = getAccessTokenFromRequest(req);
+  if (!token) {
+    return next();
+  }
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-      const decoded = verifyAccessToken(token);
-      
-      const user = await withTimeout(
-        User.findByPk(decoded.userId, {
-          attributes: { exclude: ['password'] }
-        }),
-        TIMEOUTS.AUTH,
-        'User authentication query'
-      );
-      
-      if (user && user.isActive) {
-        req.user = decoded;
-      }
-    } catch (error) {
-      // Silently fail for optional auth
-      console.log('Optional auth failed:', error.message);
+  try {
+    const { decoded, user } = await loadUserFromToken(token);
+    if (user && user.isActive) {
+      req.user = decoded;
+      req.userData = user;
     }
+  } catch (error) {
+    console.log('Optional auth failed:', error.message);
   }
 
   next();
@@ -106,14 +91,14 @@ const admin = async (req, res, next) => {
     if (!req.userData) {
       return res.status(401).json({
         success: false,
-        message: 'Not authenticated'
+        message: 'Not authenticated',
       });
     }
 
     if (!userIsAdmin(req.userData)) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized as admin'
+        message: 'Not authorized as admin',
       });
     }
 
@@ -122,7 +107,7 @@ const admin = async (req, res, next) => {
     console.error('Admin middleware error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
     });
   }
 };

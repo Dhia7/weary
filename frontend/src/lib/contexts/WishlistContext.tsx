@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { getApiBaseUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 interface WishlistItem {
   id: string;
@@ -60,9 +60,8 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     setError(null);
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/wishlist`, {
+      const response = await apiFetch(`/wishlist`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -111,10 +110,9 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/wishlist`, {
+      const response = await apiFetch(`/wishlist`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ productId })
@@ -145,10 +143,9 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/wishlist/${productId}`, {
+      const response = await apiFetch(`/wishlist/${productId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -183,10 +180,9 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/wishlist`, {
+      const response = await apiFetch(`/wishlist`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

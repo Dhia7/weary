@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { buildApiUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 export interface CartItem {
   id: string; // Unique cart item identifier (cartItemId or productId-size)
@@ -95,9 +95,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Load from backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(buildApiUrl('/cart'), {
+        const response = await apiFetch('/cart', {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -206,10 +205,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (guestCartItems.length > 0) {
         // Sync guest cart with user cart
-        const response = await fetch(buildApiUrl('/cart/sync'), {
+        const response = await apiFetch('/cart/sync', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ guestCartItems }),
@@ -259,10 +257,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Add to backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(buildApiUrl('/cart'), {
+        const response = await apiFetch('/cart', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -329,10 +326,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (item?.color) params.set('color', item.color);
         if (item?.variantId) params.set('variantId', item.variantId);
         const qs = params.toString();
-        const response = await fetch(buildApiUrl(`/cart/${productId}${qs ? `?${qs}` : ''}`), {
+        const response = await apiFetch(`/cart/${productId}${qs ? `?${qs}` : ''}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -375,10 +371,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(true);
         // Use productId if available, otherwise parse from id
         const productId = item.productId || item.id.split('-')[0];
-        const response = await fetch(buildApiUrl('/cart'), {
+        const response = await apiFetch('/cart', {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -417,10 +412,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear from backend for authenticated users
       try {
         setIsLoading(true);
-        const response = await fetch(buildApiUrl('/cart'), {
+        const response = await apiFetch('/cart', {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });

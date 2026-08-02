@@ -10,8 +10,8 @@ import { Grid, List } from 'lucide-react';
 import { useProducts } from '@/lib/hooks/useProducts';
 
 export default function ProductsPage() {
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('ASC');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('DESC');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 12;
@@ -100,12 +100,12 @@ export default function ProductsPage() {
                 title="Sort products"
                 className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
+                <option value="createdAt-DESC">Newest First</option>
+                <option value="createdAt-ASC">Oldest First</option>
                 <option value="name-ASC">Name A-Z</option>
                 <option value="name-DESC">Name Z-A</option>
                 <option value="price-ASC">Price Low to High</option>
                 <option value="price-DESC">Price High to Low</option>
-                <option value="createdAt-DESC">Newest First</option>
-                <option value="createdAt-ASC">Oldest First</option>
               </select>
             </div>
           </div>

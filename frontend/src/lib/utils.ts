@@ -35,6 +35,24 @@ export function getImageUrl(imagePath: string | null | undefined): string | null
   return result;
 }
 
+/** Convert a data URL to a Blob without fetch (CSP often blocks fetch('data:...')). */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) {
+    throw new Error('Invalid data URL');
+  }
+  const header = dataUrl.slice(0, comma);
+  const data = dataUrl.slice(comma + 1);
+  const mime = header.match(/^data:([^;,]+)/i)?.[1] || 'application/octet-stream';
+  const isBase64 = /;base64/i.test(header);
+  const binary = isBase64 ? atob(data) : decodeURIComponent(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
 // Admin order seen tracking utilities
 const SEEN_ORDERS_KEY = 'admin_seen_orders';
 

@@ -26,6 +26,7 @@ import {
 import ColorSwatches from '@/components/ColorSwatches';
 import { getHoverDisplayImage, getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import { getProductDisplayName } from '@/lib/i18n/product';
+import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
 
@@ -59,6 +60,8 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const showHoverSwap = Boolean(
     hoverImageUrl && primaryImageUrl && hoverImageUrl !== primaryImageUrl
   );
+  const { containerRef, revealed: hoverRevealed, imageSwapHandlers } =
+    useHoverImageReveal(showHoverSwap);
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
@@ -169,7 +172,11 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
 
     return (
       <div className="group">
-        <div className="relative aspect-[3/4] overflow-hidden mb-6 bg-swisse-mist dark:bg-muted">
+        <div
+          ref={containerRef}
+          className="relative aspect-[3/4] overflow-hidden mb-6 bg-swisse-mist dark:bg-muted"
+          {...imageSwapHandlers}
+        >
           <Link href={productHref} className="absolute inset-0 z-0 block">
             {primaryImageUrl ? (
               <>
@@ -177,7 +184,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                   src={primaryImageUrl}
                   alt={displayName}
                   fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  className={`object-cover transition-transform duration-700 ${
+                    hoverRevealed ? 'scale-105' : ''
+                  }`}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                 />
                 {showHoverSwap && hoverImageUrl ? (
@@ -186,7 +195,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                     alt=""
                     fill
                     aria-hidden
-                    className="object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
+                    className={`object-cover transition-opacity duration-500 ease-out ${
+                      hoverRevealed ? 'opacity-100' : 'opacity-0'
+                    }`}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                   />
                 ) : null}
@@ -269,14 +280,20 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
       onMouseLeave={() => setIsHovered(false)}
     >
       <Link href={productHref} className="block">
-        <div className="aspect-square bg-muted relative overflow-hidden">
+        <div
+          ref={containerRef}
+          className="aspect-square bg-muted relative overflow-hidden"
+          {...imageSwapHandlers}
+        >
           {primaryImageUrl ? (
             <>
               <Image
                 src={primaryImageUrl}
                 alt={displayName}
                 fill
-                className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                className={`object-cover transition-transform duration-500 ease-in-out ${
+                  hoverRevealed ? 'scale-110' : ''
+                }`}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
               {showHoverSwap && hoverImageUrl ? (
@@ -285,7 +302,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                   alt=""
                   fill
                   aria-hidden
-                  className="object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100"
+                  className={`object-cover transition-opacity duration-500 ease-out ${
+                    hoverRevealed ? 'opacity-100' : 'opacity-0'
+                  }`}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
               ) : null}

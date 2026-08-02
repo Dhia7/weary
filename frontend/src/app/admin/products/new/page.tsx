@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
+import { dataUrlToBlob } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
 import VariantEditor, { type VariantDraft } from '@/components/admin/VariantEditor';
 import ProductImagesMedia from '@/components/admin/ProductImagesMedia';
@@ -444,9 +445,8 @@ export default function NewProductPage() {
         const preview = imagePreviews[index];
         
         if (preview && preview.startsWith('data:')) {
-          // Convert edited image from ImageEditor
-          const response = await fetch(preview);
-          const blob = await response.blob();
+          // Convert edited image from ImageEditor (avoid fetch(data:) — blocked by CSP)
+          const blob = dataUrlToBlob(preview);
           const fileName = `product-${Date.now()}-${index}.jpg`;
           formData.append(`image_${index}`, blob, fileName);
         } else if (imageFiles[index]) {

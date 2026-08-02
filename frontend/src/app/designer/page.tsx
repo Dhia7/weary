@@ -328,21 +328,10 @@ export default function DesignerPage() {
       }
       
       // Get API base URL - use /api for client-side (Next.js rewrites)
-      const API_BASE_URL = typeof window !== 'undefined' 
-        ? '/api' 
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
-      
-      // Get auth token if user is logged in
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = {};
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      const { apiFetch } = await import('@/lib/api');
 
-      const response = await fetch(`${API_BASE_URL}/products/personalized-tshirt-order`, {
+      const response = await apiFetch('/products/personalized-tshirt-order', {
         method: 'POST',
-        headers,
         body: formData
       });
 

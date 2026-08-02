@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import {
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
@@ -210,7 +209,7 @@ export default function ProductImageGallery({
       <div className="relative">
         <div
           ref={containerRef}
-          className={`aspect-square bg-white/90 dark:bg-card border border-swisse-gold/20 dark:border-border overflow-hidden shadow-sm relative group ${
+          className={`relative w-full overflow-hidden border border-swisse-gold/20 dark:border-border shadow-sm bg-swisse-canvas dark:bg-background group ${
             zoomLevel > MIN_ZOOM
               ? isDragging
                 ? 'cursor-grabbing'
@@ -225,21 +224,21 @@ export default function ProductImageGallery({
           onClick={handleImageClick}
         >
           {displayImage ? (
-            <Image
+            // Native img keeps natural aspect so there are no white letterbox bars
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={getImageUrl(displayImage) || ''}
               alt={alt}
-              fill
-              className="object-cover transition-transform duration-200 ease-out select-none"
+              className="block w-full h-auto transition-transform duration-200 ease-out select-none"
               style={{
                 transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
                 transformOrigin: 'center center',
                 pointerEvents: zoomLevel > MIN_ZOOM ? 'none' : 'auto',
               }}
-              sizes="(max-width: 768px) 100vw, 50vw"
               draggable={false}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-swisse-mist to-swisse-canvas dark:from-muted dark:to-secondary flex items-center justify-center">
+            <div className="aspect-[3/4] w-full bg-gradient-to-br from-swisse-mist to-swisse-canvas dark:from-muted dark:to-secondary flex items-center justify-center">
               <span className="text-8xl">{fallbackEmoji}</span>
             </div>
           )}
@@ -333,7 +332,7 @@ export default function ProductImageGallery({
       </div>
 
       {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 items-end">
           {images.map((image, index) => (
             <button
               key={`${image}-${index}`}
@@ -341,18 +340,18 @@ export default function ProductImageGallery({
               onClick={() => setSelectedImageIndex(index)}
               aria-label={`View image ${index + 1} of ${images.length}`}
               aria-current={selectedImageIndex === index ? 'true' : undefined}
-              className={`flex-shrink-0 w-20 h-20 overflow-hidden border-2 transition-colors ${
+              className={`flex-shrink-0 h-20 overflow-hidden border-2 transition-colors bg-swisse-canvas dark:bg-background ${
                 selectedImageIndex === index
                   ? 'border-swisse-gold'
                   : 'border-swisse-gold/20 dark:border-border hover:border-swisse-gold/50'
               }`}
             >
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={getImageUrl(image) || ''}
                 alt={`${alt} - Image ${index + 1}`}
-                width={80}
-                height={80}
-                className="object-cover w-full h-full"
+                className="block h-20 w-auto max-w-[5.5rem] object-contain"
+                draggable={false}
               />
             </button>
           ))}

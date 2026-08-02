@@ -5,9 +5,11 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { hasMailTransport, sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mail');
 const { verifyGoogleIdToken } = require('../utils/google');
-const { signAccessToken } = require('../utils/jwt');
+const { signAccessToken, signTwoFactorPendingToken, verifyTwoFactorPendingToken } = require('../utils/jwt');
 const { resolveUserRole } = require('../config/roles');
 const { generateTwoFactorSecret, verifyTotpCode } = require('../utils/totp');
+const { setAuthCookies, clearAuthCookies } = require('../utils/authCookies');
+const bcrypt = require('bcryptjs');
 
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 
@@ -43,6 +45,54 @@ const formatAuthUser = (user) => formatUserProfile(user, []);
 
 // Generate JWT Token
 const generateToken = (userId) => signAccessToken(userId);
+
+const generateBackupCodes = () => {
+  const codes = [];
+  for (let i = 0; i < 8; i++) {
+    codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
+  }
+  return codes;
+};
+
+async function hashBackupCodes(codes) {
+  return Promise.all(codes.map((code) => bcrypt.hash(code, 10)));
+}
+
+/**
+ * Validate TOTP or a one-time backup code. Consumes a matching backup code.
+ * @returns {Promise<boolean>}
+ */
+async function verifyTwoFactorOrBackup(user, code) {
+  const normalized = String(code || '').trim();
+  if (!normalized) return false;
+
+  if (verifyTotpCode(user.twoFactorSecret, normalized)) {
+    return true;
+  }
+
+  const stored = Array.isArray(user.backupCodes) ? user.backupCodes : [];
+  for (let i = 0; i < stored.length; i++) {
+    const hash = stored[i];
+    if (typeof hash !== 'string') continue;
+    const match = await bcrypt.compare(normalized.toUpperCase(), hash);
+    if (match) {
+      const next = [...stored];
+      next.splice(i, 1);
+      user.backupCodes = next;
+      await user.save();
+      return true;
+    }
+  }
+  return false;
+}
+
+function issueSession(res, user) {
+  const token = generateToken(user.id);
+  setAuthCookies(res, token);
+  return {
+    user: formatAuthUser(user),
+  };
+}
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -184,7 +234,7 @@ const login = async (req, res) => {
         });
       }
 
-      const isValidCode = verifyTotpCode(user.twoFactorSecret, twoFactorCode);
+      const isValidCode = await verifyTwoFactorOrBackup(user, twoFactorCode);
       if (!isValidCode) {
         await User.handleFailedLogin(user.id);
         return res.status(401).json({
@@ -212,16 +262,12 @@ const login = async (req, res) => {
       }
     }
 
-    // Generate JWT token
-    const token = generateToken(user.id);
+    const data = issueSession(res, user);
 
     res.json({
       success: true,
       message: 'Login successful',
-      data: {
-        user: formatAuthUser(user),
-        token
-      }
+      data
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -352,17 +398,24 @@ const googleAuth = async (req, res) => {
       });
     }
 
+    if (user.twoFactorEnabled) {
+      const twoFactorToken = signTwoFactorPendingToken(user.id);
+      return res.status(403).json({
+        success: false,
+        code: 'TWO_FACTOR_REQUIRED',
+        message: 'Two-factor authentication code is required',
+        data: { twoFactorToken },
+      });
+    }
+
     await User.resetLoginAttempts(user.id);
 
-    const token = generateToken(user.id);
+    const data = issueSession(res, user);
 
     res.json({
       success: true,
       message: 'Login successful',
-      data: {
-        user: formatAuthUser(user),
-        token
-      }
+      data
     });
   } catch (error) {
     console.error('Google auth error:', error);
@@ -844,19 +897,21 @@ const toggleTwoFactorAuth = async (req, res) => {
     }
 
     if (enable) {
+      // Pending enable: store secret but do not activate until TOTP verify
       const secret = generateTwoFactorSecret(user.email);
       user.twoFactorSecret = secret.base32;
-      user.twoFactorEnabled = true;
+      user.twoFactorEnabled = false;
+      user.backupCodes = null;
 
       await user.save();
 
       res.json({
         success: true,
-        message: 'Two-factor authentication enabled',
+        message: 'Scan the QR code, then verify with a code from your authenticator app to finish enabling 2FA.',
         data: {
           otpauthUrl: secret.otpauth_url,
           secret: secret.base32,
-          backupCodes: generateBackupCodes()
+          pending: true,
         }
       });
     } else {
@@ -880,7 +935,7 @@ const toggleTwoFactorAuth = async (req, res) => {
   }
 };
 
-// @desc    Verify two-factor authentication code
+// @desc    Verify two-factor authentication code (completes pending enable, or confirms when already on)
 // @route   POST /api/auth/2fa/verify
 // @access  Private
 const verifyTwoFactorCode = async (req, res) => {
@@ -903,10 +958,10 @@ const verifyTwoFactorCode = async (req, res) => {
       });
     }
 
-    if (!user.twoFactorEnabled) {
+    if (!user.twoFactorSecret) {
       return res.status(400).json({
         success: false,
-        message: 'Two-factor authentication is not enabled'
+        message: 'Two-factor authentication setup has not been started'
       });
     }
 
@@ -916,6 +971,23 @@ const verifyTwoFactorCode = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid two-factor authentication code. Please enter the 6-digit code from your authenticator app.'
+      });
+    }
+
+    // Completing first-time enable
+    if (!user.twoFactorEnabled) {
+      const plainCodes = generateBackupCodes();
+      user.backupCodes = await hashBackupCodes(plainCodes);
+      user.twoFactorEnabled = true;
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: 'Two-factor authentication enabled. Store these backup codes securely; they will not be shown again.',
+        data: {
+          enabled: true,
+          backupCodes: plainCodes,
+        }
       });
     }
 
@@ -932,13 +1004,75 @@ const verifyTwoFactorCode = async (req, res) => {
   }
 };
 
-// Helper function to generate backup codes
-const generateBackupCodes = () => {
-  const codes = [];
-  for (let i = 0; i < 8; i++) {
-    codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
+// @desc    Complete login after Google (or pending) 2FA challenge
+// @route   POST /api/auth/2fa/login
+// @access  Public
+const completeTwoFactorLogin = async (req, res) => {
+  try {
+    const { twoFactorToken, twoFactorCode } = req.body;
+    if (!twoFactorToken || !twoFactorCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'twoFactorToken and twoFactorCode are required',
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = verifyTwoFactorPendingToken(twoFactorToken);
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        message: 'Two-factor session expired. Please sign in again.',
+      });
+    }
+
+    const user = await User.findByPk(decoded.userId);
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    if (user.isLocked()) {
+      return res.status(423).json({
+        success: false,
+        message: 'Account is temporarily locked due to too many failed login attempts',
+      });
+    }
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Two-factor authentication is not enabled',
+      });
+    }
+
+    const ok = await verifyTwoFactorOrBackup(user, twoFactorCode);
+    if (!ok) {
+      await User.handleFailedLogin(user.id);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    await User.resetLoginAttempts(user.id);
+    const data = issueSession(res, user);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data,
+    });
+  } catch (error) {
+    console.error('Complete 2FA login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
   }
-  return codes;
 };
 
 // @desc    Upload profile avatar
@@ -997,8 +1131,7 @@ const uploadAvatar = async (req, res) => {
 // @access  Private
 const logout = async (req, res) => {
   try {
-    // In a more complex setup, you might want to blacklist the token
-    // For now, we'll just return a success message
+    clearAuthCookies(res);
     res.json({
       success: true,
       message: 'Logged out successfully'
@@ -1022,10 +1155,11 @@ module.exports = {
   updateProfile,
   updateProfileComprehensive,
   changePassword,
-  toggleTwoFactorAuth,
-  verifyTwoFactorCode,
   forgotPassword,
   resetPassword,
-  logout,
-  uploadAvatar
+  toggleTwoFactorAuth,
+  verifyTwoFactorCode,
+  completeTwoFactorLogin,
+  uploadAvatar,
+  logout
 };

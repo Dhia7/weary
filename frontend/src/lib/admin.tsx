@@ -3,31 +3,24 @@
 import React, { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './contexts/AuthContext';
-import { getApiBaseUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 export function useAuthorizedFetch() {
-  const { token } = useAuth();
-
   const authorizedFetch = useCallback(async (path: string, options: RequestInit = {}) => {
     const headers = new Headers(options.headers || {});
-    
+
     // Only set Content-Type to application/json if body is not FormData
-    // FormData should let the browser set the correct multipart/form-data content type
-    if (!(options.body instanceof FormData)) {
+    if (!(options.body instanceof FormData) && options.body && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
-    
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-    
+
     try {
-      const response = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
-      return response;
+      return await apiFetch(path, { ...options, headers });
     } catch (error) {
       console.error('Fetch error:', error);
-      // Re-throw the error so it can be handled by the calling code
       throw error;
     }
-  }, [token]);
+  }, []);
 
   return authorizedFetch;
 }
@@ -46,5 +39,3 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   if (!user || !user.isAdmin) return null;
   return <>{children}</>;
 }
-
-
