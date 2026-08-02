@@ -1,0 +1,12 @@
+{
+  "name": "wear",
+  "private": true,
+  "description": "Monorepo root — Render/Vercel should prefer frontend/ or backend/ as Root Directory when possible.",
+  "scripts": {
+    "start": "npm --prefix backend start",
+    "install:backend": "npm --prefix backend install --omit=dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

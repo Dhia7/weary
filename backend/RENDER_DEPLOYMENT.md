@@ -45,9 +45,22 @@ Redeploy the frontend after adding it. In Google Cloud Console, add your Vercel 
 - Use a strong JWT_SECRET in production
 - Update FRONTEND_URL with your actual frontend URL
 
-## Build and Start Commands:
+## Build and Start Commands
+
+This repo is a monorepo. The API lives under **`backend/`**.
+
+### Recommended (Root Directory = `backend`)
+In the Render service → **Settings**:
+- **Root Directory**: `backend`
 - **Build Command**: `npm install`
 - **Start Command**: `npm start`
+
+### If Root Directory is left empty (repo root)
+- **Build Command**: `npm install --prefix backend`
+- **Start Command**: `npm start`  
+  (root `package.json` forwards to `backend`)
+
+Do **not** run bare `npm start` at the repo root without the root `package.json`, or Render will fail with `ENOENT …/package.json`.
 
 ## Troubleshooting:
 If you see SSL/PEM errors:
