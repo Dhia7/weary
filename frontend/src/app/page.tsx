@@ -40,8 +40,8 @@ export default function Home() {
       <main id="main-content">
         <Hero />
         <TrustBar />
-        <NouvelleCollection />
         <FeaturedProducts />
+        <NouvelleCollection />
         <BrandStory />
         <NewsletterSignup />
       </main>

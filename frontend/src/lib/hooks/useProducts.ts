@@ -10,6 +10,7 @@ export interface UseProductsParams {
   q?: string;
   sort?: string;
   order?: string;
+  homepageCollage?: boolean;
 }
 
 type ProductsListData = {
@@ -31,6 +32,7 @@ export function useProducts(params?: UseProductsParams) {
     q: params?.q,
     sort: params?.sort,
     order: params?.order,
+    homepageCollage: params?.homepageCollage,
   });
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data?: ProductsListData }>(

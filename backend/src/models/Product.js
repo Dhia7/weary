@@ -77,6 +77,16 @@ const Product = sequelize.define('Product', {
 		defaultValue: null,
 		comment: 'Index of the orbit/listing hover image in the images array'
 	},
+	homepageCollageOrder: {
+		type: DataTypes.INTEGER,
+		allowNull: true,
+		defaultValue: null,
+		validate: {
+			min: 1,
+			max: 4
+		},
+		comment: 'Homepage View-all collage slot (1-4); null = not shown'
+	},
 	defaultDisplayColor: {
 		type: DataTypes.STRING(100),
 		allowNull: true,

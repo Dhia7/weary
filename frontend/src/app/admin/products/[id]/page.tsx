@@ -37,6 +37,7 @@ interface Product {
   size?: string | null;
   isActive: boolean;
   allowCustomerQuantity?: boolean;
+  homepageCollageOrder?: number | null;
   imageUrl: string | null;
   images?: string[];
   mainThumbnailIndex?: number;
@@ -73,6 +74,7 @@ export default function EditProductPage() {
     size: null,
     isActive: true,
     allowCustomerQuantity: false,
+    homepageCollageOrder: null,
     imageUrl: null,
     images: [],
     mainThumbnailIndex: 0,
@@ -189,6 +191,10 @@ export default function EditProductPage() {
               size: p.size || null,
               isActive: p.isActive !== false,
               allowCustomerQuantity: Boolean(p.allowCustomerQuantity),
+              homepageCollageOrder:
+                p.homepageCollageOrder != null && Number.isFinite(p.homepageCollageOrder)
+                  ? p.homepageCollageOrder
+                  : null,
               imageUrl: p.imageUrl || null,
               images: p.images || [],
               mainThumbnailIndex: p.mainThumbnailIndex || 0,
@@ -578,6 +584,10 @@ export default function EditProductPage() {
       }
       formData.append('isActive', productData.isActive.toString());
       formData.append('allowCustomerQuantity', String(Boolean(productData.allowCustomerQuantity)));
+      formData.append(
+        'homepageCollageOrder',
+        productData.homepageCollageOrder != null ? String(productData.homepageCollageOrder) : ''
+      );
       // Always send categoryIds, even if empty array
       const categoryIdsToSend = Array.isArray(selectedCategoryIds) ? selectedCategoryIds : [];
       console.log('Saving with category IDs:', categoryIdsToSend);

@@ -61,6 +61,8 @@ export interface Product {
   images?: string[];
   mainThumbnailIndex?: number;
   hoverImageIndex?: number | null;
+  /** Homepage View-all collage slot 1–4; null/undefined = not in collage */
+  homepageCollageOrder?: number | null;
   defaultDisplayColor?: string | null;
   price: number;
   compareAtPrice?: number;

@@ -14,6 +14,7 @@ interface Product {
   SKU: string;
   isActive: boolean;
   displayBadge?: ProductDisplayBadge;
+  homepageCollageOrder?: number | null;
   defaultDisplayColor?: string | null;
   hasVariants?: boolean;
   colorOptions?: ColorOption[];
@@ -37,12 +38,21 @@ const BADGE_OPTIONS: Array<{ value: ProductDisplayBadge; label: string }> = [
   { value: 'sold', label: 'Sold' },
 ];
 
+const COLLAGE_OPTIONS: Array<{ value: number | null; label: string }> = [
+  { value: null, label: 'Off' },
+  { value: 1, label: 'Slot 1' },
+  { value: 2, label: 'Slot 2' },
+  { value: 3, label: 'Slot 3' },
+  { value: 4, label: 'Slot 4' },
+];
+
 export default function AdminProductsPage() {
   const fetcher = useAuthorizedFetch();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingBadgeId, setUpdatingBadgeId] = useState<number | null>(null);
   const [updatingColorId, setUpdatingColorId] = useState<number | null>(null);
+  const [updatingCollageId, setUpdatingCollageId] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -97,6 +107,46 @@ export default function AdminProductsPage() {
       console.error('Error updating badge:', error);
     } finally {
       setUpdatingBadgeId(null);
+    }
+  };
+
+  const handleHomepageCollageChange = async (
+    productId: number,
+    homepageCollageOrder: number | null
+  ) => {
+    try {
+      setUpdatingCollageId(productId);
+      const res = await fetcher(`/products/${productId}/homepage-collage-order`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ homepageCollageOrder }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        const nextOrder = json.data.product.homepageCollageOrder ?? null;
+        setProducts((prev) =>
+          prev.map((p) => {
+            if (p.id === productId) {
+              return { ...p, homepageCollageOrder: nextOrder };
+            }
+            // Slot uniqueness: clear the same slot from others in the UI
+            if (
+              nextOrder != null &&
+              p.homepageCollageOrder === nextOrder &&
+              p.id !== productId
+            ) {
+              return { ...p, homepageCollageOrder: null };
+            }
+            return p;
+          })
+        );
+      } else {
+        console.error('Failed to update collage slot:', json.message);
+      }
+    } catch (error) {
+      console.error('Error updating collage slot:', error);
+    } finally {
+      setUpdatingCollageId(null);
     }
   };
 
@@ -193,6 +243,9 @@ export default function AdminProductsPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Featured color
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      View all collage
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Badge
@@ -329,6 +382,30 @@ export default function AdminProductsPage() {
                         ) : (
                           <span className="text-xs text-gray-400">—</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          aria-label={`View all collage slot for ${product.name}`}
+                          value={product.homepageCollageOrder ?? ''}
+                          disabled={updatingCollageId === product.id}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            handleHomepageCollageChange(
+                              product.id,
+                              value === '' ? null : Number(value)
+                            );
+                          }}
+                          className="block w-full min-w-[6.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                          {COLLAGE_OPTIONS.map((option) => (
+                            <option
+                              key={option.label}
+                              value={option.value ?? ''}
+                            >
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <select

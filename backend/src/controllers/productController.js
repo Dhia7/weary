@@ -236,6 +236,15 @@ const parseDisplayBadge = (value) => {
 	return null;
 };
 
+/** Homepage collage slot 1–4, or null to hide. */
+const parseHomepageCollageOrder = (value) => {
+	if (value === undefined) return undefined;
+	if (value === null || value === '' || value === 'none' || value === '0') return null;
+	const n = parseInt(value, 10);
+	if (!Number.isFinite(n) || n < 1 || n > 4) return null;
+	return n;
+};
+
 /** Resolve default listing color against variant color names (case-insensitive). */
 const parseDefaultDisplayColor = (value, variantRows = []) => {
 	if (value === undefined) return undefined;
@@ -266,7 +275,7 @@ const normalizeSizeField = (size) => {
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, allowCustomerQuantity } = req.body;
+		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, allowCustomerQuantity, homepageCollageOrder } = req.body;
 		const specs = parseSpecFields(req.body);
 		
 		// Parse categoryIds if it's a string (from FormData)
@@ -338,6 +347,7 @@ const createProduct = async (req, res) => {
 			isActive: isActive === 'true' || isActive === true,
 			displayBadge: parseDisplayBadge(displayBadge) ?? null,
 			allowCustomerQuantity: parseBooleanField(allowCustomerQuantity, false),
+			homepageCollageOrder: parseHomepageCollageOrder(homepageCollageOrder) ?? null,
 			imageUrl: imageUrls.length > 0 ? imageUrls[mainThumbnailIndex] || imageUrls[0] : null, // Use selected thumbnail as main image
 			images: imageUrls, // Store all images
 			mainThumbnailIndex: mainThumbnailIndex, // Store the selected thumbnail index
@@ -397,7 +407,7 @@ const createProduct = async (req, res) => {
 		const page = parseInt(req.query.page) || 1;
 		const limit = Math.min(parseInt(req.query.limit) || 12, 100); // Max 100 items per page
 		const offset = (page - 1) * limit;
-		const { q, active, categoryId, sort, order } = req.query;
+		const { q, active, categoryId, sort, order, homepageCollage } = req.query;
 
 		const where = {};
 		if (q) {
@@ -425,6 +435,10 @@ const createProduct = async (req, res) => {
 		if (active !== undefined) {
 			where.isActive = String(active) === 'true';
 		}
+		const collageOnly = String(homepageCollage) === 'true';
+		if (collageOnly) {
+			where.homepageCollageOrder = { [Op.ne]: null };
+		}
 
 		const include = [{ model: Category, as: 'categories', through: { attributes: [] } }];
 		if (categoryId) {
@@ -433,7 +447,12 @@ const createProduct = async (req, res) => {
 
 		// Handle sorting
 		let orderClause = [['createdAt', 'DESC']]; // Default sort
-		if (sort && order) {
+		if (collageOnly) {
+			orderClause = [
+				['homepageCollageOrder', 'ASC'],
+				['updatedAt', 'DESC'],
+			];
+		} else if (sort && order) {
 			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt'];
 			const validOrders = ['ASC', 'DESC'];
 			
@@ -597,7 +616,7 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity } = req.body;
+		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity, homepageCollageOrder } = req.body;
 		
 		console.log('=== UPDATE PRODUCT REQUEST ===');
 		console.log('Product ID:', id);
@@ -713,6 +732,9 @@ const updateProduct = async (req, res) => {
 		if (weightGrams !== undefined) product.weightGrams = weightGrams ? parseInt(weightGrams) : null;
 		if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
 		if (displayBadge !== undefined) product.displayBadge = parseDisplayBadge(displayBadge);
+		if (homepageCollageOrder !== undefined) {
+			product.homepageCollageOrder = parseHomepageCollageOrder(homepageCollageOrder);
+		}
 		if (allowCustomerQuantity !== undefined) {
 			product.allowCustomerQuantity = parseBooleanField(allowCustomerQuantity, false);
 		}
@@ -1057,6 +1079,43 @@ const updateProductDefaultDisplayColor = async (req, res) => {
 	}
 };
 
+// Update homepage collage slot (admin, quick toggle from list)
+const updateProductHomepageCollageOrder = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const homepageCollageOrder = parseHomepageCollageOrder(req.body.homepageCollageOrder);
+
+		const product = await Product.findByPk(id, {
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (!product) {
+			return res.status(404).json({ success: false, message: 'Product not found' });
+		}
+
+		// Keep slots unique: clear this slot from any other product
+		if (homepageCollageOrder != null) {
+			await Product.update(
+				{ homepageCollageOrder: null },
+				{
+					where: {
+						homepageCollageOrder,
+						id: { [Op.ne]: product.id },
+					},
+				}
+			);
+		}
+
+		product.homepageCollageOrder = homepageCollageOrder;
+		await product.save({ fields: ['homepageCollageOrder'] });
+
+		const formattedProduct = formatProductForUser(product, true);
+		res.json({ success: true, data: { product: formattedProduct } });
+	} catch (error) {
+		console.error('Update product homepage collage order error:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
 module.exports = {
 	createProduct,
 	listProducts,
@@ -1064,6 +1123,7 @@ module.exports = {
 	updateProduct,
 	updateProductDisplayBadge,
 	updateProductDefaultDisplayColor,
+	updateProductHomepageCollageOrder,
 	deleteProduct,
 	setProductCategories,
 	searchAutocomplete

@@ -18,6 +18,7 @@ router.post('/', protect, admin, uploadMultipleImages, controller.createProduct)
 router.put('/:id', protect, admin, uploadMultipleImages, controller.updateProduct);
 router.patch('/:id/display-badge', protect, admin, controller.updateProductDisplayBadge);
 router.patch('/:id/default-display-color', protect, admin, controller.updateProductDefaultDisplayColor);
+router.patch('/:id/homepage-collage-order', protect, admin, controller.updateProductHomepageCollageOrder);
 router.delete('/:id', protect, admin, controller.deleteProduct);
 router.put('/:id/categories', protect, admin, controller.setProductCategories);
 

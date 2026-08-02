@@ -201,6 +201,13 @@ const connectDB = async () => {
       }
 
       try {
+        const addHomepageCollageOrder = require('../scripts/add-homepage-collage-order');
+        await addHomepageCollageOrder();
+      } catch (error) {
+        console.warn('homepageCollageOrder migration failed (non-critical):', error.message);
+      }
+
+      try {
         const addDefaultDisplayColor = require('../scripts/add-default-display-color');
         await addDefaultDisplayColor();
       } catch (error) {

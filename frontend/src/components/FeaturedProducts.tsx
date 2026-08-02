@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import ProductCard from './ProductCard';
 import { useProducts } from '@/lib/hooks/useProducts';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { getImageUrl } from '@/lib/utils';
+import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
+import type { Product as CatalogProduct } from '@/lib/types/product';
 
 interface Product {
   id: number;
@@ -33,53 +36,55 @@ interface Product {
 }
 
 const PRODUCT_LIMIT = 6;
+const COLLAGE_LIMIT = 4;
+
+function productImageUrls(items: Product[]): string[] {
+  return items
+    .map((p) => {
+      const src = getPrimaryDisplayImage(p as CatalogProduct) || p.imageUrl;
+      return src ? getImageUrl(src) : null;
+    })
+    .filter((url): url is string => Boolean(url));
+}
 
 const FeaturedProducts = () => {
   const { isFrench } = useLanguage();
-  const [currentPage, setCurrentPage] = useState(1);
-  const { products, pagination, loading } = useProducts({
+  const { products, loading } = useProducts({
     limit: PRODUCT_LIMIT,
-    page: currentPage,
     active: true,
   });
-
-  const totalPages = Math.max(1, pagination?.totalPages ?? 1);
-  const totalProducts = pagination?.totalProducts ?? products.length;
+  const { products: collageProducts } = useProducts({
+    limit: COLLAGE_LIMIT,
+    active: true,
+    homepageCollage: true,
+  });
 
   const heading = isFrench ? 'Coups de cœur' : 'Bestsellers';
   const subcopy = isFrench
     ? 'Des pièces sélectionnées, prêtes à commander — photos réelles, prix en TND.'
     : 'Handpicked pieces ready to order — real photos, prices in TND.';
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages || page === currentPage) return;
-    setCurrentPage(page);
-    document.getElementById('most-loved')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const pageNumbers = (() => {
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    const pages = new Set<number>([1, totalPages, currentPage]);
-    if (currentPage > 1) pages.add(currentPage - 1);
-    if (currentPage < totalPages) pages.add(currentPage + 1);
-    return Array.from(pages).sort((a, b) => a - b);
-  })();
+  const collageFromAdmin = productImageUrls(collageProducts as Product[]);
+  const collageFallback = productImageUrls(products as Product[]);
+  const collageImages = [
+    ...collageFromAdmin,
+    ...collageFallback.filter((url) => !collageFromAdmin.includes(url)),
+  ].slice(0, COLLAGE_LIMIT);
 
   if (loading && products.length === 0) {
     return (
       <section id="most-loved" className="py-20 md:py-28 bg-swisse-canvas dark:bg-background">
         <div className="max-w-swisse mx-auto px-6 md:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-14 md:mb-16">
-            <div>
-              <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
-                {heading}
-              </h2>
-              <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
-                {subcopy}
-              </p>
-            </div>
+          <div className="mb-14 md:mb-16 animate-pulse">
+            <div className="min-h-[220px] md:min-h-[300px] bg-swisse-mist dark:bg-muted" />
+          </div>
+          <div className="mb-14 md:mb-16">
+            <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
+              {heading}
+            </h2>
+            <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
+              {subcopy}
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
             {[...Array(PRODUCT_LIMIT)].map((_, i) => (
@@ -111,34 +116,73 @@ const FeaturedProducts = () => {
   return (
     <section id="most-loved" className="py-20 md:py-28 bg-swisse-canvas dark:bg-background">
       <div className="max-w-swisse mx-auto px-6 md:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-14 md:mb-16">
-          <div>
-            <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
-              {heading}
-            </h2>
-            <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
-              {subcopy}
-            </p>
-          </div>
-          <Link
-            href="/products"
-            className="self-start sm:self-auto inline-flex items-center justify-center px-8 py-3.5 bg-swisse-ink text-swisse-canvas text-[11px] font-bold uppercase tracking-widest hover:bg-swisse-gold transition-colors duration-300 shadow-sm dark:bg-foreground dark:text-background dark:hover:bg-primary"
-          >
-            {isFrench ? 'Tout explorer' : 'Explore All'}
-          </Link>
-        </div>
-
         {products.length > 0 ? (
           <>
             <motion.div
-              key={currentPage}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.5 }}
+              className="mb-14 md:mb-16"
+            >
+              <Link
+                href="/products"
+                className="group relative block w-full overflow-hidden border border-swisse-gold/25 dark:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swisse-gold"
+              >
+                {/* Same 4-up 3:4 collage on every breakpoint so framing stays identical */}
+                <div className="grid grid-cols-4 w-full">
+                  {Array.from({ length: COLLAGE_LIMIT }, (_, i) => {
+                    const src = collageImages[i] ?? null;
+                    return (
+                      <div
+                        key={src ? `${src}-${i}` : `slot-${i}`}
+                        className="relative aspect-[3/4] w-full bg-swisse-mist dark:bg-muted overflow-hidden"
+                      >
+                        {src ? (
+                          <Image
+                            src={src}
+                            alt=""
+                            fill
+                            sizes="25vw"
+                            quality={90}
+                            className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+                            priority={i < 2}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="absolute inset-0 bg-swisse-ink/40 dark:bg-background/50 transition-colors duration-300 group-hover:bg-swisse-ink/30 dark:group-hover:bg-background/40" />
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 sm:gap-3 px-3 sm:px-6 text-center">
+                  <span className="inline-flex items-center gap-2 sm:gap-3 font-serif text-xl sm:text-3xl md:text-4xl text-swisse-canvas dark:text-foreground drop-shadow-sm">
+                    {isFrench ? 'Voir tous les produits' : 'View all products'}
+                    <ArrowRightIcon className="h-5 w-5 sm:h-7 sm:w-7 transition-transform duration-300 group-hover:translate-x-2" />
+                  </span>
+                  <span className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-2.5 bg-swisse-canvas text-swisse-ink text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-colors duration-300 group-hover:bg-swisse-gold group-hover:text-swisse-ink dark:bg-foreground dark:text-background dark:group-hover:bg-primary">
+                    {isFrench ? 'Explorer la collection' : 'Browse the collection'}
+                  </span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <div className="mb-14 md:mb-16">
+              <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
+                {heading}
+              </h2>
+              <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
+                {subcopy}
+              </p>
+            </div>
+
+            <motion.div
               variants={containerVariants}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-60px' }}
-              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14 md:gap-y-16 ${
-                loading ? 'opacity-60' : ''
-              }`}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14 md:gap-y-16"
             >
               {products.map((item) => {
                 const product = item as Product;
@@ -149,88 +193,23 @@ const FeaturedProducts = () => {
                 );
               })}
             </motion.div>
-
-            <div className="mt-14 md:mt-16 flex flex-col items-center gap-8">
-              <p className="text-sm text-swisse-ink/60 dark:text-muted-foreground">
-                {isFrench
-                  ? `Affichage de ${(currentPage - 1) * PRODUCT_LIMIT + 1}–${Math.min(
-                      currentPage * PRODUCT_LIMIT,
-                      totalProducts
-                    )} sur ${totalProducts} produits`
-                  : `Showing ${(currentPage - 1) * PRODUCT_LIMIT + 1}–${Math.min(
-                      currentPage * PRODUCT_LIMIT,
-                      totalProducts
-                    )} of ${totalProducts} products`}
-              </p>
-
-              {totalPages > 1 && (
-                <nav
-                  className="flex items-center gap-2"
-                  aria-label={isFrench ? 'Pagination des produits' : 'Product pagination'}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="inline-flex min-h-11 min-w-11 items-center justify-center border border-swisse-gold/25 dark:border-border text-swisse-ink dark:text-foreground hover:border-swisse-gold hover:text-swisse-gold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label={isFrench ? 'Page précédente' : 'Previous page'}
-                  >
-                    <ChevronLeftIcon className="h-5 w-5" />
-                  </button>
-
-                  {pageNumbers.map((page, index) => {
-                    const prev = pageNumbers[index - 1];
-                    const showEllipsis = prev != null && page - prev > 1;
-                    return (
-                      <span key={page} className="contents">
-                        {showEllipsis && (
-                          <span className="px-1 text-swisse-ink/40 dark:text-muted-foreground" aria-hidden>
-                            …
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handlePageChange(page)}
-                          aria-current={page === currentPage ? 'page' : undefined}
-                          className={`inline-flex min-h-11 min-w-11 items-center justify-center text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                            page === currentPage
-                              ? 'bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background'
-                              : 'border border-swisse-gold/25 dark:border-border text-swisse-ink dark:text-foreground hover:border-swisse-gold hover:text-swisse-gold'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      </span>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="inline-flex min-h-11 min-w-11 items-center justify-center border border-swisse-gold/25 dark:border-border text-swisse-ink dark:text-foreground hover:border-swisse-gold hover:text-swisse-gold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label={isFrench ? 'Page suivante' : 'Next page'}
-                  >
-                    <ChevronRightIcon className="h-5 w-5" />
-                  </button>
-                </nav>
-              )}
-
-              <Link
-                href="/products"
-                className="group inline-flex items-center gap-3 px-10 py-4 bg-swisse-ink text-swisse-canvas text-[11px] font-bold uppercase tracking-widest hover:bg-swisse-gold transition-colors duration-300 dark:bg-foreground dark:text-background dark:hover:bg-primary"
-              >
-                {isFrench ? 'Voir tous les produits' : 'View all products'}
-                <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
           </>
         ) : (
-          <p className="text-center text-swisse-ink/60 dark:text-muted-foreground text-lg py-12">
-            {isFrench
-              ? 'Aucun produit disponible pour le moment. Revenez bientôt !'
-              : 'No products available yet. Check back soon!'}
-          </p>
+          <>
+            <div className="mb-14 md:mb-16">
+              <h2 className="font-serif text-4xl md:text-5xl text-swisse-ink dark:text-foreground">
+                {heading}
+              </h2>
+              <p className="mt-4 max-w-lg text-swisse-ink/65 dark:text-muted-foreground">
+                {subcopy}
+              </p>
+            </div>
+            <p className="text-center text-swisse-ink/60 dark:text-muted-foreground text-lg py-12">
+              {isFrench
+                ? 'Aucun produit disponible pour le moment. Revenez bientôt !'
+                : 'No products available yet. Check back soon!'}
+            </p>
+          </>
         )}
       </div>
     </section>

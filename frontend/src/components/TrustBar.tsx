@@ -29,20 +29,19 @@ export default function TrustBar() {
       aria-label={isFrench ? 'Nos garanties' : 'Our guarantees'}
       className="border-y border-swisse-gold/15 bg-swisse-mist/70 dark:bg-muted/30 dark:border-border"
     >
-      <div className="max-w-swisse mx-auto px-6 md:px-8">
-        <ul className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-center gap-3 sm:gap-0 py-4 md:py-5">
+      <div className="max-w-swisse mx-auto px-4 sm:px-6 md:px-8">
+        {/* Same 4-up row on every breakpoint */}
+        <ul className="grid grid-cols-4 items-stretch py-3.5 sm:py-4 md:py-5">
           {ITEMS.map((item, index) => (
             <li
               key={item.en}
-              className="flex items-center justify-center sm:justify-start text-center sm:text-left"
+              className={`flex items-center justify-center px-1.5 sm:px-3 md:px-4 ${
+                index > 0
+                  ? 'border-l border-swisse-gold/35 dark:border-border'
+                  : ''
+              }`}
             >
-              {index > 0 && (
-                <span
-                  aria-hidden
-                  className="hidden sm:inline-block mx-5 md:mx-7 h-3 w-px bg-swisse-gold/35 dark:bg-border"
-                />
-              )}
-              <span className="text-[11px] md:text-xs font-semibold uppercase tracking-[0.18em] text-swisse-ink/80 dark:text-foreground/80">
+              <span className="text-center text-[9px] sm:text-[11px] md:text-xs font-semibold uppercase tracking-[0.12em] sm:tracking-[0.16em] md:tracking-[0.18em] text-swisse-ink/80 dark:text-foreground/80 leading-snug">
                 {isFrench ? item.fr : item.en}
               </span>
             </li>
