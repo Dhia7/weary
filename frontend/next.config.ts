@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://*.onrender.com",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://*.onrender.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org",
       "font-src 'self' data:",
       "connect-src 'self' https://*.onrender.com http://localhost:3001",
       "frame-src https://accounts.google.com",
@@ -133,23 +133,36 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   async rewrites() {
+    // Same-origin map tiles (CSP img-src 'self') — CARTO light basemap
+    const mapTileRewrites = [
+      {
+        source: '/map-tiles/:z/:x/:y.png',
+        destination: 'https://a.basemaps.cartocdn.com/light_all/:z/:x/:y.png',
+      },
+      {
+        source: '/map-tiles/:z/:x/:y@2x.png',
+        destination: 'https://a.basemaps.cartocdn.com/light_all/:z/:x/:y@2x.png',
+      },
+    ];
+
     // Get backend URL from environment
     // In production (Vercel), NEXT_PUBLIC_API_URL must be set
     // In development, fallback to localhost
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     const backendUrl = apiUrl.replace('/api', '').replace(/\/$/, '');
     
-    // Only add rewrites if we have a valid backend URL
+    // Only add API rewrites if we have a valid backend URL
     // In production, NEXT_PUBLIC_API_URL must be set (not localhost)
     if (process.env.NODE_ENV === 'production' && (!backendUrl || backendUrl.includes('localhost'))) {
       console.warn('⚠️ NEXT_PUBLIC_API_URL not set in production. API rewrites disabled.');
-      return [];
+      return mapTileRewrites;
     }
     
     console.log('Next.js rewrite config - Backend URL:', backendUrl);
     console.log('Next.js rewrite config - API URL:', apiUrl);
     
     return [
+      ...mapTileRewrites,
       // Proxy API through Next to backend
       {
         source: '/api/:path*',

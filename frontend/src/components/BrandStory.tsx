@@ -1,39 +1,25 @@
 'use client';
 
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-import { HOME_IMAGES } from '@/lib/homeImages';
+import DeliveryRouteMap from '@/components/DeliveryRouteMap';
 
 export default function BrandStory() {
   const { isFrench } = useLanguage();
 
   return (
-    <section id="brand-story" className="py-24 md:py-40 bg-swisse-linen overflow-hidden">
-      <div className="max-w-swisse mx-auto px-6 md:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+    <section id="brand-story" className="overflow-x-hidden bg-swisse-linen py-24 md:py-40">
+      <div className="mx-auto max-w-swisse px-6 md:px-8">
+        <div className="grid grid-cols-1 items-center gap-14 sm:gap-16 lg:grid-cols-2 lg:gap-24">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="relative"
+            className="relative pb-8 sm:pb-10 md:pb-8"
           >
-            <div className="absolute -top-8 -left-8 md:-top-10 md:-left-10 w-32 h-32 md:w-40 md:h-40 border-l border-t border-swisse-gold/30" />
-            <div className="relative z-10">
-              <Image
-                src={HOME_IMAGES.brandStory}
-                alt={isFrench ? 'Savoir-faire Swisia' : 'Swisia craftsmanship'}
-                width={900}
-                height={1100}
-                className="w-full h-auto grayscale hover:grayscale-0 transition-all duration-1000"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                loading="lazy"
-              />
-            </div>
-            <div className="absolute -bottom-4 -right-4 md:-bottom-6 md:-right-6 px-8 py-6 md:px-12 md:py-8 bg-swisse-gold text-white font-serif text-lg md:text-xl z-20 shadow-xl">
-              {isFrench ? 'Heritage de qualite' : 'Legacy of Quality'}
-            </div>
+            <div className="pointer-events-none absolute -left-6 -top-6 hidden h-28 w-28 border-l border-t border-swisse-gold/30 sm:block md:-left-10 md:-top-10 md:h-40 md:w-40" />
+            <DeliveryRouteMap />
           </motion.div>
 
           <motion.div
@@ -61,7 +47,7 @@ export default function BrandStory() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               <div>
                 <h3 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
-                  {isFrench ? '01' : '01'}
+                  01
                 </h3>
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
@@ -71,7 +57,7 @@ export default function BrandStory() {
               </div>
               <div>
                 <h3 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
-                  {isFrench ? '02' : '02'}
+                  02
                 </h3>
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
@@ -81,7 +67,7 @@ export default function BrandStory() {
               </div>
               <div>
                 <h3 className="text-swisse-gold font-serif text-xl md:text-2xl mb-2">
-                  {isFrench ? '03' : '03'}
+                  03
                 </h3>
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
