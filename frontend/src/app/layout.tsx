@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { satoshi, zodiak } from "@/lib/fonts";
@@ -106,6 +107,7 @@ export default async function RootLayout({
         <Providers initialLanguage={initialLanguage}>
           {children}
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
