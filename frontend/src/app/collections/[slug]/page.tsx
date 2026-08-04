@@ -12,25 +12,7 @@ import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
-
-interface Product {
-  id: number;
-  name: string;
-  nameFr?: string | null;
-  slug: string;
-  description: string;
-  SKU: string;
-  imageUrl?: string;
-  price: number;
-  compareAtPrice?: number;
-  quantity: number;
-  size?: string | null;
-  categories?: Array<{
-    id: number;
-    name: string;
-    slug: string;
-  }>;
-}
+import { productHasSizes, type Product } from '@/lib/types/product';
 
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -49,7 +31,7 @@ export default function CollectionDetailPage() {
     }
     
     // If product has sizes, redirect to product page for size selection
-    if (product.size && product.size.trim().length > 0) {
+    if (productHasSizes(product)) {
       router.push(`/product/${product.slug}`);
       return;
     }
@@ -200,7 +182,7 @@ export default function CollectionDetailPage() {
                     <ShoppingBagIcon className="w-4 h-4 mr-2" />
                     {product.quantity === 0 
                       ? 'Out of Stock' 
-                      : (product.size && product.size.trim().length > 0)
+                      : productHasSizes(product)
                       ? 'Select Size'
                       : 'Quick Add'}
                   </button>

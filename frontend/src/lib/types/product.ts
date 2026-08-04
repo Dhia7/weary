@@ -95,6 +95,14 @@ export interface Product {
   updatedAt: string;
 }
 
+/** True when the shopper must pick a size (variant availableSizes or legacy size list). */
+export const productHasSizes = (
+  product: Pick<Product, 'hasVariants' | 'availableSizes' | 'size'>
+): boolean => {
+  if (product.hasVariants && product.availableSizes?.length) return true;
+  return Boolean(product.size?.trim());
+};
+
 /** Sized, non-variant products with qty 0 are made-to-order unless marked sold. */
 export const isMadeToOrderProduct = (
   product: Pick<Product, 'size' | 'hasVariants' | 'displayBadge'>

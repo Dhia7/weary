@@ -12,13 +12,16 @@ import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import type { Product, ProductDisplayBadge } from '@/lib/types/product';
 import {
+  findVariant,
   formatProductPriceLabel,
   getColorCompareAtPrice,
   getColorPrice,
   getListingPrice,
   getProductHref,
   getProductMaxStock,
+  getVariantPrice,
   isProductSoldOut,
+  productHasSizes,
   resolveProductColor,
   shouldShowCompareAtPrice,
   toPriceNumber,
@@ -73,25 +76,49 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
 
     if (isProductSoldOut(product)) return;
 
-    if (
-      (product.hasVariants && product.colorOptions?.length) ||
-      (product.size && product.size.trim().length > 0)
-    ) {
+    // Only require size selection when the product actually has sizes
+    if (productHasSizes(product)) {
       setIsQuickViewOpen(true);
       return;
     }
 
     try {
+      const selectedVariant =
+        product.hasVariants && selectedColor
+          ? findVariant(product.variants, selectedColor)
+          : undefined;
+      const cartPrice = selectedVariant
+        ? getVariantPrice(selectedVariant, product)
+        : selectedColor && product.hasVariants
+          ? getColorPrice(product, selectedColor) ?? product.price
+          : product.price;
+      const cartImage =
+        getPrimaryDisplayImage(product, {
+          selectedColor: selectedColor || undefined,
+          selectedVariant,
+        }) ||
+        product.imageUrl ||
+        '/placeholder-product.jpg';
+      const colorFr =
+        selectedVariant?.colorFr ||
+        product.colorOptions?.find(
+          (c) => c.name.toLowerCase() === (selectedColor || '').toLowerCase()
+        )?.nameFr ||
+        null;
+
       await addItem(
         {
           id: product.id.toString(),
           productId: product.id.toString(),
           name: product.name,
           nameFr: product.nameFr || null,
-          price: product.price,
-          image: product.imageUrl || '/placeholder-product.jpg',
+          price: cartPrice,
+          image: cartImage,
           slug: product.slug,
-          maxStock: getProductMaxStock(product),
+          color: selectedColor || selectedVariant?.color || undefined,
+          colorFr,
+          variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
+          maxStock: getProductMaxStock(product, selectedVariant),
         },
         1
       );
@@ -356,8 +383,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                   ? isFrench
                     ? 'Rupture de stock'
                     : 'Out of Stock'
-                  : (product.hasVariants && product.colorOptions?.length) ||
-                    (product.size && product.size.trim().length > 0)
+                  : productHasSizes(product)
                     ? isFrench
                       ? 'Choisir taille'
                       : 'Select Size'
