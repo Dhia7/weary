@@ -76,7 +76,7 @@ function getProfileDefaults(user: ProfileUser) {
   const fullName = user.fullName?.trim() || `${user.firstName} ${user.lastName}`.trim();
   const billing = { phone: user.phone ?? '', phoneAlt: '', email: user.email };
 
-  let address = { street: '', city: '', state: '', locality: '' };
+  let address = { street: '', city: '', state: '', locality: '', landmark: '' };
   const saved = user.addresses?.find((a) => a.isDefault) ?? user.addresses?.[0];
   if (saved && isTunisiaCountry(saved.country)) {
     const street = saved.street?.trim() ?? '';
@@ -89,7 +89,7 @@ function getProfileDefaults(user: ProfileUser) {
         state = saved.state;
       }
     }
-    address = { street, city, state, locality: '' };
+    address = { street, city, state, locality: '', landmark: '' };
   }
 
   return { fullName, billing, address };
@@ -109,6 +109,7 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     locality: '',
+    landmark: '',
   });
   const [notes, setNotes] = useState('');
   const [placing, setPlacing] = useState(false);
@@ -268,6 +269,14 @@ export default function CheckoutPage() {
       );
       return;
     }
+    if (!address.landmark?.trim() || address.landmark.trim().length < 3) {
+      setError(
+        isFrench
+          ? 'Veuillez indiquer un point de repère (café, école, lieu connu) pour la livraison COD.'
+          : 'Please add a delivery landmark (café, school, or known place) for cash on delivery.'
+      );
+      return;
+    }
     setPlacing(true);
     setError(null);
     try {
@@ -279,6 +288,7 @@ export default function CheckoutPage() {
         city: address.city,
         state: address.state,
         locality: address.locality.trim(),
+        landmark: address.landmark.trim(),
         zipCode: '',
         country: CHECKOUT_COUNTRY,
       };
@@ -380,6 +390,17 @@ export default function CheckoutPage() {
             </p>
           </div>
         )}
+
+        <div className="border border-swisse-ink/15 bg-swisse-mist/30 dark:bg-muted/30 rounded-md px-5 py-4 mb-10">
+          <p className="text-xs uppercase tracking-[0.22em] font-bold text-swisse-ink/70 dark:text-muted-foreground">
+            {isFrench ? 'Confirmation par téléphone' : 'Phone verification'}
+          </p>
+          <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2 leading-relaxed">
+            {isFrench
+              ? 'Paiement à la livraison. Nous vous appellerons pour vérifier votre commande. Les pièces uniques ne sont réservées qu’après confirmation téléphonique.'
+              : 'Cash on delivery. We will call you to verify your order. Unique pieces are reserved only after phone confirmation.'}
+          </p>
+        </div>
 
         {token && user && (
           <div className="border border-swisse-gold/20 bg-white/40 dark:bg-card/50 rounded-md px-5 py-4 mb-10">
@@ -752,6 +773,24 @@ export default function CheckoutPage() {
                           </ul>
                         )}
                       </div>
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                      <label htmlFor="checkout-landmark" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
+                        {isFrench ? 'Point de repère (obligatoire)' : 'Landmark (required)'}
+                      </label>
+                      <input
+                        id="checkout-landmark"
+                        type="text"
+                        className="w-full py-4 px-6 text-sm bg-[#faf8f5] dark:bg-card border border-swisse-ink/10 dark:border-border focus:border-swisse-gold focus:ring-1 focus:ring-swisse-gold outline-none transition-all placeholder:text-swisse-ink/40"
+                        placeholder={
+                          isFrench
+                            ? 'Café, école, mosquée, immeuble connu près de chez vous…'
+                            : 'Café, school, mosque, or well-known building near you…'
+                        }
+                        value={address.landmark}
+                        onChange={(e) => setAddress({ ...address, landmark: e.target.value })}
+                        required
+                      />
                     </div>
                     <div className="md:col-span-2 space-y-2">
                       <label className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">

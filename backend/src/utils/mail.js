@@ -236,7 +236,8 @@ ${buildOrderItemsText(order)}
 Shipping: ${formatMoney(order.shippingCostCents, order.currency)}
 Total: ${formatMoney(order.totalAmountCents, order.currency)}
 
-We will contact you when your order is confirmed.
+We received your order and will call you on the phone to verify your details before reserving the item.
+Unique pieces are only reserved after phone confirmation (cash on delivery at the door).
 
 — ${BRAND}`;
 
@@ -251,7 +252,8 @@ We will contact you when your order is confirmed.
       <strong>Shipping:</strong> ${escapeHtml(formatMoney(order.shippingCostCents, order.currency))}<br/>
       <strong>Total:</strong> ${escapeHtml(formatMoney(order.totalAmountCents, order.currency))}
     </p>
-    <p>We will contact you when your order is confirmed.</p>
+    <p>We will <strong>call you</strong> to verify your details before reserving the item.
+    Unique pieces are only reserved after phone confirmation (cash on delivery at the door).</p>
     <p>— ${BRAND}</p>
   `;
 
@@ -371,6 +373,64 @@ function sendTransactional(promise, label) {
   });
 }
 
+async function sendOrderCancelledEmail(order, reasonLabel) {
+  const { email, firstName } = resolveOrderRecipient(order);
+  if (!email) return;
+
+  const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
+  const orderRef = shortOrderId(order.id);
+  const reason = reasonLabel || order.cancelReason || 'cancelled';
+  const subject = `Order update #${orderRef} — ${BRAND}`;
+
+  const text = `${greeting}
+
+Your order #${orderRef} at ${BRAND} was cancelled (${reason}).
+
+If you were waiting for a unique piece, you can join the waitlist on the product page to be notified if it becomes available again.
+
+— ${BRAND}`;
+
+  const html = `
+    <p>${escapeHtml(greeting)}</p>
+    <p>Your order <strong>#${escapeHtml(orderRef)}</strong> at <strong>${BRAND}</strong> was cancelled (${escapeHtml(reason)}).</p>
+    <p>If you were waiting for a unique piece, you can join the waitlist on the product page to be notified if it becomes available again.</p>
+    <p>— ${BRAND}</p>
+  `;
+
+  await sendEmail({ to: email, subject, text, html });
+}
+
+async function sendStockAvailableEmail({ email, product, variantId }) {
+  if (!email || !product) return;
+
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const slug = product.slug || product.id;
+  const productUrl = `${frontendBase}/product/${slug}`;
+  const name = product.name || 'Item';
+  const subject = `Back available — ${name} — ${BRAND}`;
+
+  const text = `Hi,
+
+Good news: "${name}" is available again at ${BRAND}.
+
+First order that we phone-confirm wins. Cash on delivery at the door.
+
+View: ${productUrl}
+${variantId ? `(Variant ref: ${variantId})` : ''}
+
+— ${BRAND}`;
+
+  const html = `
+    <p>Hi,</p>
+    <p>Good news: <strong>${escapeHtml(name)}</strong> is available again at <strong>${BRAND}</strong>.</p>
+    <p>First order that we phone-confirm wins. Cash on delivery at the door.</p>
+    <p><a href="${escapeHtml(productUrl)}">View the product</a></p>
+    <p>— ${BRAND}</p>
+  `;
+
+  await sendEmail({ to: email, subject, text, html });
+}
+
 module.exports = {
   hasMailTransport,
   sendEmail,
@@ -381,5 +441,7 @@ module.exports = {
   sendOrderConfirmationEmail,
   sendOrderAdminNotificationEmail,
   sendPersonalizedOrderEmails,
+  sendOrderCancelledEmail,
+  sendStockAvailableEmail,
   sendTransactional,
 };

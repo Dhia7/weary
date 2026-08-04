@@ -319,18 +319,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Remove from backend for authenticated users
       try {
         setIsLoading(true);
-        // Use productId if available, otherwise parse from id
         const productId = item.productId || item.id.split('-')[0];
         const params = new URLSearchParams();
-        if (item?.size) params.set('size', item.size);
-        if (item?.color) params.set('color', item.color);
-        if (item?.variantId) params.set('variantId', item.variantId);
+        if (item.cartItemId) {
+          params.set('cartItemId', String(item.cartItemId));
+        } else {
+          if (item.size) params.set('size', item.size);
+          if (item.color) params.set('color', item.color);
+          if (item.variantId) params.set('variantId', item.variantId);
+        }
         const qs = params.toString();
         const response = await apiFetch(`/cart/${productId}${qs ? `?${qs}` : ''}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
         });
 
         if (response.ok) {
@@ -338,7 +338,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const items = data.data.items || [];
           setItems(deduplicateCartItems(items));
         } else {
-          console.error('Failed to remove item from cart');
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Failed to remove item from cart:', response.status, errorData?.message || errorData);
         }
       } catch (error) {
         console.error('Error removing item from cart:', error);
@@ -369,7 +370,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update in backend for authenticated users
       try {
         setIsLoading(true);
-        // Use productId if available, otherwise parse from id
         const productId = item.productId || item.id.split('-')[0];
         const response = await apiFetch('/cart', {
           method: 'PUT',
@@ -382,6 +382,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             size: item?.size,
             color: item?.color,
             variantId: item?.variantId,
+            cartItemId: item?.cartItemId,
           }),
         });
 

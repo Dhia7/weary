@@ -10,6 +10,8 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Wishlist = require('./Wishlist');
 const ContactMessage = require('./ContactMessage');
+const CodBlocklist = require('./CodBlocklist');
+const StockWaitlist = require('./StockWaitlist');
 
 // User-Order associations (one-to-many)
 User.hasMany(Order, { as: 'orders', foreignKey: 'userId' });
@@ -81,7 +83,15 @@ Wishlist.belongsTo(Product, { foreignKey: 'productId' });
 
 // User-ContactMessage associations (one-to-many)
 User.hasMany(ContactMessage, { as: 'contactMessages', foreignKey: 'userId', onDelete: 'SET NULL' });
-ContactMessage.belongsTo( User, { as: 'User', foreignKey: 'userId', allowNull: true });
+ContactMessage.belongsTo(User, { as: 'User', foreignKey: 'userId', allowNull: true });
+
+// Stock waitlist
+Product.hasMany(StockWaitlist, { as: 'waitlistEntries', foreignKey: 'productId', onDelete: 'CASCADE' });
+StockWaitlist.belongsTo(Product, { as: 'Product', foreignKey: 'productId' });
+ProductVariant.hasMany(StockWaitlist, { as: 'waitlistEntries', foreignKey: 'variantId', onDelete: 'SET NULL' });
+StockWaitlist.belongsTo(ProductVariant, { as: 'variant', foreignKey: 'variantId' });
+User.hasMany(StockWaitlist, { as: 'waitlistEntries', foreignKey: 'userId', onDelete: 'SET NULL' });
+StockWaitlist.belongsTo(User, { as: 'User', foreignKey: 'userId' });
 
 module.exports = {
 	Product,
@@ -95,5 +105,7 @@ module.exports = {
 	Order,
 	OrderItem,
 	Wishlist,
-	ContactMessage
+	ContactMessage,
+	CodBlocklist,
+	StockWaitlist
 };

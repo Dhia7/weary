@@ -36,6 +36,9 @@ interface Order {
   totalAmountCents: number;
   currency: string;
   paymentMethod?: string;
+  cancelReason?: string | null;
+  verificationExpiresAt?: string | null;
+  stockLocked?: boolean;
   user: { id: number; email: string; firstName?: string; lastName?: string };
   items: OrderItem[];
   shippingAddress?: {
@@ -43,6 +46,7 @@ interface Order {
     city?: string;
     state?: string;
     locality?: string;
+    landmark?: string;
     zipCode?: string;
     country?: string;
   };
@@ -57,6 +61,16 @@ interface Order {
   createdAt?: string;
   updatedAt?: string;
 }
+
+const CANCEL_REASONS = [
+  { value: 'refused_at_delivery', label: 'Refused at delivery (blocks COD)' },
+  { value: 'unreachable', label: 'Unreachable / no answer' },
+  { value: 'admin_rejected', label: 'Admin rejected (failed verify)' },
+  { value: 'timeout', label: 'Verification timeout' },
+  { value: 'outbid', label: 'Outbid (another order confirmed)' },
+  { value: 'replaced', label: 'Replaced by newer checkout' },
+  { value: 'other', label: 'Other' },
+] as const;
 
 // Helper function to extract personalized t-shirt design image URL from notes
 function extractDesignImageUrl(notes: string | undefined): string | null {
@@ -102,6 +116,8 @@ export default function AdminOrdersPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [cancelModal, setCancelModal] = useState<{ orderId: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>('admin_rejected');
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [passwordModal, setPasswordModal] = useState<{
@@ -134,15 +150,13 @@ export default function AdminOrdersPage() {
         console.log('Fetching orders with URL:', url);
         console.log('Search query:', searchQuery);
         const res = await fetcher(url);
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
         if (res.ok) {
-          console.log('Orders API Response:', json);
-          console.log('Number of orders returned:', json.data.orders.length);
           setOrders(json.data.orders);
           setTotalPages(json.data.pagination.totalPages);
           setTotalOrders(json.data.pagination.totalOrders);
         } else {
-          console.error('API Error:', json);
+          console.error('API Error:', res.status, json?.message || json);
         }
       } finally {
         setLoading(false);
@@ -224,29 +238,79 @@ export default function AdminOrdersPage() {
     setExpandedOrders(newExpanded);
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: string, reason?: string) => {
+    if (newStatus === 'cancelled' && !reason) {
+      setCancelReason('admin_rejected');
+      setCancelModal({ orderId });
+      return;
+    }
+
     setUpdatingStatus(orderId);
     try {
+      const body: { status: string; cancelReason?: string } = { status: newStatus };
+      if (newStatus === 'cancelled' && reason) {
+        body.cancelReason = reason;
+      }
+
       const res = await fetcher(`/admin/orders/${orderId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(body),
       });
       
       if (res.ok) {
-        // Update the order in the local state
+        const json = await res.json().catch(() => ({}));
         setOrders(prevOrders => 
           prevOrders.map(order => 
-            order.id === orderId ? { ...order, status: newStatus } : order
+            order.id === orderId
+              ? {
+                  ...order,
+                  status: newStatus,
+                  cancelReason: newStatus === 'cancelled' ? (reason || order.cancelReason) : order.cancelReason,
+                  stockLocked:
+                    newStatus === 'confirmed' ||
+                    newStatus === 'processing' ||
+                    newStatus === 'paid' ||
+                    newStatus === 'shipped'
+                      ? true
+                      : newStatus === 'cancelled'
+                        ? false
+                        : order.stockLocked,
+                }
+              : order
           )
         );
         
-        // Update selected order if it's the same one
         if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder({ ...selectedOrder, status: newStatus });
+          setSelectedOrder({
+            ...selectedOrder,
+            status: newStatus,
+            cancelReason: newStatus === 'cancelled' ? (reason || selectedOrder.cancelReason) : selectedOrder.cancelReason,
+            stockLocked:
+              newStatus === 'confirmed' ||
+              newStatus === 'processing' ||
+              newStatus === 'paid' ||
+              newStatus === 'shipped'
+                ? true
+                : newStatus === 'cancelled'
+                  ? false
+                  : selectedOrder.stockLocked,
+          });
         }
+
+        if (json?.data?.outbidCancelled?.length) {
+          // Refresh list so outbid cancellations show up
+          setOrders((prev) =>
+            prev.map((o) =>
+              json.data.outbidCancelled.includes(o.id)
+                ? { ...o, status: 'cancelled', cancelReason: 'outbid', stockLocked: false }
+                : o
+            )
+          );
+        }
+        setCancelModal(null);
       } else {
         const error = await res.json();
         alert(`Failed to update status: ${error.message || 'Unknown error'}`);
@@ -646,7 +710,9 @@ export default function AdminOrdersPage() {
                           o.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                           'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                         }`}>
-                          {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
+                          {o.status === 'pending'
+                            ? 'Needs call'
+                            : o.status.charAt(0).toUpperCase() + o.status.slice(1)}
                         </span>
                       </td>
                       
@@ -951,7 +1017,9 @@ export default function AdminOrdersPage() {
                           selectedOrder.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                           'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                         }`}>
-                          {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                          {selectedOrder.status === 'pending'
+                            ? 'Pending — Needs call'
+                            : selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
                         </span>
                         <select
                           value={selectedOrder.status}
@@ -960,8 +1028,8 @@ export default function AdminOrdersPage() {
                           aria-label={`Change status for order ${selectedOrder.id}`}
                           className="px-3 py-2 rounded text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
+                          <option value="pending">Pending (Needs call)</option>
+                          <option value="confirmed">Confirmed (Phone verified — lock stock)</option>
                           <option value="processing">Processing</option>
                           <option value="paid">Paid</option>
                           <option value="shipped">Shipped</option>
@@ -969,6 +1037,26 @@ export default function AdminOrdersPage() {
                           <option value="cancelled">Cancelled</option>
                         </select>
                       </div>
+                      {selectedOrder.status === 'pending' && (
+                        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 p-3 text-sm text-amber-900 dark:text-amber-100">
+                          <p className="font-semibold mb-1">Call checklist before confirming</p>
+                          <ul className="list-disc pl-5 space-y-0.5">
+                            <li>Buyer names the product</li>
+                            <li>Repeats street + landmark</li>
+                            <li>Confirms COD amount and who receives the package</li>
+                          </ul>
+                          {selectedOrder.verificationExpiresAt && (
+                            <p className="mt-2 text-xs opacity-80">
+                              Verify by: {formatDate(selectedOrder.verificationExpiresAt)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {selectedOrder.cancelReason && selectedOrder.status === 'cancelled' && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                          Cancel reason: {selectedOrder.cancelReason}
+                        </p>
+                      )}
                       {updatingStatus === selectedOrder.id && (
                         <span className="text-xs text-gray-500 mt-1 block">Updating status...</span>
                       )}
@@ -1031,6 +1119,7 @@ export default function AdminOrdersPage() {
                             {line('Governorate (wilaya)', a.city)}
                             {line('Delegation', a.state)}
                             {line('Locality', a.locality)}
+                            {line('Landmark', a.landmark)}
                             {zip ? line('Postal code', zip) : null}
                             {line('Country', a.country)}
                           </>
@@ -1147,13 +1236,21 @@ export default function AdminOrdersPage() {
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Stock Status:</span>
                     <span className={`ml-2 font-semibold ${
-                      selectedOrder.status === 'delivered' ? 'text-red-600 dark:text-red-400' :
-                      selectedOrder.status === 'paid' ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-gray-600 dark:text-gray-400'
+                      selectedOrder.stockLocked ||
+                      ['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status)
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : selectedOrder.status === 'delivered'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-gray-600 dark:text-gray-400'
                     }`}>
-                      {selectedOrder.status === 'delivered' ? 'Stock Reduced' :
-                       selectedOrder.status === 'paid' ? 'Stock Reserved' :
-                       'No Stock Impact'}
+                      {selectedOrder.stockLocked ||
+                      ['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status)
+                        ? 'Stock reserved (phone confirmed)'
+                        : selectedOrder.status === 'delivered'
+                          ? 'Delivered (stock already reserved at confirm)'
+                          : selectedOrder.status === 'pending'
+                            ? 'Not reserved — awaiting phone call'
+                            : 'No stock lock'}
                     </span>
                   </div>
                   <div>
@@ -1431,6 +1528,55 @@ export default function AdminOrdersPage() {
           }}
           onConfirm={handlePasswordConfirm}
         />
+
+        {cancelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Cancel order</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Choose a reason. Refusing at delivery will block this phone/email from future COD.
+              </p>
+              <label className="block text-sm font-medium mb-2" htmlFor="cancel-reason">
+                Cancel reason
+              </label>
+              <select
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full mb-4 px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              >
+                {CANCEL_REASONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              {cancelReason === 'refused_at_delivery' && (
+                <p className="text-sm text-red-600 dark:text-red-400 mb-4">
+                  This will add the customer phone/email to the COD blocklist and restore stock if it was locked.
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm"
+                  onClick={() => setCancelModal(null)}
+                  disabled={updatingStatus !== null}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded bg-red-600 text-white text-sm disabled:opacity-50"
+                  disabled={updatingStatus !== null}
+                  onClick={() => updateOrderStatus(cancelModal.orderId, 'cancelled', cancelReason)}
+                >
+                  Confirm cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminGuard>
   );

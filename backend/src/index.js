@@ -99,6 +99,8 @@ require('./models/OrderItem');
 require('./models/Cart');
 require('./models/Wishlist');
 require('./models/ContactMessage');
+require('./models/CodBlocklist');
+require('./models/StockWaitlist');
 
 // Import associations
 require('./models/associations');
@@ -127,8 +129,17 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
-// Connect to database
-connectDB();
+// Connect to database, then start pending-order sweeper only after success
+connectDB().then(() => {
+  try {
+    const { startPendingOrderSweeper } = require('./utils/pendingOrderSweeper');
+    startPendingOrderSweeper();
+  } catch (err) {
+    console.warn('Pending order sweeper failed to start:', err.message || err);
+  }
+}).catch((err) => {
+  console.error('connectDB failed:', err.message || err);
+});
 
 // Security middleware
 app.use(helmet({

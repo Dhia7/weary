@@ -31,6 +31,65 @@ const getPurchasableStock = (product, variant) => {
 	return Number(product.quantity) || 0;
 };
 
+/** Match a cart line the same way addToCart does (variantId first, then size/color). */
+const buildCartLineWhere = (userId, productId, { variantId, size, color, cartItemId } = {}) => {
+	if (cartItemId) {
+		const id = parseInt(cartItemId, 10);
+		if (!Number.isNaN(id)) {
+			return { id, userId };
+		}
+	}
+
+	const parsedVariantId = variantId != null && variantId !== ''
+		? parseInt(variantId, 10)
+		: null;
+	const normalizedSize = size && String(size).trim() ? String(size).trim() : null;
+	const normalizedColor = color && String(color).trim() ? String(color).trim() : null;
+
+	if (parsedVariantId && !Number.isNaN(parsedVariantId)) {
+		return { userId, productId, variantId: parsedVariantId };
+	}
+
+	const where = { userId, productId, variantId: { [Op.is]: null } };
+	if (normalizedSize) {
+		where.size = normalizedSize;
+	} else {
+		where.size = { [Op.is]: null };
+	}
+	if (normalizedColor) {
+		where.color = normalizedColor;
+	}
+	return where;
+};
+
+const findCartLine = async (userId, productId, selectors = {}, include) => {
+	const where = buildCartLineWhere(userId, productId, selectors);
+	const options = { where };
+	if (include) options.include = include;
+
+	let cartItem = await Cart.findOne(options);
+	if (cartItem || selectors.cartItemId) {
+		return cartItem;
+	}
+
+	// Last resort: single line for this product, or match by color among a few
+	const candidates = await Cart.findAll({
+		where: { userId, productId },
+		include: options.include,
+		limit: 5
+	});
+	if (candidates.length === 1) {
+		return candidates[0];
+	}
+	if (candidates.length > 1 && selectors.color) {
+		const colorLc = String(selectors.color).trim().toLowerCase();
+		return candidates.find((c) =>
+			String(c.color || '').trim().toLowerCase() === colorLc
+		) || null;
+	}
+	return null;
+};
+
 // Helper function to transform cart items with unique IDs
 const transformCartItems = (cartItems) => {
   try {
@@ -431,12 +490,12 @@ const addToCart = async (req, res) => {
 const updateCartItem = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { productId, quantity, size } = req.body;
+    const { productId, quantity, size, color, variantId, cartItemId } = req.body;
 
-    if (!productId || quantity === undefined) {
+    if ((!productId && !cartItemId) || quantity === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Product ID and quantity are required'
+        message: 'Product ID (or cartItemId) and quantity are required'
       });
     }
 
@@ -447,25 +506,19 @@ const updateCartItem = async (req, res) => {
       });
     }
 
-    // Find cart item by productId and size
     let cartItem;
     try {
-      const whereClause = { userId, productId };
-      if (size) {
-        whereClause.size = size;
-      } else {
-        whereClause.size = null;
-      }
-
-      cartItem = await Cart.findOne({
-        where: whereClause,
-        include: [{ model: Product, attributes: { exclude: ['sizeStock'] } }]
-      });
+      cartItem = await findCartLine(
+        userId,
+        productId,
+        { variantId, size, color, cartItemId },
+        [{ model: Product, attributes: { exclude: ['sizeStock'] } }]
+      );
     } catch (error) {
       // If size column doesn't exist, fall back to query without size
       if (error.message && error.message.includes('column') && error.message.includes('size') && error.message.includes('does not exist')) {
         cartItem = await Cart.findOne({
-          where: { userId, productId },
+          where: cartItemId ? { id: cartItemId, userId } : { userId, productId },
           include: [{ model: Product, attributes: { exclude: ['sizeStock'] } }]
         });
       } else {
@@ -525,25 +578,16 @@ const removeFromCart = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { productId } = req.params;
-    const { size } = req.query; // Size can be passed as query param
+    const { size, color, variantId, cartItemId } = req.query;
 
     let cartItem;
     try {
-      const whereClause = { userId, productId };
-      if (size) {
-        whereClause.size = size;
-      } else {
-        whereClause.size = null;
-      }
-
-      cartItem = await Cart.findOne({
-        where: whereClause
-      });
+      cartItem = await findCartLine(userId, productId, { variantId, size, color, cartItemId });
     } catch (error) {
       // If size column doesn't exist, fall back to query without size
       if (error.message && error.message.includes('column') && error.message.includes('size') && error.message.includes('does not exist')) {
         cartItem = await Cart.findOne({
-          where: { userId, productId }
+          where: cartItemId ? { id: cartItemId, userId } : { userId, productId }
         });
       } else {
         throw error;

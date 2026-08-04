@@ -139,6 +139,15 @@ const connectDB = async () => {
         )
       ]);
       console.log('Connected to PostgreSQL successfully.');
+
+      // Order security columns MUST exist before sequelize.sync creates indexes on them
+      try {
+        const addOrderSecurityFields = require('../scripts/add-order-security-fields');
+        await addOrderSecurityFields();
+      } catch (error) {
+        console.warn('Order security fields migration failed (pre-sync):', error.message);
+        throw error;
+      }
       
       // Sync all models with database (without altering existing tables)
       await Promise.race([
@@ -254,7 +263,7 @@ const connectDB = async () => {
       } catch (error) {
         console.warn('Database optimization failed (non-critical):', error.message);
       }
-      
+
       return; // Success, exit the function
     } catch (error) {
       // Extract more meaningful error message

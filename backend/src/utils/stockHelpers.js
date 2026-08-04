@@ -1,3 +1,5 @@
+const { QueryTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 const ProductVariant = require('../models/ProductVariant');
 const { findMatchingVariant, getActiveVariants } = require('./variantHelpers');
 const { isSoldBadge, isMadeToOrderProduct } = require('./productAvailability');
@@ -51,42 +53,126 @@ const checkItemStockAvailability = async (product, item, quantity) => {
 	return { available: product.quantity >= quantity, stock: product.quantity, variant: null };
 };
 
+/**
+ * Atomically decrement stock. Returns { success, madeToOrder }.
+ * Throws if insufficient stock (non-made-to-order).
+ */
 const reduceItemStock = async (product, item, quantity, transaction) => {
+	const qty = Number(quantity);
+	if (!Number.isFinite(qty) || qty <= 0) {
+		throw new Error('Invalid stock quantity');
+	}
+
 	const variant = await resolveOrderVariant(product, item, transaction);
 	if (variant) {
-		variant.quantity = Math.max(0, variant.quantity - quantity);
-		await variant.save({ transaction });
-		return;
+		const rows = await sequelize.query(
+			`UPDATE "ProductVariant"
+       SET quantity = quantity - :qty, "updatedAt" = NOW()
+       WHERE id = :id AND quantity >= :qty
+       RETURNING id`,
+			{
+				replacements: { id: variant.id, qty },
+				type: QueryTypes.SELECT,
+				transaction
+			}
+		);
+		if (!rows || rows.length === 0) {
+			const err = new Error('INSUFFICIENT_STOCK');
+			err.code = 'INSUFFICIENT_STOCK';
+			err.productName = product.name;
+			err.item = item;
+			throw err;
+		}
+		return { success: true, madeToOrder: false };
 	}
 
-	if (item.size && product.size && product.size.trim().length > 0) {
-		return;
+	const variants = await getProductVariants(product.id, transaction);
+	const hasVariants = getActiveVariants(variants).length > 0;
+	if (
+		item.size &&
+		product.size &&
+		product.size.trim().length > 0 &&
+		!hasVariants &&
+		isMadeToOrderProduct({ ...product.toJSON?.() ?? product, variants, hasVariants })
+	) {
+		return { success: true, madeToOrder: true };
 	}
 
-	product.quantity = Math.max(0, product.quantity - quantity);
-	await product.save({ transaction });
+	const productRows = await sequelize.query(
+		`UPDATE "Product"
+     SET quantity = quantity - :qty, "updatedAt" = NOW()
+     WHERE id = :id AND quantity >= :qty
+     RETURNING id`,
+		{
+			replacements: { id: product.id, qty },
+			type: QueryTypes.SELECT,
+			transaction
+		}
+	);
+	if (!productRows || productRows.length === 0) {
+		const err = new Error('INSUFFICIENT_STOCK');
+		err.code = 'INSUFFICIENT_STOCK';
+		err.productName = product.name;
+		err.item = item;
+		throw err;
+	}
+	return { success: true, madeToOrder: false };
 };
 
 const restoreItemStock = async (product, item, quantity, transaction) => {
+	const qty = Number(quantity);
+	if (!Number.isFinite(qty) || qty <= 0) return;
+
 	const variant = await resolveOrderVariant(product, item, transaction);
 	if (variant) {
-		variant.quantity += quantity;
-		await variant.save({ transaction });
+		await sequelize.query(
+			`UPDATE "ProductVariant"
+       SET quantity = quantity + :qty, "updatedAt" = NOW()
+       WHERE id = :id`,
+			{
+				replacements: { id: variant.id, qty },
+				type: QueryTypes.UPDATE,
+				transaction
+			}
+		);
 		return;
 	}
 
-	if (item.size && product.size && product.size.trim().length > 0) {
+	const variants = await getProductVariants(product.id, transaction);
+	const hasVariants = getActiveVariants(variants).length > 0;
+	if (
+		item.size &&
+		product.size &&
+		product.size.trim().length > 0 &&
+		!hasVariants &&
+		isMadeToOrderProduct({ ...product.toJSON?.() ?? product, variants, hasVariants })
+	) {
 		return;
 	}
 
-	product.quantity += quantity;
-	await product.save({ transaction });
+	await sequelize.query(
+		`UPDATE "Product"
+     SET quantity = quantity + :qty, "updatedAt" = NOW()
+     WHERE id = :id`,
+		{
+			replacements: { id: product.id, qty },
+			type: QueryTypes.UPDATE,
+			transaction
+		}
+	);
 };
+
+/** Statuses that have already taken stock (locked after phone confirm). */
+const STOCK_LOCKED_STATUSES = ['confirmed', 'processing', 'paid', 'shipped'];
+
+const isStockLockedStatus = (status) => STOCK_LOCKED_STATUSES.includes(status);
 
 module.exports = {
 	getProductVariants,
 	resolveOrderVariant,
 	checkItemStockAvailability,
 	reduceItemStock,
-	restoreItemStock
+	restoreItemStock,
+	STOCK_LOCKED_STATUSES,
+	isStockLockedStatus
 };

@@ -10,7 +10,8 @@ const { User, Product, ProductVariant, Order, OrderItem } = require('../models/a
 const {
 	checkItemStockAvailability,
 	reduceItemStock,
-	restoreItemStock
+	restoreItemStock,
+	isStockLockedStatus
 } = require('../utils/stockHelpers');
 const { verifyAdminPassword } = require('../utils/adminAuth');
 const { normalizeSearchQuery } = require('../utils/searchQuery');
@@ -19,8 +20,16 @@ const {
 	sendOrderConfirmationEmail,
 	sendOrderAdminNotificationEmail,
 	sendPersonalizedOrderEmails,
+	sendOrderCancelledEmail,
 	sendTransactional,
 } = require('../utils/mail');
+const {
+	normalizePhone,
+	CANCEL_REASONS,
+	defaultVerificationExpiresAt
+} = require('../utils/orderSecurity');
+const { isCodBlocked, blockCodContacts } = require('../utils/codBlocklist');
+const { notifyWaitlistForOrderItems } = require('../utils/waitlistNotify');
 
 const notifyOrderEmails = (order) => {
 	if (!hasMailTransport() || !order) return;
@@ -34,6 +43,171 @@ const formatStockErrorMessage = (product, item) => {
 	if (item.size) parts.push(`Size: ${item.size}`);
 	const suffix = parts.length ? ` (${parts.join(', ')})` : '';
 	return `Sorry, we don't have enough ${product.name}${suffix} in stock to fulfill your order. Please reduce the quantity or contact us for availability.`;
+};
+
+const requireLandmark = (shippingAddress) => {
+	const landmark = shippingAddress?.landmark?.trim?.() || shippingAddress?.landmark;
+	if (!landmark || String(landmark).trim().length < 3) {
+		return 'A delivery landmark (nearby café, school, or known place) is required for cash on delivery.';
+	}
+	return null;
+};
+
+const assertCheckoutAllowed = async ({ phone, email, items, transaction }) => {
+	const blocked = await isCodBlocked({ phone, email });
+	if (blocked) {
+		return {
+			ok: false,
+			status: 403,
+			message: 'Cash on delivery is not available for this phone or email. Please contact us for help.'
+		};
+	}
+
+	const normalizedPhone = normalizePhone(phone);
+	if (!normalizedPhone) {
+		return { ok: false, status: 400, message: 'A valid phone number is required for cash on delivery.' };
+	}
+
+	const scarceItems = [];
+	for (const item of items) {
+		const product = await Product.findByPk(item.productId, {
+			transaction,
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (!product) {
+			return { ok: false, status: 400, message: `Product ${item.productId} not found` };
+		}
+		const stockCheck = await checkItemStockAvailability(product, item, item.quantity);
+		if (!stockCheck.available) {
+			return { ok: false, status: 400, message: formatStockErrorMessage(product, item) };
+		}
+		const isScarce = stockCheck.stock <= item.quantity && stockCheck.stock < 999;
+		if (isScarce) {
+			scarceItems.push({
+				productId: item.productId,
+				variantId: item.variantId || null,
+				qty: item.quantity,
+				stock: stockCheck.stock,
+			});
+		}
+	}
+
+	if (scarceItems.length > 0 && normalizedPhone) {
+		const pendingOrders = await Order.findAll({
+			where: { status: 'pending' },
+			include: [{ model: OrderItem, as: 'items', required: true }],
+			transaction
+		});
+
+		const conflictingOrders = [];
+		const seen = new Set();
+		for (const order of pendingOrders) {
+			const orderPhone = normalizePhone(
+				order.customerInfo?.phone || order.billingInfo?.phone
+			);
+			if (orderPhone !== normalizedPhone) continue;
+
+			let orderConflicts = false;
+			for (const pendingItem of order.items || []) {
+				for (const scarce of scarceItems) {
+					if (Number(pendingItem.productId) !== Number(scarce.productId)) continue;
+					const pendingVariant =
+						pendingItem.variantId != null ? Number(pendingItem.variantId) : null;
+					const scarceVariant =
+						scarce.variantId != null ? Number(scarce.variantId) : null;
+					const variantOk =
+						pendingVariant == null ||
+						scarceVariant == null ||
+						pendingVariant === scarceVariant;
+					if (!variantOk) continue;
+					orderConflicts = true;
+					const key = `${order.id}:${scarce.productId}:${scarceVariant ?? ''}`;
+					if (seen.has(key)) continue;
+					seen.add(key);
+				}
+			}
+			if (orderConflicts) conflictingOrders.push(order);
+		}
+
+		// Same scarce SKU already pending: replace old pending (latest checkout wins)
+		for (const order of conflictingOrders) {
+			order.status = 'cancelled';
+			order.cancelReason = 'replaced';
+			await order.save({ transaction });
+		}
+	}
+
+	return { ok: true };
+};
+
+const lockStockForOrder = async (order, transaction) => {
+	for (const item of order.items) {
+		const product = await Product.findByPk(item.productId, {
+			transaction,
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (!product) {
+			const err = new Error(`Product ${item.productId} not found`);
+			err.code = 'PRODUCT_NOT_FOUND';
+			throw err;
+		}
+		await reduceItemStock(product, item, item.quantity, transaction);
+		const opts = [item.color, item.size].filter(Boolean).join(', ');
+		console.log(`Stock locked for ${product.name}${opts ? ` (${opts})` : ''}: ${item.quantity}`);
+	}
+	order.stockLocked = true;
+	await order.save({ transaction });
+};
+
+const unlockStockForOrder = async (order, transaction) => {
+	if (!order.stockLocked) return;
+	for (const item of order.items) {
+		const product = await Product.findByPk(item.productId, {
+			transaction,
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (product) {
+			await restoreItemStock(product, item, item.quantity, transaction);
+			const opts = [item.color, item.size].filter(Boolean).join(', ');
+			console.log(`Stock restored for ${product.name}${opts ? ` (${opts})` : ''}: ${item.quantity}`);
+		}
+	}
+	order.stockLocked = false;
+	await order.save({ transaction });
+};
+
+const itemsConflict = (a, b) => {
+	if (a.productId !== b.productId) return false;
+	if (a.variantId && b.variantId) return Number(a.variantId) === Number(b.variantId);
+	if (a.variantId || b.variantId) return Number(a.variantId || 0) === Number(b.variantId || 0);
+	return (a.size || null) === (b.size || null) && (a.color || null) === (b.color || null);
+};
+
+const cancelConflictingPendingOrders = async (confirmedOrder, transaction) => {
+	const confirmedItems = confirmedOrder.items || [];
+	if (confirmedItems.length === 0) return [];
+
+	const pending = await Order.findAll({
+		where: {
+			status: 'pending',
+			id: { [Op.ne]: confirmedOrder.id }
+		},
+		include: [{ model: OrderItem, as: 'items', required: true }],
+		transaction
+	});
+
+	const cancelled = [];
+	for (const other of pending) {
+		const conflicts = (other.items || []).some((oi) =>
+			confirmedItems.some((ci) => itemsConflict(ci, oi))
+		);
+		if (!conflicts) continue;
+		other.status = 'cancelled';
+		other.cancelReason = 'outbid';
+		await other.save({ transaction });
+		cancelled.push(other);
+	}
+	return cancelled;
 };
 
 const toCents = (value) => {
@@ -172,19 +346,22 @@ const listOrders = async (req, res) => {
       subQuery: false,
     });
     
-    // Get count separately — include User so $User.* filters in where resolve
-    const count = await Order.count({
-      where,
-      include: where[Op.or]
-        ? [{ model: User, as: 'User', attributes: [], required: false }]
-        : [],
-      distinct: true,
-      col: 'Order.id',
-    });
+    // Count separately; join User only when search filters reference $User.*
+    const countOptions = { where };
+    if (where[Op.or]) {
+      countOptions.include = [{ model: User, as: 'User', attributes: [], required: false }];
+      countOptions.distinct = true;
+      countOptions.col = 'id';
+    }
+    const count = await Order.count(countOptions);
     
     // Transform orders to include user data for registered orders
     const ordersWithUsers = await Promise.all(rows.map(async (order) => {
       const orderData = order.toJSON();
+
+      if (orderData.User && !orderData.user) {
+        orderData.user = orderData.User;
+      }
       
       if (orderData.customerType === 'registered' && orderData.userId && !orderData.user) {
         try {
@@ -367,7 +544,9 @@ const createOrder = async (req, res) => {
       paymentMethod, 
       shippingAddress, 
       billingInfo, 
-      notes 
+      notes,
+      verificationExpiresAt: defaultVerificationExpiresAt(),
+      stockLocked: false
     }, { transaction: t });
 
     for (const item of items) {
@@ -395,57 +574,81 @@ const createOrder = async (req, res) => {
 const createUserOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const userId = req.user.userId; // From auth middleware (JWT token)
+    const userId = req.user.userId;
     const { items, currency = 'TND', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
-    
+
     if (!Array.isArray(items) || items.length === 0) {
+      await t.rollback();
       return res.status(400).json({ success: false, message: 'At least one item is required' });
     }
 
-    const user = await User.findByPk(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    const landmarkError = requireLandmark(shippingAddress);
+    if (landmarkError) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: landmarkError });
+    }
 
-    // Validate products exist, check stock availability, and compute total
+    const user = await User.findByPk(userId);
+    if (!user) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const phone = billingInfo?.phone || user.phone;
+    const email = billingInfo?.email || user.email;
+
+    const gate = await assertCheckoutAllowed({ phone, email, items, transaction: t });
+    if (!gate.ok) {
+      await t.rollback();
+      return res.status(gate.status).json({ success: false, message: gate.message });
+    }
+
     let merchandiseTotalCents = 0;
     for (const item of items) {
       if (!item.productId || !item.quantity || item.unitPriceCents == null) {
+        await t.rollback();
         return res.status(400).json({ success: false, message: 'Each item requires productId, quantity, unitPriceCents' });
       }
-      const product = await Product.findByPk(item.productId, { 
+      const product = await Product.findByPk(item.productId, {
         transaction: t,
         attributes: { exclude: ['sizeStock'] }
       });
-      if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
-      
+      if (!product) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
+      }
+
       const stockCheck = await checkItemStockAvailability(product, item, item.quantity);
       if (!stockCheck.available) {
+        await t.rollback();
         return res.status(400).json({ success: false, message: formatStockErrorMessage(product, item) });
       }
-      
+
       merchandiseTotalCents += item.quantity * item.unitPriceCents;
     }
     const totalAmountCents = merchandiseTotalCents + (Number.isFinite(shippingCostCents) ? shippingCostCents : 0);
 
-    // Prepare customer information for registered user
     const customerInfo = {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      phone: user.phone || null
+      phone: phone || null
     };
 
-    const order = await Order.create({ 
-      userId, 
+    const order = await Order.create({
+      userId,
       customerType: 'registered',
       customerInfo,
-      status: 'pending', 
-      totalAmountCents, 
-      shippingCostCents, 
-      currency, 
-      paymentMethod, 
-      shippingAddress, 
-      billingInfo, 
-      notes 
+      status: 'pending',
+      totalAmountCents,
+      shippingCostCents,
+      currency,
+      paymentMethod,
+      shippingAddress,
+      billingInfo,
+      notes,
+      verificationExpiresAt: defaultVerificationExpiresAt(),
+      stockLocked: false
     }, { transaction: t });
 
     for (const item of items) {
@@ -471,45 +674,62 @@ const createUserOrder = async (req, res) => {
   }
 };
 
-// Create guest order (no authentication required)
 const createGuestOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, currency = 'TND', paymentMethod, shippingAddress, billingInfo, shippingCostCents = 0, notes } = req.body;
-    
+
     if (!Array.isArray(items) || items.length === 0) {
+      await t.rollback();
       return res.status(400).json({ success: false, message: 'At least one item is required' });
     }
 
-    // Validate billing info for guest orders
     const guestFirstName = billingInfo?.firstName?.trim();
     if (!billingInfo || !billingInfo.email?.trim() || !guestFirstName) {
+      await t.rollback();
       return res.status(400).json({ success: false, message: 'Billing information (email and recipient name) is required for guest orders' });
     }
 
-    // Validate products exist, check stock availability, and compute total
+    const landmarkError = requireLandmark(shippingAddress);
+    if (landmarkError) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: landmarkError });
+    }
+
+    const phone = billingInfo?.phone;
+    const email = billingInfo?.email;
+
+    const gate = await assertCheckoutAllowed({ phone, email, items, transaction: t });
+    if (!gate.ok) {
+      await t.rollback();
+      return res.status(gate.status).json({ success: false, message: gate.message });
+    }
+
     let merchandiseTotalCents = 0;
     for (const item of items) {
       if (!item.productId || !item.quantity || item.unitPriceCents == null) {
+        await t.rollback();
         return res.status(400).json({ success: false, message: 'Each item requires productId, quantity, unitPriceCents' });
       }
-      const product = await Product.findByPk(item.productId, { 
+      const product = await Product.findByPk(item.productId, {
         transaction: t,
         attributes: { exclude: ['sizeStock'] }
       });
-      if (!product) return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
-      
-      // Check size-specific stock availability
+      if (!product) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
+      }
+
       const stockCheck = await checkItemStockAvailability(product, item, item.quantity);
       if (!stockCheck.available) {
+        await t.rollback();
         return res.status(400).json({ success: false, message: formatStockErrorMessage(product, item) });
       }
-      
+
       merchandiseTotalCents += item.quantity * item.unitPriceCents;
     }
     const totalAmountCents = merchandiseTotalCents + (Number.isFinite(shippingCostCents) ? shippingCostCents : 0);
 
-    // Prepare customer information for guest user
     const customerInfo = {
       email: billingInfo.email,
       firstName: billingInfo.firstName,
@@ -517,19 +737,20 @@ const createGuestOrder = async (req, res) => {
       phone: billingInfo.phone || null
     };
 
-    // Create order without userId (guest order)
-    const order = await Order.create({ 
-      userId: null, // Guest order
+    const order = await Order.create({
+      userId: null,
       customerType: 'guest',
       customerInfo,
-      status: 'pending', 
-      totalAmountCents, 
-      shippingCostCents, 
-      currency, 
-      paymentMethod, 
-      shippingAddress, 
-      billingInfo, 
-      notes
+      status: 'pending',
+      totalAmountCents,
+      shippingCostCents,
+      currency,
+      paymentMethod,
+      shippingAddress,
+      billingInfo,
+      notes,
+      verificationExpiresAt: defaultVerificationExpiresAt(),
+      stockLocked: false
     }, { transaction: t });
 
     for (const item of items) {
@@ -555,64 +776,170 @@ const createGuestOrder = async (req, res) => {
   }
 };
 
-// Update order status (admin)
 const updateOrderStatus = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, cancelReason } = req.body;
     const allowed = ['pending', 'confirmed', 'processing', 'paid', 'shipped', 'delivered', 'cancelled'];
-    if (!allowed.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
-    
+    if (!allowed.includes(status)) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
     const order = await Order.findByPk(id, {
       include: [{ model: OrderItem, as: 'items' }],
-      transaction: t
+      transaction: t,
+      lock: t.LOCK.UPDATE
     });
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    
+    if (!order) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
     const previousStatus = order.status;
+
+    if (status === previousStatus) {
+      await t.commit();
+      return res.json({ success: true, message: 'Order status unchanged' });
+    }
+
+    if (status === 'confirmed' && previousStatus === 'pending') {
+      try {
+        await lockStockForOrder(order, t);
+      } catch (stockErr) {
+        await t.rollback();
+        if (stockErr.code === 'INSUFFICIENT_STOCK') {
+          return res.status(400).json({
+            success: false,
+            message: 'Item no longer available. Another order may have been confirmed first.'
+          });
+        }
+        throw stockErr;
+      }
+      order.status = 'confirmed';
+      await order.save({ transaction: t });
+
+      const outbid = await cancelConflictingPendingOrders(order, t);
+      await t.commit();
+
+      if (hasMailTransport()) {
+        for (const cancelled of outbid) {
+          sendTransactional(
+            sendOrderCancelledEmail(cancelled, 'item reserved by another order'),
+            'order-outbid'
+          );
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: 'Order confirmed — stock locked after phone verification',
+        data: { outbidCancelled: outbid.map((o) => o.id) }
+      });
+    }
+
+    if (status === 'cancelled') {
+      const reason = CANCEL_REASONS.includes(cancelReason) ? cancelReason : (cancelReason || 'other');
+      const wasLocked = order.stockLocked || isStockLockedStatus(previousStatus);
+
+      if (wasLocked) {
+        await unlockStockForOrder(order, t);
+      }
+
+      order.status = 'cancelled';
+      order.cancelReason = reason;
+      await order.save({ transaction: t });
+
+      const itemsSnapshot = (order.items || []).map((i) => ({
+        productId: i.productId,
+        variantId: i.variantId
+      }));
+
+      await t.commit();
+
+      if (reason === 'refused_at_delivery') {
+        const phone = order.customerInfo?.phone || order.billingInfo?.phone;
+        const email = order.customerInfo?.email || order.billingInfo?.email;
+        await blockCodContacts({
+          phone,
+          email,
+          reason: 'refused_at_delivery',
+          orderId: order.id
+        });
+      }
+
+      if (wasLocked || reason === 'refused_at_delivery' || reason === 'outbid') {
+        await notifyWaitlistForOrderItems(itemsSnapshot);
+      }
+
+      if (hasMailTransport()) {
+        sendTransactional(sendOrderCancelledEmail(order, reason), 'order-cancelled');
+      }
+
+      return res.json({ success: true, message: 'Order cancelled' });
+    }
+
+    if (status === 'confirmed' && previousStatus !== 'pending' && !order.stockLocked) {
+      try {
+        await lockStockForOrder(order, t);
+      } catch (stockErr) {
+        await t.rollback();
+        if (stockErr.code === 'INSUFFICIENT_STOCK') {
+          return res.status(400).json({
+            success: false,
+            message: 'Item no longer available.'
+          });
+        }
+        throw stockErr;
+      }
+    }
+
+    // Skipping confirm (e.g. pending → shipped/delivered): still lock stock once
+    if (
+      previousStatus === 'pending' &&
+      ['confirmed', 'processing', 'paid', 'shipped', 'delivered'].includes(status) &&
+      !order.stockLocked
+    ) {
+      try {
+        await lockStockForOrder(order, t);
+      } catch (stockErr) {
+        await t.rollback();
+        if (stockErr.code === 'INSUFFICIENT_STOCK') {
+          return res.status(400).json({
+            success: false,
+            message: 'Item no longer available. Another order may have been confirmed first.'
+          });
+        }
+        throw stockErr;
+      }
+      const outbid = await cancelConflictingPendingOrders(order, t);
+      order.status = status;
+      await order.save({ transaction: t });
+      await t.commit();
+      if (hasMailTransport()) {
+        for (const cancelled of outbid) {
+          sendTransactional(
+            sendOrderCancelledEmail(cancelled, 'item reserved by another order'),
+            'order-outbid'
+          );
+        }
+      }
+      return res.json({ success: true, message: 'Order status updated — stock locked' });
+    }
+
     order.status = status;
     await order.save({ transaction: t });
-    
-    // If order is being marked as paid or delivered, reduce size-specific stock
-    if ((status === 'paid' || status === 'delivered') && 
-        previousStatus !== 'paid' && previousStatus !== 'delivered') {
-      for (const item of order.items) {
-        const product = await Product.findByPk(item.productId, { 
-          transaction: t,
-          attributes: { exclude: ['sizeStock'] }
-        });
-        if (product) {
-          await reduceItemStock(product, item, item.quantity, t);
-          const opts = [item.color, item.size].filter(Boolean).join(', ');
-          console.log(`Stock reduced for product ${product.name}${opts ? ` (${opts})` : ''}: ${item.quantity} units`);
-        }
-      }
-    }
-    
-    // If order is being cancelled and was previously paid or delivered, restore size-specific stock
-    if (status === 'cancelled' && (previousStatus === 'paid' || previousStatus === 'delivered')) {
-      for (const item of order.items) {
-        const product = await Product.findByPk(item.productId, { 
-          transaction: t,
-          attributes: { exclude: ['sizeStock'] }
-        });
-        if (product) {
-          await restoreItemStock(product, item, item.quantity, t);
-          const opts = [item.color, item.size].filter(Boolean).join(', ');
-          console.log(`Stock restored for product ${product.name}${opts ? ` (${opts})` : ''}: ${item.quantity} units`);
-        }
-      }
-    }
-    
+
     await t.commit();
     res.json({ success: true, message: 'Order status updated' });
   } catch (error) {
-    await t.rollback();
+    if (!t.finished) await t.rollback();
     console.error('Update order status error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 
 // Delete order (admin)
 const deleteOrderById = async (orderId, transaction) => {
@@ -802,7 +1129,9 @@ const createPersonalizedTShirtOrder = async (req, res) => {
       paymentMethod: 'cash_on_delivery',
       shippingAddress: shippingAddress,
       billingInfo: billingInfo,
-      notes: orderNotes
+      notes: orderNotes,
+      verificationExpiresAt: defaultVerificationExpiresAt(),
+      stockLocked: false
     }, { transaction: t });
     
     await t.commit();

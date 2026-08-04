@@ -77,8 +77,8 @@ function CheckoutConfirmationContent() {
         </h1>
         <p className="mt-4 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed">
           {isFrench
-            ? 'Merci ! Votre commande a été enregistrée. Notre équipe vous contactera pour les détails de livraison.'
-            : 'Thank you! Your order has been placed. Our team will contact you for delivery details.'}
+            ? 'Merci ! Votre commande a été enregistrée. Nous vous appellerons pour vérifier vos coordonnées avant de réserver l’article. Le paiement se fait à la livraison.'
+            : 'Thank you! Your order has been placed. We will call you to verify your details before reserving the item. Payment is cash on delivery at the door.'}
         </p>
 
         {orderId && (

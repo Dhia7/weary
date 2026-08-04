@@ -63,6 +63,22 @@ const Order = sequelize.define('Order', {
   notes: {
     type: DataTypes.STRING(500),
     allowNull: true
+  },
+  cancelReason: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+    comment: 'refused_at_delivery | unreachable | admin_rejected | timeout | outbid | other'
+  },
+  verificationExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Pending orders auto-cancel after this time if not phone-confirmed'
+  },
+  stockLocked: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    comment: 'True after stock was atomically reserved on confirm'
   }
 }, {
   timestamps: true,
@@ -70,6 +86,8 @@ const Order = sequelize.define('Order', {
     { fields: ['status'] },
     { fields: ['customerType'] },
     { fields: ['createdAt'] },
+    { fields: ['verificationExpiresAt'] },
+    { fields: ['status', 'verificationExpiresAt'] },
   ]
 });
 

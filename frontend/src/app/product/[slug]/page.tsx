@@ -39,6 +39,7 @@ import {
   inputClass,
   pageShellClass,
 } from '@/lib/content-page-styles';
+import { apiFetch } from '@/lib/api';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -56,6 +57,10 @@ export default function ProductDetailPage() {
   const [showCartPanel, setShowCartPanel] = useState(false);
   // Toast for wishlist success
   const [wishlistToastVisible, setWishlistToastVisible] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistPhone, setWaitlistPhone] = useState('');
+  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [waitlistMessage, setWaitlistMessage] = useState('');
   const { addItem, buyNow } = useCart();
   const { clearAllErrors, showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
@@ -584,6 +589,93 @@ export default function ProductDetailPage() {
                 <CreditCardIcon className="w-5 h-5" />
                 {isOutOfStock ? t.outOfStock : t.buyNow}
               </button>
+
+              {isOutOfStock && (
+                <div className="border border-swisse-gold/20 dark:border-border p-4 space-y-3 bg-swisse-mist/20 dark:bg-muted/20">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
+                    {isFrench ? 'Me prévenir' : 'Notify me'}
+                  </p>
+                  <p className={`text-sm ${bodyTextClass}`}>
+                    {isFrench
+                      ? 'Laissez votre email — nous vous préviendrons si cet article revient disponible.'
+                      : 'Leave your email — we will notify you if this item becomes available again.'}
+                  </p>
+                  <input
+                    type="email"
+                    className={inputClass}
+                    placeholder="email@domain.com"
+                    value={waitlistEmail}
+                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                  />
+                  <input
+                    type="tel"
+                    className={inputClass}
+                    placeholder={isFrench ? 'Téléphone (optionnel)' : 'Phone (optional)'}
+                    value={waitlistPhone}
+                    onChange={(e) => setWaitlistPhone(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    disabled={waitlistStatus === 'loading'}
+                    onClick={async () => {
+                      if (!product) return;
+                      setWaitlistStatus('loading');
+                      setWaitlistMessage('');
+                      try {
+                        const res = await apiFetch(`/products/${product.id}/waitlist`, {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            email: waitlistEmail,
+                            phone: waitlistPhone || undefined,
+                            variantId: selectedVariant?.id ?? undefined,
+                          }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          setWaitlistStatus('error');
+                          setWaitlistMessage(
+                            data.message ||
+                              (isFrench ? 'Impossible de s’inscrire.' : 'Could not join waitlist.')
+                          );
+                          return;
+                        }
+                        setWaitlistStatus('ok');
+                        setWaitlistMessage(
+                          data.message ||
+                            (isFrench
+                              ? 'Vous serez prévenu(e) si l’article revient.'
+                              : 'You will be notified if this item returns.')
+                        );
+                      } catch {
+                        setWaitlistStatus('error');
+                        setWaitlistMessage(
+                          isFrench ? 'Erreur réseau.' : 'Network error.'
+                        );
+                      }
+                    }}
+                    className="w-full bg-swisse-ink text-swisse-canvas text-[10px] font-bold uppercase tracking-widest py-3 disabled:opacity-50 dark:bg-foreground dark:text-background"
+                  >
+                    {waitlistStatus === 'loading'
+                      ? isFrench
+                        ? 'Envoi…'
+                        : 'Sending…'
+                      : isFrench
+                        ? 'Rejoindre la liste'
+                        : 'Join waitlist'}
+                  </button>
+                  {waitlistMessage && (
+                    <p
+                      className={`text-sm ${
+                        waitlistStatus === 'error'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-swisse-ink/70 dark:text-muted-foreground'
+                      }`}
+                    >
+                      {waitlistMessage}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="border-t border-swisse-gold/15 dark:border-border pt-6 space-y-3">

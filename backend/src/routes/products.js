@@ -5,12 +5,14 @@ const controller = require('../controllers/productController');
 const orderController = require('../controllers/orderController');
 const categoryController = require('../controllers/categoryController');
 const { uploadMultipleImages } = require('../middleware/upload');
-const { checkoutLimiter } = require('../middleware/rateLimit');
+const { checkoutLimiter, contactLimiter } = require('../middleware/rateLimit');
+const waitlistController = require('../controllers/waitlistController');
 
 // Public listings
 router.get('/', optionalAuth, controller.listProducts);
 router.get('/autocomplete', controller.searchAutocomplete);
 router.get('/categories', categoryController.listCategories);
+router.post('/:id/waitlist', contactLimiter, optionalAuth, waitlistController.joinWaitlist);
 router.get('/:idOrSlug', optionalAuth, controller.getProduct);
 
 // Admin protected mutations

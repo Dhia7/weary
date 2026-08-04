@@ -5,6 +5,7 @@ const adminController = require('../controllers/adminController');
 const orderController = require('../controllers/orderController');
 const categoryController = require('../controllers/categoryController');
 const contactController = require('../controllers/contactController');
+const codBlocklistController = require('../controllers/codBlocklistController');
 
 // Admin routes - all require authentication and admin privileges
 router.use(protect);
@@ -57,6 +58,10 @@ router.patch('/messages/bulk/status', contactController.bulkUpdateMessageStatus)
 router.get('/messages/:id', contactController.getMessageById);
 router.patch('/messages/:id/status', contactController.updateMessageStatus);
 router.delete('/messages/:id', contactController.deleteMessage);
+
+// COD blocklist
+router.get('/cod-blocklist', codBlocklistController.listCodBlocklist);
+router.delete('/cod-blocklist/:id', codBlocklistController.removeCodBlocklistEntry);
 
 module.exports = router;
 
