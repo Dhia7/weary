@@ -4,6 +4,7 @@ import { productListConfig } from '@/lib/swr/config';
 export interface CollectionProduct {
   id: number;
   name: string;
+  nameFr?: string | null;
   slug: string;
   description: string;
   SKU: string;
@@ -12,6 +13,8 @@ export interface CollectionProduct {
   compareAtPrice?: number;
   quantity: number;
   size?: string | null;
+  hasVariants?: boolean;
+  availableSizes?: string[];
   categories?: Array<{ id: number; name: string; slug: string }>;
 }
 

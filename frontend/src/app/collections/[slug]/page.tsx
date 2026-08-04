@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useCollection } from '@/lib/hooks/useCollection';
+import { useCollection, type CollectionProduct } from '@/lib/hooks/useCollection';
 import Link from 'next/link';
 import { ArrowLeftIcon, ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
@@ -12,7 +12,7 @@ import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
-import { productHasSizes, type Product } from '@/lib/types/product';
+import { productHasSizes } from '@/lib/types/product';
 
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -24,7 +24,7 @@ export default function CollectionDetailPage() {
   const { addItem } = useCart();
   const { isFrench } = useLanguage();
 
-  const handleAddToCart = (product: Product, e?: React.MouseEvent) => {
+  const handleAddToCart = (product: CollectionProduct, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
