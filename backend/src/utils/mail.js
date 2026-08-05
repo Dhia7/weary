@@ -218,7 +218,7 @@ async function sendOrderConfirmationEmail(order) {
 
   const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
   const orderRef = shortOrderId(order.id);
-  const subject = `Order confirmation #${orderRef} — ${BRAND}`;
+  const subject = `Order received #${orderRef} — ${BRAND}`;
   const shipping = buildShippingText(order);
   const payment = order.paymentMethod || 'cash_on_delivery';
 
@@ -226,7 +226,8 @@ async function sendOrderConfirmationEmail(order) {
 
 Thank you for your order at ${BRAND}.
 
-Order: #${orderRef}
+Order ID (please save): #${orderRef}
+Full reference: ${order.id || ''}
 Payment: ${payment}
 Shipping: ${shipping}
 
@@ -236,15 +237,17 @@ ${buildOrderItemsText(order)}
 Shipping: ${formatMoney(order.shippingCostCents, order.currency)}
 Total: ${formatMoney(order.totalAmountCents, order.currency)}
 
-We received your order and will call you on the phone to verify your details before reserving the item.
-Unique pieces are only reserved after phone confirmation (cash on delivery at the door).
+We received your order #${orderRef}. Please save this order ID.
+We will contact you by phone or email to confirm your unique piece.
+After phone confirmation the item is soft-reserved for you; stock is finalized only when you accept cash on delivery at the door.
 
 — ${BRAND}`;
 
   const html = `
     <p>${escapeHtml(greeting)}</p>
     <p>Thank you for your order at <strong>${BRAND}</strong>.</p>
-    <p><strong>Order:</strong> #${escapeHtml(orderRef)}<br/>
+    <p><strong>Order ID (please save):</strong> #${escapeHtml(orderRef)}<br/>
+    <strong>Full reference:</strong> ${escapeHtml(String(order.id || ''))}<br/>
     <strong>Payment:</strong> ${escapeHtml(payment)}<br/>
     <strong>Shipping address:</strong> ${escapeHtml(shipping)}</p>
     ${buildOrderItemsHtml(order)}
@@ -252,8 +255,8 @@ Unique pieces are only reserved after phone confirmation (cash on delivery at th
       <strong>Shipping:</strong> ${escapeHtml(formatMoney(order.shippingCostCents, order.currency))}<br/>
       <strong>Total:</strong> ${escapeHtml(formatMoney(order.totalAmountCents, order.currency))}
     </p>
-    <p>We will <strong>call you</strong> to verify your details before reserving the item.
-    Unique pieces are only reserved after phone confirmation (cash on delivery at the door).</p>
+    <p>We will contact you by <strong>phone or email</strong> to confirm your unique piece.
+    After phone confirmation it is soft-reserved for you; stock is finalized only when you accept cash on delivery at the door.</p>
     <p>— ${BRAND}</p>
   `;
 

@@ -162,9 +162,16 @@ const restoreItemStock = async (product, item, quantity, transaction) => {
 	);
 };
 
-/** Statuses that have already taken stock (locked after phone confirm). */
-const STOCK_LOCKED_STATUSES = ['confirmed', 'processing', 'paid', 'shipped'];
+/**
+ * Soft-hold statuses: phone verified / in transit, but COD not accepted at door yet.
+ * Stock qty is not decremented until delivered.
+ */
+const ORDERING_STATUSES = ['confirmed', 'processing', 'paid', 'shipped'];
 
+/** Statuses that have already taken stock (finalized after door acceptance). */
+const STOCK_LOCKED_STATUSES = ['delivered'];
+
+const isOrderingStatus = (status) => ORDERING_STATUSES.includes(status);
 const isStockLockedStatus = (status) => STOCK_LOCKED_STATUSES.includes(status);
 
 module.exports = {
@@ -173,6 +180,8 @@ module.exports = {
 	checkItemStockAvailability,
 	reduceItemStock,
 	restoreItemStock,
+	ORDERING_STATUSES,
 	STOCK_LOCKED_STATUSES,
+	isOrderingStatus,
 	isStockLockedStatus
 };

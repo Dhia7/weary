@@ -270,10 +270,7 @@ export default function AdminOrdersPage() {
                   status: newStatus,
                   cancelReason: newStatus === 'cancelled' ? (reason || order.cancelReason) : order.cancelReason,
                   stockLocked:
-                    newStatus === 'confirmed' ||
-                    newStatus === 'processing' ||
-                    newStatus === 'paid' ||
-                    newStatus === 'shipped'
+                    newStatus === 'delivered'
                       ? true
                       : newStatus === 'cancelled'
                         ? false
@@ -289,10 +286,7 @@ export default function AdminOrdersPage() {
             status: newStatus,
             cancelReason: newStatus === 'cancelled' ? (reason || selectedOrder.cancelReason) : selectedOrder.cancelReason,
             stockLocked:
-              newStatus === 'confirmed' ||
-              newStatus === 'processing' ||
-              newStatus === 'paid' ||
-              newStatus === 'shipped'
+              newStatus === 'delivered'
                 ? true
                 : newStatus === 'cancelled'
                   ? false
@@ -1029,11 +1023,11 @@ export default function AdminOrdersPage() {
                           className="px-3 py-2 rounded text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="pending">Pending (Needs call)</option>
-                          <option value="confirmed">Confirmed (Phone verified — lock stock)</option>
+                          <option value="confirmed">Confirmed (Phone verified — still ordering)</option>
                           <option value="processing">Processing</option>
                           <option value="paid">Paid</option>
                           <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
+                          <option value="delivered">Delivered (door accepted — finalize stock)</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
                       </div>
@@ -1236,18 +1230,16 @@ export default function AdminOrdersPage() {
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Stock Status:</span>
                     <span className={`ml-2 font-semibold ${
-                      selectedOrder.stockLocked ||
-                      ['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status)
-                        ? 'text-yellow-600 dark:text-yellow-400'
-                        : selectedOrder.status === 'delivered'
-                          ? 'text-red-600 dark:text-red-400'
+                      selectedOrder.status === 'delivered' || selectedOrder.stockLocked
+                        ? 'text-red-600 dark:text-red-400'
+                        : ['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status)
+                          ? 'text-yellow-600 dark:text-yellow-400'
                           : 'text-gray-600 dark:text-gray-400'
                     }`}>
-                      {selectedOrder.stockLocked ||
-                      ['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status)
-                        ? 'Stock reserved (phone confirmed)'
-                        : selectedOrder.status === 'delivered'
-                          ? 'Delivered (stock already reserved at confirm)'
+                      {selectedOrder.status === 'delivered' || selectedOrder.stockLocked
+                        ? 'Stock finalized (accepted at door)'
+                        : ['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status)
+                          ? 'Still ordering — soft reserved until door acceptance'
                           : selectedOrder.status === 'pending'
                             ? 'Not reserved — awaiting phone call'
                             : 'No stock lock'}
@@ -1435,14 +1427,14 @@ export default function AdminOrdersPage() {
                                   }`}>
                                     Current Stock: {item.Product.quantity}
                                   </span>
+                                  {['confirmed', 'processing', 'paid', 'shipped'].includes(selectedOrder.status) && (
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                                      Soft reserved (ordering): {item.quantity}
+                                    </span>
+                                  )}
                                   {selectedOrder.status === 'delivered' && (
                                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                                       Stock Impact: -{item.quantity}
-                                    </span>
-                                  )}
-                                  {selectedOrder.status === 'paid' && (
-                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                                      Reserved: {item.quantity}
                                     </span>
                                   )}
                                 </div>

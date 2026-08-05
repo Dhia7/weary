@@ -11,6 +11,7 @@ const {
 	checkItemStockAvailability,
 	reduceItemStock,
 	restoreItemStock,
+	ORDERING_STATUSES,
 	isStockLockedStatus
 } = require('../utils/stockHelpers');
 const { verifyAdminPassword } = require('../utils/adminAuth');
@@ -86,9 +87,31 @@ const assertCheckoutAllowed = async ({ phone, email, items, transaction }) => {
 			scarceItems.push({
 				productId: item.productId,
 				variantId: item.variantId || null,
+				size: item.size || null,
+				color: item.color || null,
 				qty: item.quantity,
 				stock: stockCheck.stock,
 			});
+		}
+	}
+
+	if (scarceItems.length > 0) {
+		const orderingOrders = await Order.findAll({
+			where: { status: { [Op.in]: ORDERING_STATUSES } },
+			include: [{ model: OrderItem, as: 'items', required: true }],
+			transaction
+		});
+		for (const scarce of scarceItems) {
+			const held = orderingOrders.some((o) =>
+				(o.items || []).some((oi) => itemsConflict(oi, scarce))
+			);
+			if (held) {
+				return {
+					ok: false,
+					status: 400,
+					message: 'This item is currently reserved for another verified order awaiting delivery.'
+				};
+			}
 		}
 	}
 
@@ -141,6 +164,7 @@ const assertCheckoutAllowed = async ({ phone, email, items, transaction }) => {
 };
 
 const lockStockForOrder = async (order, transaction) => {
+	if (order.stockLocked) return;
 	for (const item of order.items) {
 		const product = await Product.findByPk(item.productId, {
 			transaction,
@@ -159,6 +183,25 @@ const lockStockForOrder = async (order, transaction) => {
 	await order.save({ transaction });
 };
 
+/** True if another in-flight (confirmed→shipped) order already soft-holds this SKU. */
+const hasConflictingOrderingOrder = async (order, transaction) => {
+	const items = order.items || [];
+	if (items.length === 0) return false;
+
+	const others = await Order.findAll({
+		where: {
+			status: { [Op.in]: ORDERING_STATUSES },
+			id: { [Op.ne]: order.id }
+		},
+		include: [{ model: OrderItem, as: 'items', required: true }],
+		transaction
+	});
+
+	return others.some((other) =>
+		(other.items || []).some((oi) => items.some((ci) => itemsConflict(ci, oi)))
+	);
+};
+
 const unlockStockForOrder = async (order, transaction) => {
 	if (!order.stockLocked) return;
 	for (const item of order.items) {
@@ -174,6 +217,20 @@ const unlockStockForOrder = async (order, transaction) => {
 	}
 	order.stockLocked = false;
 	await order.save({ transaction });
+};
+
+/**
+ * Confirmed→shipped should only soft-hold. If an older confirm already
+ * decremented qty, put it back so the storefront stays in stock until delivered.
+ */
+const releasePrematureStockLock = async (order, transaction) => {
+	const status = order.status;
+	if (!order.stockLocked) return false;
+	if (status === 'delivered' || status === 'cancelled') return false;
+	if (!ORDERING_STATUSES.includes(status) && status !== 'pending') return false;
+	await unlockStockForOrder(order, transaction);
+	console.log(`Released premature stock lock for order ${order.id} (status=${status})`);
+	return true;
 };
 
 const itemsConflict = (a, b) => {
@@ -781,17 +838,38 @@ const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, cancelReason } = req.body;
+    // #region agent log
+    fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2a03a2'},body:JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:entry',message:'status update requested',data:{orderId:id,status,hasCancelReason:Boolean(cancelReason)},timestamp:Date.now()})}).catch(()=>{});
+    try{require('fs').appendFileSync(require('path').join(__dirname,'../../../debug-2a03a2.log'),JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:entry',message:'status update requested',data:{orderId:id,status,hasCancelReason:Boolean(cancelReason)},timestamp:Date.now()})+'\n');}catch(_e){}
+    // #endregion
     const allowed = ['pending', 'confirmed', 'processing', 'paid', 'shipped', 'delivered', 'cancelled'];
     if (!allowed.includes(status)) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 
-    const order = await Order.findByPk(id, {
-      include: [{ model: OrderItem, as: 'items' }],
-      transaction: t,
-      lock: t.LOCK.UPDATE
-    });
+    let order;
+    try {
+      // Lock Order only — include+FOR UPDATE makes Postgres reject outer joins
+      order = await Order.findByPk(id, {
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
+      if (order) {
+        const items = await order.getItems({ transaction: t });
+        order.items = items;
+      }
+      // #region agent log
+      fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2a03a2'},body:JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:afterFind',message:'findByPk lock-then-items succeeded',data:{found:Boolean(order),previousStatus:order?.status,stockLocked:order?.stockLocked,itemCount:order?.items?.length},timestamp:Date.now()})}).catch(()=>{});
+      try{require('fs').appendFileSync(require('path').join(__dirname,'../../../debug-2a03a2.log'),JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:afterFind',message:'findByPk lock-then-items succeeded',data:{found:Boolean(order),previousStatus:order?.status,stockLocked:order?.stockLocked,itemCount:order?.items?.length},timestamp:Date.now()})+'\n');}catch(_e){}
+      // #endregion
+    } catch (findErr) {
+      // #region agent log
+      fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2a03a2'},body:JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:findError',message:'findByPk lock-then-items failed',data:{name:findErr?.name,message:findErr?.message,pgCode:findErr?.parent?.code,sqlSnippet:String(findErr?.sql||'').slice(-120)},timestamp:Date.now()})}).catch(()=>{});
+      try{require('fs').appendFileSync(require('path').join(__dirname,'../../../debug-2a03a2.log'),JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:findError',message:'findByPk lock-then-items failed',data:{name:findErr?.name,message:findErr?.message,pgCode:findErr?.parent?.code},timestamp:Date.now()})+'\n');}catch(_e){}
+      // #endregion
+      throw findErr;
+    }
     if (!order) {
       await t.rollback();
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -799,29 +877,35 @@ const updateOrderStatus = async (req, res) => {
 
     const previousStatus = order.status;
 
+    // Legacy: confirmed used to hard-lock stock. Put qty back while still ordering.
+    if (ORDERING_STATUSES.includes(previousStatus)) {
+      await releasePrematureStockLock(order, t);
+    }
+
     if (status === previousStatus) {
       await t.commit();
       return res.json({ success: true, message: 'Order status unchanged' });
     }
 
     if (status === 'confirmed' && previousStatus === 'pending') {
-      try {
-        await lockStockForOrder(order, t);
-      } catch (stockErr) {
+      if (await hasConflictingOrderingOrder(order, t)) {
         await t.rollback();
-        if (stockErr.code === 'INSUFFICIENT_STOCK') {
-          return res.status(400).json({
-            success: false,
-            message: 'Item no longer available. Another order may have been confirmed first.'
-          });
-        }
-        throw stockErr;
+        return res.status(400).json({
+          success: false,
+          message: 'Item is already reserved by another verified order awaiting delivery.'
+        });
       }
+
       order.status = 'confirmed';
       await order.save({ transaction: t });
 
       const outbid = await cancelConflictingPendingOrders(order, t);
       await t.commit();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2a03a2'},body:JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:success-confirmed',message:'status update committed',data:{orderId:id,from:previousStatus,to:'confirmed',outbid:outbid.length},timestamp:Date.now()})}).catch(()=>{});
+      try{require('fs').appendFileSync(require('path').join(__dirname,'../../../debug-2a03a2.log'),JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:success-confirmed',message:'status update committed',data:{orderId:id,from:previousStatus,to:'confirmed',outbid:outbid.length},timestamp:Date.now()})+'\n');}catch(_e){}
+      // #endregion
 
       if (hasMailTransport()) {
         for (const cancelled of outbid) {
@@ -834,13 +918,14 @@ const updateOrderStatus = async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'Order confirmed — stock locked after phone verification',
+        message: 'Order confirmed — phone verified; stock finalizes when delivered (door accepted)',
         data: { outbidCancelled: outbid.map((o) => o.id) }
       });
     }
 
     if (status === 'cancelled') {
       const reason = CANCEL_REASONS.includes(cancelReason) ? cancelReason : (cancelReason || 'other');
+      // Prefer flag: legacy orders may be stockLocked while still in ordering statuses
       const wasLocked = order.stockLocked || isStockLockedStatus(previousStatus);
 
       if (wasLocked) {
@@ -869,7 +954,13 @@ const updateOrderStatus = async (req, res) => {
         });
       }
 
-      if (wasLocked || reason === 'refused_at_delivery' || reason === 'outbid') {
+      // Notify waitlist when soft-hold ends or stock is restored
+      if (
+        wasLocked ||
+        ORDERING_STATUSES.includes(previousStatus) ||
+        reason === 'refused_at_delivery' ||
+        reason === 'outbid'
+      ) {
         await notifyWaitlistForOrderItems(itemsSnapshot);
       }
 
@@ -880,38 +971,17 @@ const updateOrderStatus = async (req, res) => {
       return res.json({ success: true, message: 'Order cancelled' });
     }
 
-    if (status === 'confirmed' && previousStatus !== 'pending' && !order.stockLocked) {
-      try {
-        await lockStockForOrder(order, t);
-      } catch (stockErr) {
-        await t.rollback();
-        if (stockErr.code === 'INSUFFICIENT_STOCK') {
-          return res.status(400).json({
-            success: false,
-            message: 'Item no longer available.'
-          });
-        }
-        throw stockErr;
-      }
-    }
-
-    // Skipping confirm (e.g. pending → shipped/delivered): still lock stock once
+    // Entering ordering statuses from pending: soft-hold only (no stock decrement yet)
     if (
       previousStatus === 'pending' &&
-      ['confirmed', 'processing', 'paid', 'shipped', 'delivered'].includes(status) &&
-      !order.stockLocked
+      ORDERING_STATUSES.includes(status)
     ) {
-      try {
-        await lockStockForOrder(order, t);
-      } catch (stockErr) {
+      if (await hasConflictingOrderingOrder(order, t)) {
         await t.rollback();
-        if (stockErr.code === 'INSUFFICIENT_STOCK') {
-          return res.status(400).json({
-            success: false,
-            message: 'Item no longer available. Another order may have been confirmed first.'
-          });
-        }
-        throw stockErr;
+        return res.status(400).json({
+          success: false,
+          message: 'Item is already reserved by another verified order awaiting delivery.'
+        });
       }
       const outbid = await cancelConflictingPendingOrders(order, t);
       order.status = status;
@@ -925,16 +995,76 @@ const updateOrderStatus = async (req, res) => {
           );
         }
       }
-      return res.json({ success: true, message: 'Order status updated — stock locked' });
+      return res.json({
+        success: true,
+        message: 'Order status updated — still ordering until door acceptance',
+        data: { outbidCancelled: outbid.map((o) => o.id) }
+      });
+    }
+
+    // Delivered = customer accepted at door → finalize stock
+    if (status === 'delivered' && !order.stockLocked) {
+      if (
+        previousStatus === 'pending' ||
+        ORDERING_STATUSES.includes(previousStatus)
+      ) {
+        if (previousStatus === 'pending' && (await hasConflictingOrderingOrder(order, t))) {
+          await t.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Item is already reserved by another verified order awaiting delivery.'
+          });
+        }
+        try {
+          await lockStockForOrder(order, t);
+        } catch (stockErr) {
+          await t.rollback();
+          if (stockErr.code === 'INSUFFICIENT_STOCK') {
+            return res.status(400).json({
+              success: false,
+              message: 'Item no longer available. Stock may have been finalized on another delivery.'
+            });
+          }
+          throw stockErr;
+        }
+        let outbid = [];
+        if (previousStatus === 'pending') {
+          outbid = await cancelConflictingPendingOrders(order, t);
+        }
+        order.status = 'delivered';
+        await order.save({ transaction: t });
+        await t.commit();
+        if (hasMailTransport()) {
+          for (const cancelled of outbid) {
+            sendTransactional(
+              sendOrderCancelledEmail(cancelled, 'item reserved by another order'),
+              'order-outbid'
+            );
+          }
+        }
+        return res.json({
+          success: true,
+          message: 'Order delivered — stock finalized after door acceptance',
+          data: { outbidCancelled: outbid.map((o) => o.id) }
+        });
+      }
     }
 
     order.status = status;
     await order.save({ transaction: t });
 
     await t.commit();
+    // #region agent log
+    fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2a03a2'},body:JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:success',message:'status update committed',data:{orderId:id,from:previousStatus,to:status},timestamp:Date.now()})}).catch(()=>{});
+    try{require('fs').appendFileSync(require('path').join(__dirname,'../../../debug-2a03a2.log'),JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A',location:'orderController.js:updateOrderStatus:success',message:'status update committed',data:{orderId:id,from:previousStatus,to:status},timestamp:Date.now()})+'\n');}catch(_e){}
+    // #endregion
     res.json({ success: true, message: 'Order status updated' });
   } catch (error) {
     if (!t.finished) await t.rollback();
+    // #region agent log
+    fetch('http://127.0.0.1:7792/ingest/35887cb5-8492-4e17-ab7a-ba1c43c91d05',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2a03a2'},body:JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A-E',location:'orderController.js:updateOrderStatus:catch',message:'status update caught error',data:{name:error?.name,message:error?.message,pgCode:error?.parent?.code,code:error?.code},timestamp:Date.now()})}).catch(()=>{});
+    try{require('fs').appendFileSync(require('path').join(__dirname,'../../../debug-2a03a2.log'),JSON.stringify({sessionId:'2a03a2',runId:'post-fix',hypothesisId:'A-E',location:'orderController.js:updateOrderStatus:catch',message:'status update caught error',data:{name:error?.name,message:error?.message,pgCode:error?.parent?.code,code:error?.code},timestamp:Date.now()})+'\n');}catch(_e){}
+    // #endregion
     console.error('Update order status error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }

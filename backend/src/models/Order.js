@@ -78,7 +78,7 @@ const Order = sequelize.define('Order', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false,
-    comment: 'True after stock was atomically reserved on confirm'
+    comment: 'True after stock was atomically reserved on delivered (door acceptance)'
   }
 }, {
   timestamps: true,
