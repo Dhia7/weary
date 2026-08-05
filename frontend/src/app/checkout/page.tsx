@@ -113,6 +113,7 @@ export default function CheckoutPage() {
   });
   const [notes, setNotes] = useState('');
   const [placing, setPlacing] = useState(false);
+  const [preCheckoutAlertOpen, setPreCheckoutAlertOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [govPickerOpen, setGovPickerOpen] = useState(false);
   const [delPickerOpen, setDelPickerOpen] = useState(false);
@@ -241,33 +242,33 @@ export default function CheckoutPage() {
     return () => observer.disconnect();
   }, []);
 
-  const placeOrder = async () => {
-    if (!hasItems) return;
+  const validateCheckoutForm = useCallback(() => {
+    if (!hasItems) return false;
     if (!nameParts.firstName || !billing.phone || !billing.email) {
       setError(
         isFrench
           ? 'Veuillez renseigner le nom du destinataire, le téléphone et l’email.'
           : 'Please fill in recipient name, phone and email.'
       );
-      return;
+      return false;
     }
     if (!address.city) {
       setError(
         isFrench ? 'Veuillez sélectionner un gouvernorat.' : 'Please select a governorate.'
       );
-      return;
+      return false;
     }
     if (!address.state?.trim()) {
       setError(
         isFrench ? 'Veuillez sélectionner une délégation.' : 'Please select a delegation.'
       );
-      return;
+      return false;
     }
     if (!address.locality?.trim()) {
       setError(
         isFrench ? 'Veuillez indiquer une localité.' : 'Please select or enter a locality.'
       );
-      return;
+      return false;
     }
     if (!address.landmark?.trim() || address.landmark.trim().length < 3) {
       setError(
@@ -275,8 +276,33 @@ export default function CheckoutPage() {
           ? 'Veuillez indiquer un point de repère (café, école, lieu connu) pour la livraison COD.'
           : 'Please add a delivery landmark (café, school, or known place) for cash on delivery.'
       );
+      return false;
+    }
+    setError(null);
+    return true;
+  }, [
+    hasItems,
+    nameParts.firstName,
+    billing.phone,
+    billing.email,
+    address.city,
+    address.state,
+    address.locality,
+    address.landmark,
+    isFrench,
+  ]);
+
+  const requestPlaceOrder = () => {
+    if (!validateCheckoutForm()) return;
+    setPreCheckoutAlertOpen(true);
+  };
+
+  const placeOrder = async () => {
+    if (!validateCheckoutForm()) {
+      setPreCheckoutAlertOpen(false);
       return;
     }
+    setPreCheckoutAlertOpen(false);
     setPlacing(true);
     setError(null);
     try {
@@ -381,24 +407,30 @@ export default function CheckoutPage() {
         {!token && (
           <div className="border border-swisse-gold/20 bg-white/40 dark:bg-card/50 rounded-md px-5 py-4 mb-10">
             <p className="text-xs uppercase tracking-[0.22em] font-bold text-swisse-ink/70 dark:text-muted-foreground">
-              {isFrench ? 'Paiement invité activé' : 'Guest checkout enabled'}
+              {isFrench ? 'Paiement invité' : 'Guest checkout'}
             </p>
             <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2 leading-relaxed">
               {isFrench
-                ? 'Vous pouvez passer commande sans créer de compte. L’administrateur suivra votre commande grâce à votre adresse email.'
-                : 'You can place an order without creating an account. Admin will track your order using your email address.'}
+                ? 'Vous pouvez commander sans compte. Nous vous contacterons par téléphone ou email pour confirmer votre pièce unique. Conseil : créez un compte après la commande pour suivre plus facilement vos achats.'
+                : 'You can order without an account. We will contact you by phone or email to confirm your unique piece. Tip: create an account after checkout to follow your orders more easily.'}
             </p>
+            <Link
+              href="/auth/signup"
+              className="inline-block mt-3 text-[10px] font-bold uppercase tracking-[0.22em] text-swisse-gold hover:text-swisse-ink dark:hover:text-foreground transition-colors"
+            >
+              {isFrench ? 'Créer un compte' : 'Create an account'}
+            </Link>
           </div>
         )}
 
         <div className="border border-swisse-ink/15 bg-swisse-mist/30 dark:bg-muted/30 rounded-md px-5 py-4 mb-10">
           <p className="text-xs uppercase tracking-[0.22em] font-bold text-swisse-ink/70 dark:text-muted-foreground">
-            {isFrench ? 'Confirmation par téléphone' : 'Phone verification'}
+            {isFrench ? 'Pièce unique — contact requis' : 'Unique piece — we will contact you'}
           </p>
           <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2 leading-relaxed">
             {isFrench
-              ? 'Paiement à la livraison. Nous vous appellerons pour vérifier votre commande. Les pièces uniques ne sont réservées qu’après confirmation téléphonique.'
-              : 'Cash on delivery. We will call you to verify your order. Unique pieces are reserved only after phone confirmation.'}
+              ? 'Paiement à la livraison. Après validation, conservez votre numéro de commande. Nous vous contactons par téléphone ou email pour confirmer — la pièce n’est réservée pour vous qu’après ce contact.'
+              : 'Cash on delivery. After placing your order, save your order ID. We will contact you by phone or email to confirm — the piece is reserved for you only after that contact.'}
           </p>
         </div>
 
@@ -948,7 +980,7 @@ export default function CheckoutPage() {
                   <button
                     id="place-order-btn"
                     disabled={placing}
-                    onClick={placeOrder}
+                    onClick={requestPlaceOrder}
                     className="mt-8 block w-full text-center py-5 bg-swisse-gold text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-swisse-ink dark:hover:bg-primary transition-colors disabled:opacity-60"
                   >
                     {placing ? (isFrench ? 'Finalisation…' : 'Completing…') : (isFrench ? 'Valider la commande' : 'Complete Purchase')}
@@ -957,11 +989,11 @@ export default function CheckoutPage() {
                   <p className="text-xs text-swisse-ink/50 dark:text-muted-foreground mt-4 leading-relaxed">
                     {token
                       ? (isFrench
-                          ? 'L’administrateur gérera et suivra cette commande dans le tableau de bord.'
-                          : 'Admin will manage and track this order in the dashboard.')
+                          ? 'Après la commande, conservez votre numéro de commande. Nous vous contactons par téléphone ou email pour confirmer votre pièce unique.'
+                          : 'After checkout, save your order ID. We will contact you by phone or email to confirm your unique piece.')
                       : (isFrench
-                          ? 'Commande invitée — l’administrateur gérera et suivra cette commande dans le tableau de bord.'
-                          : 'Guest checkout — admin will manage and track this order in the dashboard.')}
+                          ? 'Après la commande, conservez votre numéro de commande. Nous vous contactons par téléphone ou email. Un compte facilite le suivi de vos commandes.'
+                          : 'After checkout, save your order ID. We will contact you by phone or email. An account makes it easier to follow your orders.')}
                   </p>
                 </div>
 
@@ -989,6 +1021,85 @@ export default function CheckoutPage() {
         )}
       </main>
       <Footer />
+
+      {preCheckoutAlertOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pre-checkout-alert-title"
+        >
+          <div className="w-full max-w-md rounded-md border border-swisse-gold/20 bg-white dark:bg-card p-6 md:p-8 shadow-lg">
+            <h2
+              id="pre-checkout-alert-title"
+              className="font-serif text-xl uppercase tracking-[0.12em] text-swisse-ink dark:text-foreground"
+            >
+              {isFrench ? 'Avant de valider' : 'Before you confirm'}
+            </h2>
+            <p className="mt-3 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed">
+              {isFrench
+                ? 'Pièce unique — gardez ceci à l’esprit après la commande :'
+                : 'Unique piece — keep this in mind after you place the order:'}
+            </p>
+            <ul className="mt-4 space-y-3 text-sm text-swisse-ink dark:text-foreground leading-relaxed list-none">
+              <li className="flex gap-3">
+                <span className="text-swisse-gold font-bold shrink-0">1.</span>
+                <span>
+                  {isFrench
+                    ? 'Enregistrez votre numéro de commande (copie ou capture d’écran).'
+                    : 'Save your order ID (copy or screenshot).'}
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-swisse-gold font-bold shrink-0">2.</span>
+                <span>
+                  {isFrench
+                    ? 'Nous vous contactons par téléphone ou email pour confirmer — la pièce n’est réservée pour vous qu’après ce contact.'
+                    : 'We will contact you by phone or email to confirm — the piece is reserved for you only after that contact.'}
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-swisse-gold font-bold shrink-0">3.</span>
+                <span>
+                  {isFrench
+                    ? 'Paiement à la livraison. Gardez votre téléphone disponible.'
+                    : 'Cash on delivery at the door. Keep your phone available.'}
+                </span>
+              </li>
+              {!token && (
+                <li className="flex gap-3">
+                  <span className="text-swisse-gold font-bold shrink-0">4.</span>
+                  <span>
+                    {isFrench
+                      ? 'Conseil : créez un compte pour suivre plus facilement vos commandes.'
+                      : 'Tip: create an account to follow your orders more easily.'}
+                  </span>
+                </li>
+              )}
+            </ul>
+            <div className="mt-8 flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+              <button
+                type="button"
+                disabled={placing}
+                onClick={() => setPreCheckoutAlertOpen(false)}
+                className="px-6 py-3 border border-swisse-ink/15 dark:border-border text-[10px] font-bold uppercase tracking-[0.22em] text-swisse-ink dark:text-foreground hover:border-swisse-gold transition-colors disabled:opacity-60"
+              >
+                {isFrench ? 'Retour' : 'Go back'}
+              </button>
+              <button
+                type="button"
+                disabled={placing}
+                onClick={placeOrder}
+                className="px-6 py-3 bg-swisse-gold text-white text-[10px] font-bold uppercase tracking-[0.22em] hover:bg-swisse-ink dark:hover:bg-primary transition-colors disabled:opacity-60"
+              >
+                {placing
+                  ? (isFrench ? 'Finalisation…' : 'Completing…')
+                  : (isFrench ? 'J’ai compris — commander' : 'I understand — place order')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

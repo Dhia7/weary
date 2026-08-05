@@ -73,18 +73,18 @@ function CheckoutConfirmationContent() {
           ✓
         </div>
         <h1 className="font-serif text-2xl md:text-3xl uppercase tracking-[0.12em]">
-          {isFrench ? 'Commande confirmée' : 'Order confirmed'}
+          {isFrench ? 'Commande reçue' : 'Order received'}
         </h1>
-        <p className="mt-4 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed">
+        <p className="mt-4 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed max-w-lg mx-auto">
           {isFrench
-            ? 'Merci ! Votre commande a été enregistrée. Nous vous appellerons pour vérifier vos coordonnées avant de réserver l’article. Le paiement se fait à la livraison.'
-            : 'Thank you! Your order has been placed. We will call you to verify your details before reserving the item. Payment is cash on delivery at the door.'}
+            ? 'Merci. Votre commande est enregistrée. Cette pièce unique n’est pas encore réservée. Nous vous contactons bientôt par téléphone ou email pour confirmer — après ce contact, elle est réservée pour vous. Paiement à la livraison.'
+            : 'Thank you. Your order is registered. This unique piece is not reserved yet. We will contact you soon by phone or email to confirm — after that contact, it is held for you. Cash on delivery at the door.'}
         </p>
 
         {orderId && (
           <div className="mt-8 rounded-md border border-swisse-gold/20 bg-swisse-canvas/50 dark:bg-muted/30 px-5 py-5 text-left">
             <p className="text-[10px] uppercase tracking-[0.28em] text-swisse-ink/50 dark:text-muted-foreground">
-              {isFrench ? 'Numéro de commande' : 'Order number'}
+              {isFrench ? 'Enregistrez votre numéro de commande' : 'Save your order ID'}
             </p>
             <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p className="font-mono text-sm md:text-base font-bold break-all text-swisse-ink dark:text-foreground">
@@ -102,9 +102,28 @@ function CheckoutConfirmationContent() {
             </div>
             <p className="mt-4 text-xs text-swisse-ink/60 dark:text-muted-foreground leading-relaxed">
               {isFrench
-                ? 'Conservez ce numéro pour suivre votre commande ou contacter notre équipe.'
-                : 'Keep this number to track your order or contact our team.'}
+                ? 'Conservez ce numéro (capture d’écran ou copie). Il vous sera utile lorsque nous vous appellerons ou écrirons, et pour toute question sur cette pièce.'
+                : 'Keep this number (screenshot or copy). You will need it when we call or email you, and for any question about this piece.'}
             </p>
+          </div>
+        )}
+
+        {!user && (
+          <div className="mt-8 rounded-md border border-swisse-ink/10 dark:border-border px-5 py-5 text-left">
+            <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-swisse-ink/60 dark:text-muted-foreground">
+              {isFrench ? 'Conseil' : 'Recommendation'}
+            </p>
+            <p className="mt-2 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed">
+              {isFrench
+                ? 'Créez un compte pour suivre plus facilement vos commandes et retrouver cet achat plus tard.'
+                : 'Create an account to follow your orders more easily and find this purchase later.'}
+            </p>
+            <Link
+              href="/auth/signup"
+              className="inline-block mt-4 px-8 py-3 border border-swisse-gold/30 text-[10px] font-bold uppercase tracking-[0.22em] text-swisse-ink hover:border-swisse-gold hover:text-swisse-gold dark:text-foreground transition-colors"
+            >
+              {isFrench ? 'Créer un compte' : 'Create an account'}
+            </Link>
           </div>
         )}
 
