@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
+import { Mail, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
 import { apiFetch, getApiErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
@@ -115,16 +115,6 @@ export default function ContactPage() {
                     Email
                   </h3>
                   <p className="text-swisse-ink/70 dark:text-muted-foreground">admin@swisia.store</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <Phone className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
-                    Phone
-                  </h3>
-                  <p className="text-swisse-ink/70 dark:text-muted-foreground">+(216) 28-700-958</p>
                 </div>
               </div>
 

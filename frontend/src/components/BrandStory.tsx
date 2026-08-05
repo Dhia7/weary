@@ -51,8 +51,8 @@ export default function BrandStory() {
                 </h3>
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
-                    ? 'Commandez en ligne Sélectionnez vos pièces, payez à la livraison (payez à la réception de votre commande) ou par carte/virement.'
-                    : 'Order online: select your pieces, then pay on delivery (upon receipt of your order) or by card/bank transfer.'}
+                    ? 'Commandez en ligne : sélectionnez vos pièces, puis payez à la livraison à la réception de votre commande.'
+                    : 'Order online: select your pieces, then pay cash on delivery when your order arrives.'}
                 </p>
               </div>
               <div>

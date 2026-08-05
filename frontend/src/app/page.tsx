@@ -6,10 +6,10 @@ import TrustBar from "@/components/TrustBar";
 import Footer from "@/components/Footer";
 import HomeUrlNotifications from "../components/HomeUrlNotifications";
 
-const NouvelleCollection = dynamic(() => import("@/components/NouvelleCollection"), {
+const FeaturedProducts = dynamic(() => import("@/components/FeaturedProducts"), {
   loading: () => <HomeSectionSkeleton />,
 });
-const FeaturedProducts = dynamic(() => import("@/components/FeaturedProducts"), {
+const ProcessFaq = dynamic(() => import("@/components/ProcessFaq"), {
   loading: () => <HomeSectionSkeleton />,
 });
 const BrandStory = dynamic(() => import("@/components/BrandStory"), {
@@ -41,7 +41,7 @@ export default function Home() {
         <Hero />
         <TrustBar />
         <FeaturedProducts />
-        <NouvelleCollection />
+        <ProcessFaq />
         <BrandStory />
         <NewsletterSignup />
       </main>
