@@ -10,6 +10,7 @@
     "admin:seed": "node src/scripts/seed.js",
     "admin:create": "node src/scripts/create-admin.js",
     "seed:categories": "node src/scripts/seedCategories.js",
+    "seed:bag-categories": "node src/scripts/seedBagCategories.js",
     "cleanup:images": "node src/scripts/cleanup-unused-images.js",
     "cleanup:images:delete": "node src/scripts/cleanup-unused-images.js --delete",
     "migrate:images": "node src/scripts/migrate-images-to-cloudinary.js",
