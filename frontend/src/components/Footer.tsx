@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { footerHeadingClass, footerLinkClass } from '@/lib/content-page-styles';
+import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 
 const Footer = () => {
   const [currentYear, setCurrentYear] = useState('');
@@ -15,24 +16,12 @@ const Footer = () => {
   }, []);
 
   const footerLinks = {
-    shop: [
-      { name: 'Women', href: '/category/women' },
-      { name: 'Men', href: '/category/men' },
-      { name: 'Accessories', href: '/category/accessories' },
-      { name: 'Footwear', href: '/category/footwear' },
-      { name: 'Jewelry', href: '/category/jewelry' },
-    ],
+    shop: SHOP_CATEGORIES.map((c) => ({ name: c.name, href: c.href })),
     support: [
       { name: 'Contact Us', href: '/contact' },
       { name: 'Help Center', href: '/help' },
       { name: 'Returns & Exchanges', href: '/returns' },
       { name: 'Size Guide', href: '/size-guide' },
-    ],
-    company: [
-      { name: 'Careers', href: '/careers' },
-      { name: 'Press', href: '/press' },
-      { name: 'Blog', href: '/blog' },
-      { name: 'Sustainability', href: '/sustainability' },
     ],
     legal: [
       { name: 'Privacy Policy', href: '/privacy' },
@@ -44,24 +33,12 @@ const Footer = () => {
 
   const translatedFooterLinks = isFrench
     ? {
-        shop: [
-          { name: 'Femmes', href: '/category/women' },
-          { name: 'Hommes', href: '/category/men' },
-          { name: 'Accessoires', href: '/category/accessories' },
-          { name: 'Chaussures', href: '/category/footwear' },
-          { name: 'Bijoux', href: '/category/jewelry' },
-        ],
+        shop: SHOP_CATEGORIES.map((c) => ({ name: c.nameFr, href: c.href })),
         support: [
           { name: 'Contact', href: '/contact' },
           { name: 'Centre d aide', href: '/help' },
           { name: 'Retours et echanges', href: '/returns' },
           { name: 'Guide des tailles', href: '/size-guide' },
-        ],
-        company: [
-          { name: 'Carrieres', href: '/careers' },
-          { name: 'Presse', href: '/press' },
-          { name: 'Blog', href: '/blog' },
-          { name: 'Durabilite', href: '/sustainability' },
         ],
         legal: [
           { name: 'Confidentialite', href: '/privacy' },
@@ -75,7 +52,7 @@ const Footer = () => {
   return (
     <footer className="bg-swisse-canvas dark:bg-background border-t border-swisse-gold/10 dark:border-border text-swisse-ink dark:text-foreground">
       <div className="max-w-swisse mx-auto px-6 md:px-8 py-12 md:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
           <div className="lg:col-span-1">
             <Link
               href="/"
@@ -147,19 +124,6 @@ const Footer = () => {
             <h3 className={footerHeadingClass}>{isFrench ? 'Support' : 'Support'}</h3>
             <ul className="space-y-3">
               {translatedFooterLinks.support.map((link) => (
-                <li key={link.name}>
-                  <Link href={link.href} className={footerLinkClass}>
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h3 className={footerHeadingClass}>{isFrench ? 'Entreprise' : 'Company'}</h3>
-            <ul className="space-y-3">
-              {translatedFooterLinks.company.map((link) => (
                 <li key={link.name}>
                   <Link href={link.href} className={footerLinkClass}>
                     {link.name}

@@ -4,7 +4,14 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import ProcessFaq from '@/components/ProcessFaq';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MessageCircle } from 'lucide-react';
+import {
+  Mail,
+  MessageCircle,
+  Package,
+  Truck,
+  RefreshCw,
+  User,
+} from 'lucide-react';
 import Link from 'next/link';
 import {
   bodyTextClass,
@@ -22,24 +29,45 @@ export default function HelpPage() {
   const helpCategories = [
     {
       title: 'Ordering & Payment',
-      icon: '🛒',
-      topics: ['How to place an order', 'Payment methods', 'Order confirmation', 'Order modifications']
+      icon: Package,
+      topics: [
+        'Choose a collection and order on the site',
+        'Support calls to confirm details',
+        'Pay on delivery — cash or bank check',
+        'Piece reserved only after confirmation',
+      ],
     },
     {
       title: 'Shipping & Delivery',
-      icon: '🚚',
-      topics: ['Shipping options', 'Delivery times', 'Tracking orders', 'International shipping']
+      icon: Truck,
+      topics: [
+        'Free shipping across Tunisia',
+        'About 5–7 days after confirmation',
+        'Prepared in Geneva, customs included',
+        'Price you see is what you pay (TND)',
+      ],
     },
     {
-      title: 'Returns & Exchanges',
-      icon: '↩️',
-      topics: ['Return policy', 'Exchange process', 'Refund timeline', 'Return shipping']
+      title: 'Delivery Issues',
+      icon: RefreshCw,
+      topics: [
+        'Missed or refused delivery',
+        'Rearrange with support',
+        'Email admin@swisia.store',
+        'Or the number that confirmed your order',
+      ],
+      href: '/returns',
     },
     {
-      title: 'Account & Profile',
-      icon: '👤',
-      topics: ['Creating account', 'Profile settings', 'Order history', 'Wishlist management']
-    }
+      title: 'Account & Orders',
+      icon: User,
+      topics: [
+        'We recommend creating an account',
+        'Follow your orders in one place',
+        'Save your order ID after checkout',
+        'Contact support for changes',
+      ],
+    },
   ];
 
   return (
@@ -52,11 +80,12 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12"
+            className="mb-12 text-center"
           >
             <h1 className={pageTitleClass}>Help Center</h1>
-            <p className={`${pageSubtitleClass} max-w-2xl mx-auto`}>
-              Find answers to your questions or get in touch with our support team
+            <p className={`${pageSubtitleClass} mx-auto max-w-2xl`}>
+              How Swisia orders work — from choosing a collection to payment on
+              delivery — and how to reach support when you need us.
             </p>
           </motion.div>
 
@@ -67,38 +96,53 @@ export default function HelpPage() {
             className="mb-8"
           >
             <h2 className={`${sectionTitleClass} mb-8 text-center`}>
-              Browse by Category
+              Browse by topic
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {helpCategories.map((category, index) => (
-                <motion.div
-                  key={category.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className={`${cardClass} hover:border-swisse-gold/40 transition-colors`}
-                >
-                  <div className="text-3xl mb-4">{category.icon}</div>
-                  <h3 className="text-lg font-serif text-swisse-ink dark:text-foreground mb-3">
-                    {category.title}
-                  </h3>
-                  <ul className="space-y-2">
-                    {category.topics.map((topic, topicIndex) => (
-                      <li key={topicIndex} className={`text-sm ${bodyTextClass}`}>
-                        • {topic}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              ))}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {helpCategories.map((category, index) => {
+                const Icon = category.icon;
+                const content = (
+                  <>
+                    <Icon className="mb-4 h-8 w-8 text-swisse-gold" />
+                    <h3 className="mb-3 font-serif text-lg text-swisse-ink dark:text-foreground">
+                      {category.title}
+                    </h3>
+                    <ul className="space-y-2">
+                      {category.topics.map((topic) => (
+                        <li key={topic} className={`text-sm ${bodyTextClass}`}>
+                          • {topic}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                );
+
+                return (
+                  <motion.div
+                    key={category.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className={`${cardClass} transition-colors hover:border-swisse-gold/40`}
+                  >
+                    {category.href ? (
+                      <Link href={category.href} className="block h-full">
+                        {content}
+                      </Link>
+                    ) : (
+                      content
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </div>
 
         <ProcessFaq />
 
-        <div className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <div className="mx-auto max-w-swisse px-4 pb-20 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -106,28 +150,34 @@ export default function HelpPage() {
             className={`${cardClass} bg-swisse-mist/40 dark:bg-muted/30`}
           >
             <div className="text-center">
-              <h3 className={`${sectionTitleClass} mb-4`}>
-                Still need help?
-              </h3>
+              <h3 className={`${sectionTitleClass} mb-4`}>Still need help?</h3>
               <p className={`${bodyTextClass} mb-6`}>
-                Our support team is here to help you with any questions or concerns.
+                Email{' '}
+                <a
+                  href="mailto:admin@swisia.store"
+                  className="text-swisse-gold underline-offset-2 hover:underline"
+                >
+                  admin@swisia.store
+                </a>
+                , use the contact form, or reach the phone number that confirmed
+                your order with you.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col justify-center gap-4 sm:flex-row">
                 <Link href="/contact" className={primaryButtonClass}>
-                  <MessageCircle className="w-4 h-4" />
+                  <MessageCircle className="h-4 w-4" />
                   Contact Us
                 </Link>
 
-                <a href="mailto:support@wear.com" className={secondaryButtonClass}>
-                  <Mail className="w-4 h-4" />
+                <a href="mailto:admin@swisia.store" className={secondaryButtonClass}>
+                  <Mail className="h-4 w-4" />
                   Email Support
                 </a>
 
-                <a href="tel:+15551234567" className={secondaryButtonClass}>
-                  <Phone className="w-4 h-4" />
-                  Call Us
-                </a>
+                <Link href="/returns" className={secondaryButtonClass}>
+                  <RefreshCw className="h-4 w-4" />
+                  Delivery & Returns
+                </Link>
               </div>
             </div>
           </motion.div>

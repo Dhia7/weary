@@ -125,9 +125,7 @@ export default function ContactPage() {
                     Address
                   </h3>
                   <p className="text-swisse-ink/70 dark:text-muted-foreground">
-                    Sahloul 3
-                    <br />
-                    Sousse, 4056
+                    Sousse
                   </p>
                 </div>
               </div>

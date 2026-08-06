@@ -17,8 +17,8 @@ const FAQS: FaqItem[] = [
       fr: 'Comment commander une pièce ?',
     },
     answer: {
-      en: 'Browse and choose the collection you want, then place your order on the website. Our support team will call you to confirm the details and clear everything with you before the piece is reserved.',
-      fr: 'Parcourez et choisissez la collection que vous souhaitez, puis passez commande sur le site. Notre équipe support vous appellera pour confirmer les détails et tout clarifier avec vous avant que la pièce ne soit réservée.',
+      en: 'Browse and choose the collection you want, then place your order on the website. We recommend creating an account so you can follow your order. Our support team will call you to confirm the details and clear everything with you before the piece is reserved.',
+      fr: 'Parcourez et choisissez la collection que vous souhaitez, puis passez commande sur le site. Nous recommandons de créer un compte pour suivre votre commande. Notre équipe support vous appellera pour confirmer les détails et tout clarifier avec vous avant que la pièce ne soit réservée.',
     },
   },
   {

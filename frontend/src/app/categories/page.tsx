@@ -6,52 +6,44 @@ import Footer from '@/components/Footer';
 
 const categories = [
   {
-    id: 'women',
-    name: 'Women',
-    description: 'Elegant dresses, tops, and accessories',
-    image: '👗',
-    color: 'from-pink-400 to-rose-500',
-    href: '/category/women',
-  },
-  {
-    id: 'men',
-    name: 'Men',
-    description: 'Classic shirts, jackets, and casual wear',
-    image: '👔',
-    color: 'from-blue-400 to-indigo-500',
-    href: '/category/men',
-  },
-  {
-    id: 'accessories',
-    name: 'Accessories',
-    description: 'Bags, scarves, and fashion accessories',
+    id: 'totes',
+    name: 'Totes',
+    description: 'Everyday tote bags — from canvas to leather',
     image: '👜',
-    color: 'from-purple-400 to-violet-500',
-    href: '/category/accessories',
+    color: 'from-amber-400 to-orange-500',
+    href: '/category/totes',
   },
   {
-    id: 'footwear',
-    name: 'Footwear',
-    description: 'Shoes, boots, and sneakers',
-    image: '👠',
-    color: 'from-orange-400 to-red-500',
-    href: '/category/footwear',
+    id: 'handbags',
+    name: 'Handbags',
+    description: 'Top-handle and structured handbags',
+    image: '👛',
+    color: 'from-rose-400 to-pink-500',
+    href: '/category/handbags',
   },
   {
-    id: 'jewelry',
-    name: 'Jewelry',
-    description: 'Necklaces, earrings, and watches',
-    image: '💍',
+    id: 'crossbody-bags',
+    name: 'Crossbody bags',
+    description: 'Hands-free bags with a crossbody strap',
+    image: '🎒',
+    color: 'from-violet-400 to-purple-500',
+    href: '/category/crossbody-bags',
+  },
+  {
+    id: 'clutches',
+    name: 'Clutches',
+    description: 'Evening and compact clutch bags',
+    image: '✨',
     color: 'from-yellow-400 to-amber-500',
-    href: '/category/jewelry',
+    href: '/category/clutches',
   },
   {
-    id: 'activewear',
-    name: 'Activewear',
-    description: 'Athletic wear and fitness clothing',
-    image: '🏃‍♀️',
-    color: 'from-green-400 to-emerald-500',
-    href: '/category/activewear',
+    id: 'travel-bags',
+    name: 'Travel bags',
+    description: 'Weekenders and travel-ready bags',
+    image: '🧳',
+    color: 'from-teal-400 to-cyan-500',
+    href: '/category/travel-bags',
   },
 ];
 
@@ -67,7 +59,7 @@ export default function CategoriesPage() {
             Shop by Category
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
-            Explore our diverse collection of fashion categories. From elegant dresses to stylish accessories, find everything you need to complete your perfect look.
+            Explore our bag collections — totes, handbags, crossbody bags, clutches, and travel bags.
           </p>
         </div>
       </div>
@@ -79,44 +71,22 @@ export default function CategoriesPage() {
             <Link
               key={category.id}
               href={category.href}
-              className="group block"
+              className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
             >
-              <div className="relative overflow-hidden rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                {/* Background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-90`} />
-                
-                {/* Content */}
-                <div className="relative p-8 h-64 flex flex-col justify-between">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
-                      {category.image}
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      {category.name}
-                    </h3>
-                    <p className="text-white/90 text-sm">
-                      {category.description}
-                    </p>
-                  </div>
-                  
-                  {/* Arrow indicator */}
-                  <div className="flex justify-center">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center transform group-hover:translate-x-1 transition-transform duration-300">
-                      <svg
-                        className="w-4 h-4 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
+              <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-10 group-hover:opacity-20 transition-opacity`} />
+              <div className="relative p-8">
+                <div className="text-5xl mb-4">{category.image}</div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-gray-900 group-hover:to-gray-600 dark:group-hover:from-white dark:group-hover:to-gray-300">
+                  {category.name}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  {category.description}
+                </p>
+                <div className="mt-4 flex items-center text-sm font-medium text-gray-900 dark:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  Shop now
+                  <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
             </Link>
@@ -128,4 +98,3 @@ export default function CategoriesPage() {
     </div>
   );
 }
-

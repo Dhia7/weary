@@ -213,8 +213,8 @@ export default function SignupPage() {
               className="text-swisse-ink/70 dark:text-muted-foreground leading-relaxed"
             >
               {isFrench
-                ? 'Rejoignez Swisia pour suivre vos commandes, enregistrer vos favoris et profiter d’une expérience personnalisée.'
-                : 'Join Swisia to track orders, save your favorites, and enjoy a personalized experience.'}
+                ? 'Nous recommandons de créer un compte Swisia pour suivre vos commandes, enregistrer vos favoris et profiter d’une expérience personnalisée.'
+                : 'We recommend creating a Swisia account to follow your orders, save favorites, and enjoy a personalized experience.'}
             </motion.p>
           </div>
 

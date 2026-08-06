@@ -407,12 +407,12 @@ export default function CheckoutPage() {
         {!token && (
           <div className="border border-swisse-gold/20 bg-white/40 dark:bg-card/50 rounded-md px-5 py-4 mb-10">
             <p className="text-xs uppercase tracking-[0.22em] font-bold text-swisse-ink/70 dark:text-muted-foreground">
-              {isFrench ? 'Paiement invité' : 'Guest checkout'}
+              {isFrench ? 'Compte recommandé' : 'Account recommended'}
             </p>
             <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2 leading-relaxed">
               {isFrench
-                ? 'Vous pouvez commander sans compte. Nous vous contacterons par téléphone ou email pour confirmer votre pièce unique. Conseil : créez un compte après la commande pour suivre plus facilement vos achats.'
-                : 'You can order without an account. We will contact you by phone or email to confirm your unique piece. Tip: create an account after checkout to follow your orders more easily.'}
+                ? 'Nous recommandons de créer un compte pour suivre vos commandes facilement. Vous pouvez aussi commander en invité — nous vous contacterons par téléphone ou email pour confirmer votre pièce.'
+                : 'We recommend creating an account so you can follow your orders easily. You can still check out as a guest — we will contact you by phone or email to confirm your piece.'}
             </p>
             <Link
               href="/auth/signup"
@@ -992,8 +992,8 @@ export default function CheckoutPage() {
                           ? 'Après la commande, conservez votre numéro de commande. Nous vous contactons par téléphone ou email pour confirmer votre pièce unique.'
                           : 'After checkout, save your order ID. We will contact you by phone or email to confirm your unique piece.')
                       : (isFrench
-                          ? 'Après la commande, conservez votre numéro de commande. Nous vous contactons par téléphone ou email. Un compte facilite le suivi de vos commandes.'
-                          : 'After checkout, save your order ID. We will contact you by phone or email. An account makes it easier to follow your orders.')}
+                          ? 'Après la commande, conservez votre numéro de commande. Nous vous contactons par téléphone ou email. Nous recommandons un compte pour suivre vos commandes.'
+                          : 'After checkout, save your order ID. We will contact you by phone or email. We recommend an account so you can follow your orders.')}
                   </p>
                 </div>
 
@@ -1071,8 +1071,8 @@ export default function CheckoutPage() {
                   <span className="text-swisse-gold font-bold shrink-0">4.</span>
                   <span>
                     {isFrench
-                      ? 'Conseil : créez un compte pour suivre plus facilement vos commandes.'
-                      : 'Tip: create an account to follow your orders more easily.'}
+                      ? 'Nous recommandons de créer un compte pour suivre vos commandes facilement.'
+                      : 'We recommend creating an account so you can follow your orders easily.'}
                   </span>
                 </li>
               )}

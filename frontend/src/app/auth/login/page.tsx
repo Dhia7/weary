@@ -248,8 +248,8 @@ export default function LoginPage() {
               className="text-swisse-ink/70 dark:text-muted-foreground leading-relaxed"
             >
               {isFrench
-                ? 'Connectez-vous pour acheter, suivre vos commandes et enregistrer vos favoris.'
-                : 'Sign in to shop, track orders, and save your favorites.'}
+                ? 'Connectez-vous pour suivre vos commandes, acheter et enregistrer vos favoris. Un compte est recommandé pour suivre vos achats.'
+                : 'Sign in to follow your orders, shop, and save favorites. An account is recommended so you can track your purchases.'}
             </motion.p>
           </div>
 

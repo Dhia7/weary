@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 
 interface SearchAutocompleteProps {
   onSearch?: (query: string) => void;
@@ -26,11 +27,11 @@ const MAX_RECENT_SEARCHES = 5;
 
 const CATEGORY_OPTIONS = [
   { slug: '', label: 'Shop', labelFr: 'Boutique' },
-  { slug: 'women', label: 'Women', labelFr: 'Femmes' },
-  { slug: 'men', label: 'Men', labelFr: 'Hommes' },
-  { slug: 'accessories', label: 'Accessories', labelFr: 'Accessoires' },
-  { slug: 'footwear', label: 'Footwear', labelFr: 'Chaussures' },
-  { slug: 'jewelry', label: 'Jewelry', labelFr: 'Bijoux' },
+  ...SHOP_CATEGORIES.map((c) => ({
+    slug: c.slug,
+    label: c.name,
+    labelFr: c.nameFr,
+  })),
 ] as const;
 
 const SearchAutocomplete = ({ 

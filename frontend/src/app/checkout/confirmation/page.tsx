@@ -111,12 +111,12 @@ function CheckoutConfirmationContent() {
         {!user && (
           <div className="mt-8 rounded-md border border-swisse-ink/10 dark:border-border px-5 py-5 text-left">
             <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-swisse-ink/60 dark:text-muted-foreground">
-              {isFrench ? 'Conseil' : 'Recommendation'}
+              {isFrench ? 'Recommandé' : 'Recommended'}
             </p>
             <p className="mt-2 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed">
               {isFrench
-                ? 'Créez un compte pour suivre plus facilement vos commandes et retrouver cet achat plus tard.'
-                : 'Create an account to follow your orders more easily and find this purchase later.'}
+                ? 'Nous recommandons de créer un compte pour suivre vos commandes facilement et retrouver cet achat plus tard.'
+                : 'We recommend creating an account so you can follow your orders easily and find this purchase later.'}
             </p>
             <Link
               href="/auth/signup"

@@ -1,8 +1,8 @@
 /*
   Category seed script:
-  - Creates default categories for the e-commerce store
+  - Creates bag categories for the Swisia store
   - Safe to run multiple times (won't create duplicates)
-  - Categories: Women, Men, Accessories, Footwear, Jewelry, Activewear
+  - Categories: Totes, Handbags, Crossbody bags, Clutches, Travel bags
 */
 
 require('dotenv').config();
@@ -17,39 +17,33 @@ const Category = require('../models/Category');
 
 const defaultCategories = [
   {
-    name: 'Women',
-    slug: 'women',
-    description: 'Women\'s clothing and fashion',
+    name: 'Totes',
+    slug: 'totes',
+    description: 'Everyday tote bags — from canvas to leather',
     isActive: true
   },
   {
-    name: 'Men',
-    slug: 'men',
-    description: 'Men\'s clothing and fashion',
+    name: 'Handbags',
+    slug: 'handbags',
+    description: 'Top-handle and structured handbags',
     isActive: true
   },
   {
-    name: 'Accessories',
-    slug: 'accessories',
-    description: 'Fashion accessories and add-ons',
+    name: 'Crossbody bags',
+    slug: 'crossbody-bags',
+    description: 'Bags with a crossbody strap for hands-free wear',
     isActive: true
   },
   {
-    name: 'Footwear',
-    slug: 'footwear',
-    description: 'Shoes, boots, and footwear',
+    name: 'Clutches',
+    slug: 'clutches',
+    description: 'Evening and compact clutch bags',
     isActive: true
   },
   {
-    name: 'Jewelry',
-    slug: 'jewelry',
-    description: 'Jewelry and accessories',
-    isActive: true
-  },
-  {
-    name: 'Activewear',
-    slug: 'activewear',
-    description: 'Athletic and sportswear',
+    name: 'Travel bags',
+    slug: 'travel-bags',
+    description: 'Weekenders and travel-ready bags',
     isActive: true
   }
 ];
@@ -95,7 +89,7 @@ async function seedCategories() {
     });
     console.log('\n📋 All categories in database:');
     allCategories.forEach(cat => {
-      console.log(`   - ${cat.name} (ID: ${cat.id}, slug: ${cat.slug})`);
+      console.log(`   - ${cat.name} (ID: ${cat.id}, slug: ${cat.slug}, active: ${cat.isActive})`);
     });
 
     process.exit(0);
@@ -106,5 +100,3 @@ async function seedCategories() {
 }
 
 seedCategories();
-
-
