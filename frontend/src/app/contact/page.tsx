@@ -7,6 +7,8 @@ import { motion } from 'framer-motion';
 import { Mail, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
 import { apiFetch, getApiErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { getContactTranslations } from '@/lib/i18n/contact';
 
 const inputClassName =
   'w-full px-4 py-3 border border-swisse-gold/25 dark:border-border bg-transparent text-swisse-ink dark:text-foreground placeholder:text-swisse-ink/40 dark:placeholder:text-muted-foreground focus:outline-none focus:border-swisse-gold dark:focus:border-primary transition-colors';
@@ -16,6 +18,8 @@ const labelClassName =
 
 export default function ContactPage() {
   useAuth();
+  const { isFrench } = useLanguage();
+  const t = getContactTranslations(isFrench);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -63,7 +67,7 @@ export default function ContactPage() {
       setFormData({ name: '', email: '', subject: '', message: '' });
     } catch {
       setSubmitStatus('error');
-      setErrorMessage('Failed to send message. Please try again later.');
+      setErrorMessage(t.failedLater);
     } finally {
       setIsSubmitting(false);
     }
@@ -88,11 +92,10 @@ export default function ContactPage() {
           className="text-center mb-14"
         >
           <h1 className="font-serif text-4xl sm:text-5xl text-swisse-ink dark:text-foreground mb-4">
-            Contact Us
+            {t.title}
           </h1>
           <p className="text-swisse-ink/70 dark:text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as
-            possible.
+            {t.subtitle}
           </p>
         </motion.div>
 
@@ -104,7 +107,7 @@ export default function ContactPage() {
             className="border border-swisse-gold/20 dark:border-border bg-white/90 dark:bg-card shadow-sm p-6 sm:p-8"
           >
             <h2 className="font-serif text-2xl text-swisse-ink dark:text-foreground mb-8">
-              Get in Touch
+              {t.getInTouch}
             </h2>
 
             <div className="space-y-8">
@@ -112,7 +115,7 @@ export default function ContactPage() {
                 <Mail className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
-                    Email
+                    {t.email}
                   </h3>
                   <p className="text-swisse-ink/70 dark:text-muted-foreground">admin@swisia.store</p>
                 </div>
@@ -122,11 +125,9 @@ export default function ContactPage() {
                 <MapPin className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
-                    Address
+                    {t.address}
                   </h3>
-                  <p className="text-swisse-ink/70 dark:text-muted-foreground">
-                    Sousse
-                  </p>
+                  <p className="text-swisse-ink/70 dark:text-muted-foreground">{t.addressValue}</p>
                 </div>
               </div>
 
@@ -134,14 +135,14 @@ export default function ContactPage() {
                 <Clock className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
-                    Business Hours
+                    {t.businessHours}
                   </h3>
                   <p className="text-swisse-ink/70 dark:text-muted-foreground">
-                    Monday - Friday: 9:00 AM - 6:00 PM
+                    {t.hoursWeekday}
                     <br />
-                    Saturday: 10:00 AM - 4:00 PM
+                    {t.hoursSaturday}
                     <br />
-                    Sunday: Closed
+                    {t.hoursSunday}
                   </p>
                 </div>
               </div>
@@ -158,7 +159,7 @@ export default function ContactPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="name" className={labelClassName}>
-                    Name
+                    {t.name}
                   </label>
                   <input
                     type="text"
@@ -173,7 +174,7 @@ export default function ContactPage() {
 
                 <div>
                   <label htmlFor="email" className={labelClassName}>
-                    Email
+                    {t.email}
                   </label>
                   <input
                     type="email"
@@ -189,7 +190,7 @@ export default function ContactPage() {
 
               <div>
                 <label htmlFor="subject" className={labelClassName}>
-                  Subject
+                  {t.subject}
                 </label>
                 <input
                   type="text"
@@ -204,7 +205,7 @@ export default function ContactPage() {
 
               <div>
                 <label htmlFor="message" className={labelClassName}>
-                  Message
+                  {t.message}
                 </label>
                 <textarea
                   id="message"
@@ -229,17 +230,17 @@ export default function ContactPage() {
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-swisse-canvas border-t-transparent rounded-full animate-spin dark:border-background" />
-                    Sending...
+                    {t.sending}
                   </>
                 ) : submitStatus === 'success' ? (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    Message Sent
+                    {t.messageSent}
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Send Message
+                    {t.sendMessage}
                   </>
                 )}
               </button>
@@ -247,14 +248,11 @@ export default function ContactPage() {
               {submitStatus === 'success' && submittedEmail && (
                 <div className="p-4 bg-swisse-mist/80 dark:bg-muted/50 border border-swisse-gold/20 dark:border-border">
                   <p className="text-sm font-medium text-swisse-ink dark:text-foreground">
-                    Thank you! Your message was sent successfully.
+                    {t.thankYou}
                   </p>
                   <p className="text-sm text-swisse-ink/70 dark:text-muted-foreground mt-2">
-                    Our team will contact you at{' '}
-                    <span className="font-semibold">{submittedEmail}</span> as soon as possible.
-                    {confirmationEmailSent && (
-                      <> We also sent a confirmation to that email address.</>
-                    )}
+                    {t.willContact(submittedEmail)}
+                    {confirmationEmailSent && t.confirmationSent}
                   </p>
                   <button
                     type="button"
@@ -265,7 +263,7 @@ export default function ContactPage() {
                     }}
                     className="mt-3 text-sm font-medium text-swisse-gold hover:text-swisse-ink dark:text-primary dark:hover:text-foreground transition-colors"
                   >
-                    Send another message
+                    {t.sendAnother}
                   </button>
                 </div>
               )}
@@ -273,7 +271,7 @@ export default function ContactPage() {
               {submitStatus === 'error' && (
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                   <p className="text-sm text-red-800 dark:text-red-200">
-                    {errorMessage || 'Failed to send message. Please try again.'}
+                    {errorMessage || t.failedDefault}
                   </p>
                 </div>
               )}

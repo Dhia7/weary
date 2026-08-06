@@ -133,6 +133,22 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   async rewrites() {
+    // French footer / nav paths → existing English routes
+    const frenchPathRewrites = [
+      { source: '/aide', destination: '/help' },
+      { source: '/retours', destination: '/returns' },
+      { source: '/guide-des-tailles', destination: '/size-guide' },
+      { source: '/confidentialite', destination: '/privacy' },
+      { source: '/conditions', destination: '/terms' },
+      { source: '/politique-cookies', destination: '/cookies' },
+      { source: '/accessibilite', destination: '/accessibility' },
+      { source: '/categorie/cabas', destination: '/category/totes' },
+      { source: '/categorie/sacs-a-main', destination: '/category/handbags' },
+      { source: '/categorie/sacs-bandouliere', destination: '/category/crossbody-bags' },
+      { source: '/categorie/pochettes', destination: '/category/clutches' },
+      { source: '/categorie/sacs-de-voyage', destination: '/category/travel-bags' },
+    ];
+
     // Same-origin map tiles (CSP img-src 'self') — CARTO light basemap
     const mapTileRewrites = [
       {
@@ -155,13 +171,14 @@ const nextConfig: NextConfig = {
     // In production, NEXT_PUBLIC_API_URL must be set (not localhost)
     if (process.env.NODE_ENV === 'production' && (!backendUrl || backendUrl.includes('localhost'))) {
       console.warn('⚠️ NEXT_PUBLIC_API_URL not set in production. API rewrites disabled.');
-      return mapTileRewrites;
+      return [...frenchPathRewrites, ...mapTileRewrites];
     }
     
     console.log('Next.js rewrite config - Backend URL:', backendUrl);
     console.log('Next.js rewrite config - API URL:', apiUrl);
     
     return [
+      ...frenchPathRewrites,
       ...mapTileRewrites,
       // Proxy API through Next to backend
       {

@@ -33,18 +33,18 @@ const Footer = () => {
 
   const translatedFooterLinks = isFrench
     ? {
-        shop: SHOP_CATEGORIES.map((c) => ({ name: c.nameFr, href: c.href })),
+        shop: SHOP_CATEGORIES.map((c) => ({ name: c.nameFr, href: c.hrefFr })),
         support: [
           { name: 'Contact', href: '/contact' },
-          { name: 'Centre d aide', href: '/help' },
-          { name: 'Retours et echanges', href: '/returns' },
-          { name: 'Guide des tailles', href: '/size-guide' },
+          { name: 'Centre d’aide', href: '/aide' },
+          { name: 'Retours et échanges', href: '/retours' },
+          { name: 'Guide des tailles', href: '/guide-des-tailles' },
         ],
         legal: [
-          { name: 'Confidentialite', href: '/privacy' },
-          { name: 'Conditions de service', href: '/terms' },
-          { name: 'Politique cookies', href: '/cookies' },
-          { name: 'Accessibilite', href: '/accessibility' },
+          { name: 'Confidentialité', href: '/confidentialite' },
+          { name: 'Conditions de service', href: '/conditions' },
+          { name: 'Politique cookies', href: '/politique-cookies' },
+          { name: 'Accessibilité', href: '/accessibilite' },
         ],
       }
     : footerLinks;
@@ -134,7 +134,7 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className={footerHeadingClass}>{isFrench ? 'Legal' : 'Legal'}</h3>
+            <h3 className={footerHeadingClass}>{isFrench ? 'Légal' : 'Legal'}</h3>
             <ul className="space-y-3">
               {translatedFooterLinks.legal.map((link) => (
                 <li key={link.name}>
