@@ -32,7 +32,7 @@ const EN = {
     {
       title: 'Free shipping',
       description:
-        'Delivery is free. The price you see is what you pay — TND, with VAT and customs included.',
+        'Delivery is free. The price you see is what you pay — in TND.',
     },
     {
       title: 'Missed delivery? Contact us',
@@ -107,7 +107,7 @@ const FR = {
     {
       title: 'Livraison gratuite',
       description:
-        'La livraison est gratuite. Le prix affiché est le prix payé — en TND, TVA et douane incluses.',
+        'La livraison est gratuite. Le prix affiché est le prix payé — en TND.',
     },
     {
       title: 'Livraison manquée ? Contactez-nous',

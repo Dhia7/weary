@@ -8,8 +8,8 @@ const ITEMS = [
     en: 'Delivery in 5–7 days',
   },
   {
-    fr: 'Prix TND, TVA incluse',
-    en: 'Prices in TND, VAT included',
+    fr: 'Prix en TND',
+    en: 'Prices in TND',
   },
   {
     fr: 'Sans intermédiaires',

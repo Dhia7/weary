@@ -36,13 +36,13 @@ export default function BrandStory() {
             </h2>
             <p className="text-lg text-swisse-ink/70 mb-8 leading-relaxed">
               {isFrench
-                ? "Swisia travaille en direct avec des ateliers suisses certifies, sans intermediaire. Chaque commande est preparee a Geneve, dedouanee par nos soins, puis livree chez vous en Tunisie en moins d'une semaine."
-                : 'Swisia works directly with certified Swiss ateliers, with no middlemen. Every order is prepared in Geneva, customs-cleared by our team, and delivered to your door in Tunisia in under one week.'}
+                ? "Swisia travaille en direct avec des ateliers suisses certifiés, sans intermédiaire. Chaque commande est préparée à Genève, gérée par notre équipe, puis livrée chez vous en Tunisie en moins d'une semaine."
+                : 'Swisia works directly with certified Swiss ateliers, with no middlemen. Every order is prepared in Geneva, managed by our team, and delivered to your door in Tunisia in under one week.'}
             </p>
             <p className="text-lg text-swisse-ink/70 mb-12">
               {isFrench
-                ? 'Nos prix sont affiches en dinar tunisien (TND), avec TVA et frais de douane inclus. Ce que vous voyez est exactement ce que vous payez: une experience premium, claire et sans surprise.'
-                : 'Our prices are displayed in Tunisian dinar (TND), with VAT and customs duties included. What you see is exactly what you pay: a premium, transparent experience with no surprises.'}
+                ? 'Nos prix sont affichés en dinar tunisien (TND). Ce que vous voyez est exactement ce que vous payez : une expérience premium, claire et sans surprise.'
+                : 'Our prices are displayed in Tunisian dinar (TND). What you see is exactly what you pay: a premium, transparent experience with no surprises.'}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               <div>
@@ -52,7 +52,7 @@ export default function BrandStory() {
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
                     ? 'Commandez en ligne : sélectionnez vos pièces, puis payez à la livraison à la réception de votre commande.'
-                    : 'Order online: select your pieces, then pay cash on delivery when your order arrives.'}
+                    : 'Order online: select your pieces, then pay on delivery when your order arrives.'}
                 </p>
               </div>
               <div>
@@ -61,8 +61,8 @@ export default function BrandStory() {
                 </h3>
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
-                    ? 'Expédition depuis Genève Votre colis est préparé et expédié sous 48h ouvrées, douane incluse.'
-                    : 'Shipping from Geneva: your package is prepared and dispatched within 48 business hours, customs included.'}
+                    ? 'Expédition depuis Genève : votre colis est préparé et expédié sous 48h ouvrées.'
+                    : 'Shipping from Geneva: your package is prepared and dispatched within 48 business hours.'}
                 </p>
               </div>
               <div>
@@ -71,7 +71,7 @@ export default function BrandStory() {
                 </h3>
                 <p className="text-xs text-swisse-ink/65 uppercase tracking-widest">
                   {isFrench
-                    ? 'Livraison à domicile en Tunisie Réception en 5 à 7 jours dans toute la Tunisie, emballage signature inclus.'
+                    ? 'Livraison à domicile en Tunisie : réception en 5 à 7 jours dans toute la Tunisie, emballage signature inclus.'
                     : 'Home delivery in Tunisia: receive your order in 5 to 7 days across Tunisia, with signature packaging included.'}
                 </p>
               </div>

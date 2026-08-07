@@ -23,7 +23,7 @@ const EN = {
       topics: [
         'Free shipping across Tunisia',
         'About 5–7 days after confirmation',
-        'Prepared in Geneva, customs included',
+        'Prepared in Geneva by our team',
         'Price you see is what you pay (TND)',
       ],
       href: undefined as string | undefined,
@@ -76,7 +76,7 @@ const FR = {
       topics: [
         'Livraison gratuite partout en Tunisie',
         'Environ 5–7 jours après confirmation',
-        'Préparé à Genève, douane incluse',
+        'Préparé à Genève par notre équipe',
         'Le prix affiché est le prix payé (TND)',
       ],
       href: undefined as string | undefined,

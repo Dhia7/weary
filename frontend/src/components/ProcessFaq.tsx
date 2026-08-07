@@ -47,8 +47,8 @@ const FAQS: FaqItem[] = [
       fr: 'Combien de temps pour la livraison ?',
     },
     answer: {
-      en: 'After confirmation, your piece is prepared in Geneva, customs-cleared by our team, and delivered across Tunisia in about 5 to 7 days.',
-      fr: 'Après confirmation, votre pièce est préparée à Genève, dédouanée par notre équipe, puis livrée partout en Tunisie en environ 5 à 7 jours.',
+      en: 'After confirmation, your piece is prepared in Geneva, managed by our team, and delivered across Tunisia in about 5 to 7 days.',
+      fr: 'Après confirmation, votre pièce est préparée à Genève, gérée par notre équipe, puis livrée partout en Tunisie en environ 5 à 7 jours.',
     },
   },
   {
@@ -57,8 +57,8 @@ const FAQS: FaqItem[] = [
       fr: 'Quel est le coût de la livraison ?',
     },
     answer: {
-      en: 'Shipping is free. The price you see is the price you pay — in Tunisian dinar (TND), with VAT and customs included. No hidden fees at the door.',
-      fr: 'La livraison est gratuite. Le prix affiché est le prix que vous payez — en dinar tunisien (TND), TVA et douane incluses. Aucun frais caché à la porte.',
+      en: 'Shipping is free. The price you see is the price you pay — in Tunisian dinar (TND). No hidden fees at the door.',
+      fr: 'La livraison est gratuite. Le prix affiché est le prix que vous payez — en dinar tunisien (TND). Aucun frais caché à la porte.',
     },
   },
   {
