@@ -71,6 +71,16 @@ const FAQS: FaqItem[] = [
       fr: 'Si vous ratez ou refusez la livraison, contactez immédiatement le support — par e-mail à admin@swisia.store, ou via le numéro qui a confirmé votre commande avec vous — afin que nous puissions réorganiser la livraison.',
     },
   },
+  {
+    question: {
+      en: 'Can I return a piece?',
+      fr: 'Puis-je retourner une pièce ?',
+    },
+    answer: {
+      en: 'Unused items can be returned within 7 days of delivery. Contact support at admin@swisia.store or the number that confirmed your order — there is no self-serve return portal.',
+      fr: 'Les articles non utilisés peuvent être retournés sous 7 jours après livraison. Contactez le support à admin@swisia.store ou au numéro qui a confirmé votre commande — il n’y a pas de portail de retour en libre-service.',
+    },
+  },
 ];
 export default function ProcessFaq() {
   const { isFrench } = useLanguage();

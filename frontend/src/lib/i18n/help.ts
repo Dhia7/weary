@@ -32,7 +32,7 @@ const EN = {
       title: 'Delivery Issues',
       topics: [
         'Missed or refused delivery',
-        'Rearrange with support',
+        '7-day returns for unused items',
         'Email admin@swisia.store',
         'Or the number that confirmed your order',
       ],
@@ -85,7 +85,7 @@ const FR = {
       title: 'Problèmes de livraison',
       topics: [
         'Livraison manquée ou refusée',
-        'Réorganisation avec le support',
+        'Retours sous 7 jours pour les articles non utilisés',
         'E-mail admin@swisia.store',
         'Ou le numéro qui a confirmé votre commande',
       ],

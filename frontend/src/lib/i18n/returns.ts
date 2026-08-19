@@ -1,11 +1,11 @@
 const EN = {
   title: 'Delivery & Returns',
   subtitle:
-    'Swisia pieces are confirmed by our support team and paid on delivery. If something goes wrong at the door, contact us so we can rearrange — there is no self-serve return portal.',
+    'Swisia pieces are confirmed by our support team and paid on delivery. Unused items can be returned within 7 days of delivery through support — there is no self-serve return portal.',
   missRefuseHeading: 'If you miss or refuse delivery',
   important: 'Important',
   importantBody:
-    'Pieces are reserved only after support confirms your order by phone. Shipping is free across Tunisia (about 5–7 days after confirmation). Changes, refusals, and delivery issues are handled case by case — email admin@swisia.store or the number that confirmed your order. We do not publish a public phone line for returns.',
+    'Pieces are reserved only after support confirms your order by phone. Shipping is free across Tunisia (about 5–7 days after confirmation). Unused items can be returned within 7 days of delivery. Changes, refusals, and delivery issues are handled case by case — email admin@swisia.store or the number that confirmed your order. We do not publish a public phone line for returns.',
   needChange: 'Need to change something?',
   needChangeBody:
     'Because each piece is confirmed with you personally, size, collection, or address changes are arranged with support — not through an automated exchange form. Contact us before or after delivery and we will guide you.',
@@ -35,9 +35,9 @@ const EN = {
         'Delivery is free. The price you see is what you pay — in TND.',
     },
     {
-      title: 'Missed delivery? Contact us',
+      title: '7-day returns',
       description:
-        'If you miss or refuse delivery, reach support so we can rearrange — do not leave it unresolved.',
+        'Unused items can be returned within 7 days of delivery — contact support to arrange it.',
     },
   ],
   steps: [
@@ -66,6 +66,7 @@ const EN = {
       details: [
         'A new delivery window when possible',
         'Order update by phone or email',
+        'Unused items: 7 days from delivery, arranged with support',
         'No prepaid return labels — everything goes through support',
       ],
     },
@@ -75,11 +76,11 @@ const EN = {
 const FR = {
   title: 'Livraison & retours',
   subtitle:
-    'Les pièces Swisia sont confirmées par notre équipe support et payées à la livraison. Si quelque chose se passe mal à la porte, contactez-nous pour réorganiser — il n’y a pas de portail de retour en libre-service.',
+    'Les pièces Swisia sont confirmées par notre équipe support et payées à la livraison. Les articles non utilisés peuvent être retournés sous 7 jours après livraison, via le support — il n’y a pas de portail de retour en libre-service.',
   missRefuseHeading: 'Si vous ratez ou refusez la livraison',
   important: 'Important',
   importantBody:
-    'Les pièces ne sont réservées qu’après confirmation téléphonique par le support. La livraison est gratuite partout en Tunisie (environ 5–7 jours après confirmation). Modifications, refus et problèmes de livraison sont traités au cas par cas — écrivez à admin@swisia.store ou au numéro qui a confirmé votre commande. Nous ne publions pas de ligne téléphonique publique pour les retours.',
+    'Les pièces ne sont réservées qu’après confirmation téléphonique par le support. La livraison est gratuite partout en Tunisie (environ 5–7 jours après confirmation). Les articles non utilisés peuvent être retournés sous 7 jours après livraison. Modifications, refus et problèmes de livraison sont traités au cas par cas — écrivez à admin@swisia.store ou au numéro qui a confirmé votre commande. Nous ne publions pas de ligne téléphonique publique pour les retours.',
   needChange: 'Besoin de modifier quelque chose ?',
   needChangeBody:
     'Chaque pièce étant confirmée avec vous personnellement, les changements de taille, de collection ou d’adresse se font avec le support — pas via un formulaire d’échange automatisé. Contactez-nous avant ou après la livraison et nous vous guiderons.',
@@ -110,9 +111,9 @@ const FR = {
         'La livraison est gratuite. Le prix affiché est le prix payé — en TND.',
     },
     {
-      title: 'Livraison manquée ? Contactez-nous',
+      title: 'Retours sous 7 jours',
       description:
-        'Si vous ratez ou refusez la livraison, contactez le support pour réorganiser — ne laissez pas la situation en suspens.',
+        'Les articles non utilisés peuvent être retournés sous 7 jours après livraison — contactez le support pour l’organiser.',
     },
   ],
   steps: [
@@ -141,6 +142,7 @@ const FR = {
       details: [
         'Un nouveau créneau de livraison lorsque c’est possible',
         'Mise à jour de la commande par téléphone ou e-mail',
+        'Articles non utilisés : 7 jours à compter de la livraison, via le support',
         'Pas d’étiquettes de retour prépayées — tout passe par le support',
       ],
     },

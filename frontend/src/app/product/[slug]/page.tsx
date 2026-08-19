@@ -680,13 +680,13 @@ export default function ProductDetailPage() {
 
             <div className="border-t border-swisse-gold/15 dark:border-border pt-6 space-y-3">
               <div className={`text-sm ${bodyTextClass}`}>
-                <strong className="text-swisse-ink dark:text-foreground">{t.freeShipping}</strong> {t.freeShippingDetail}
+                <strong className="text-swisse-ink dark:text-foreground">{t.payOnDelivery}</strong> {t.payOnDeliveryDetail}
               </div>
               <div className={`text-sm ${bodyTextClass}`}>
                 <strong className="text-swisse-ink dark:text-foreground">{t.returns}</strong> {t.returnsDetail}
               </div>
               <div className={`text-sm ${bodyTextClass}`}>
-                <strong className="text-swisse-ink dark:text-foreground">{t.secureCheckout}</strong> {t.secureCheckoutDetail}
+                <strong className="text-swisse-ink dark:text-foreground">{t.supportConfirms}</strong> {t.supportConfirmsDetail}
               </div>
             </div>
           </div>
