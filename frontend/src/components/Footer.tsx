@@ -78,7 +78,9 @@ const Footer = () => {
 
             <div className="flex gap-5">
               <a
-                href="#"
+                href="https://www.instagram.com/swisia.store/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-swisse-gold hover:text-swisse-ink dark:hover:text-primary transition-colors"
                 aria-label="Instagram"
               >
