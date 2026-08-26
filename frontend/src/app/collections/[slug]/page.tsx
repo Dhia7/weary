@@ -13,6 +13,7 @@ import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import { productHasSizes } from '@/lib/types/product';
+import StorePriceCaption from '@/components/product/StorePriceCaption';
 
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -205,15 +206,14 @@ export default function CollectionDetailPage() {
                   </Link>
 
                   {/* Price */}
-                  <div className="flex items-center space-x-2 mb-2">
+                  <div className="mb-2">
+                    <StorePriceCaption
+                      compareAtPrice={product.compareAtPrice}
+                      sellPrice={product.price}
+                    />
                     <span className="text-lg font-semibold text-gray-900 dark:text-white">
                       {formatPrice(product.price)}
                     </span>
-                    {product.compareAtPrice && product.compareAtPrice > product.price && (
-                      <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                        {formatPrice(product.compareAtPrice)}
-                      </span>
-                    )}
                   </div>
 
                   {/* Stock Status */}

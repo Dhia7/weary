@@ -20,9 +20,9 @@ import {
   getProductMaxStock,
   isProductSoldOut,
   resolveProductColor,
-  shouldShowCompareAtPrice,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
+import StorePriceCaption from '@/components/product/StorePriceCaption';
 import {
   getPrimaryDisplayImage,
   getProductDisplayImages,
@@ -318,16 +318,14 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
               {/* Price */}
               <div className="space-y-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {formatPriceTnd(displayPrice)}
-                  </span>
-                  {shouldShowCompareAtPrice(effectiveCompareAt, displayPrice) && (
-                    <span className="text-lg text-red-600 dark:text-red-400 line-through">
-                      {formatPriceTnd(effectiveCompareAt!)}
-                    </span>
-                  )}
-                </div>
+                <StorePriceCaption
+                  compareAtPrice={effectiveCompareAt}
+                  sellPrice={displayPrice}
+                  className="gap-x-2 text-sm"
+                />
+                <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {formatPriceTnd(displayPrice)}
+                </span>
               </div>
 
               {product.hasVariants && product.colorOptions && product.colorOptions.length > 0 && (

@@ -23,13 +23,13 @@ import {
   isProductSoldOut,
   productHasSizes,
   resolveProductColor,
-  shouldShowCompareAtPrice,
   toPriceNumber,
 } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
 import { getHoverDisplayImage, getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
+import StorePriceCaption from '@/components/product/StorePriceCaption';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
 
@@ -154,10 +154,6 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     }
     return toPriceNumber(product.compareAtPrice);
   }, [product, selectedColor]);
-  const showCompareAt = useMemo(
-    () => shouldShowCompareAtPrice(compareAtPrice, displayPrice),
-    [compareAtPrice, displayPrice]
-  );
 
   const getCategoryEmoji = (categories?: Array<{ name: string }>) => {
     if (!categories || categories.length === 0) return '👕';
@@ -278,14 +274,14 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               )}
             </div>
             <div className="shrink-0 text-right">
+              <StorePriceCaption
+                compareAtPrice={compareAtPrice}
+                sellPrice={displayPrice}
+                align="right"
+              />
               <span className="text-sm font-medium text-swisse-ink dark:text-foreground">
                 {priceLabel}
               </span>
-              {showCompareAt && compareAtPrice != null && (
-                <p className="text-xs text-swisse-ink/50 line-through dark:text-muted-foreground">
-                  {`${compareAtPrice.toFixed(2)} TND`}
-                </p>
-              )}
             </div>
           </div>
         </Link>
@@ -415,15 +411,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             {isFrench ? 'Ref' : 'SKU'}: {product.SKU}
           </p>
 
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-lg font-semibold text-foreground">{priceLabel}</span>
-              {showCompareAt && compareAtPrice != null && (
-                <span className="text-sm text-muted-foreground line-through">
-                  {`${compareAtPrice.toFixed(2)} TND`}
-                </span>
-              )}
-            </div>
+          <div className="mb-2">
+            <StorePriceCaption
+              compareAtPrice={compareAtPrice}
+              sellPrice={displayPrice}
+            />
+            <span className="text-lg font-semibold text-foreground">{priceLabel}</span>
           </div>
 
           {product.description && (

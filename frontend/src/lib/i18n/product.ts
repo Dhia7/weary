@@ -21,6 +21,7 @@ const EN = {
   showingImagesFor: (color: string) => `Showing images for ${color}`,
   priceVariesBySize: 'Price may vary by size — select a size for the exact amount.',
   priceVariesByColor: 'Price varies by color — select a color to see your price.',
+  storePrice: 'store price:',
   description: 'Description',
   descriptionFr: 'Description du produit',
   dimensions: 'Adjustment & Measurement',
@@ -71,6 +72,7 @@ const FR = {
     'Le prix peut varier selon la taille — choisissez une taille pour le montant exact.',
   priceVariesByColor:
     'Le prix varie selon la couleur — choisissez une couleur pour voir votre prix.',
+  storePrice: 'prix magasin:',
   description: 'Description',
   descriptionFr: 'Description du produit',
   dimensions: 'Ajustement & mesures',

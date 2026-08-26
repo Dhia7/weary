@@ -20,9 +20,9 @@ import {
   getProductMaxStock,
   isProductSoldOut,
   resolveProductColor,
-  shouldShowCompareAtPrice,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
+import StorePriceCaption from '@/components/product/StorePriceCaption';
 import ColorSwatches from '@/components/ColorSwatches';
 import ProductImageGallery from '@/components/product/ProductImageGallery';
 import {
@@ -398,15 +398,15 @@ export default function ProductDetailPage() {
             </p>
 
             <div className="space-y-1">
+              <StorePriceCaption
+                compareAtPrice={effectiveCompareAt}
+                sellPrice={displayPrice}
+                className="gap-x-2 text-sm"
+              />
               <div className="flex flex-wrap items-center gap-4">
                 <span className="font-serif text-3xl text-swisse-ink dark:text-foreground">
                   {formatPrice(displayPrice)}
                 </span>
-                {shouldShowCompareAtPrice(effectiveCompareAt, displayPrice) && (
-                  <span className="text-xl text-swisse-ink/40 dark:text-muted-foreground line-through">
-                    {formatPrice(effectiveCompareAt!)}
-                  </span>
-                )}
               </div>
               {product.priceRange?.hasVariablePricing && !selectedVariant && (
                 <p className={`text-sm ${bodyTextClass}`}>
