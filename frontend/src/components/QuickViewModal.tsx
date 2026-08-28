@@ -19,6 +19,8 @@ import {
   getProductHref,
   getProductMaxStock,
   isProductSoldOut,
+  isColorSold,
+  getDisplayBadge,
   resolveProductColor,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
@@ -91,8 +93,9 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
   const isOutOfStock = useMemo(() => {
     if (!product) return false;
+    if (selectedColor && isColorSold(product, selectedColor)) return true;
     return isProductSoldOut(product, selectedVariant);
-  }, [product, selectedVariant]);
+  }, [product, selectedVariant, selectedColor]);
 
   const maxPurchasableQty = useMemo(() => {
     if (!product) return 0;
@@ -244,7 +247,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
         <div className="flex flex-col md:flex-row h-full max-h-[90vh] overflow-hidden">
           {/* Image Section */}
           <div className="relative w-full md:w-1/2 bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-            {product.displayBadge === 'sold' && (
+            {getDisplayBadge(product, selectedColor) === 'sold' && (
               <span className="absolute top-4 left-4 z-10 bg-gray-900/90 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
                 {isFrench ? 'Vendu' : 'Sold'}
               </span>
@@ -342,6 +345,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                       if (product.availableSizes?.length) setSelectedSize('');
                     }}
                     size="md"
+                    maxVisible={product.colorOptions.length}
                   />
                   {colorError && (
                     <p className="text-sm text-red-600 dark:text-red-400">{colorError}</p>

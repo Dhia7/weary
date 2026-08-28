@@ -21,6 +21,16 @@ interface WishlistItem {
     mainThumbnailIndex?: number;
     isActive: boolean;
     quantity: number;
+    size?: string | null;
+    displayBadge?: 'new_arrival' | 'sold' | null;
+    hasVariants?: boolean;
+    variants?: Array<{
+      color: string;
+      quantity: number;
+      stockInfo?: { isInStock: boolean; quantity?: number; status: string };
+    }>;
+    colorOptions?: Array<{ name: string; isInStock?: boolean }>;
+    stockInfo?: { isInStock: boolean; quantity?: number; status: string };
   };
 }
 

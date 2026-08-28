@@ -5,7 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl } from '@/lib/utils';
-import type { ColorOption, ProductDisplayBadge } from '@/lib/types/product';
+import type { ColorOption, Product as CatalogProduct, ProductDisplayBadge } from '@/lib/types/product';
+import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
+import { orderColorsSelectedFirst } from '@/lib/types/product';
+import ColorSwatches from '@/components/ColorSwatches';
 
 interface Product {
   id: number;
@@ -18,7 +21,15 @@ interface Product {
   defaultDisplayColor?: string | null;
   hasVariants?: boolean;
   colorOptions?: ColorOption[];
+  variants?: Array<{
+    color: string;
+    quantity: number;
+    imageUrl?: string | null;
+    images?: string[];
+  }>;
   imageUrl?: string;
+  images?: string[];
+  mainThumbnailIndex?: number;
   price: number;
   compareAtPrice?: number;
   quantity: number;
@@ -31,6 +42,54 @@ interface Product {
   };
   categories?: Array<{ id: number; name: string; slug: string; }>;
 }
+
+const featuredColorName = (product: Product): string =>
+  product.defaultDisplayColor?.trim() ||
+  product.colorOptions?.[0]?.name ||
+  '';
+
+const adminProductThumb = (product: Product): string | null => {
+  const color = featuredColorName(product);
+  const catalog = {
+    ...product,
+    hasVariants:
+      product.hasVariants ||
+      Boolean(product.variants?.length || product.colorOptions?.length),
+  } as CatalogProduct;
+  const fromDisplay = getPrimaryDisplayImage(catalog, {
+    selectedColor: color || undefined,
+  });
+  if (fromDisplay) return getImageUrl(fromDisplay) || fromDisplay;
+  const option = product.colorOptions?.find(
+    (c) => c.name.trim().toLowerCase() === color.trim().toLowerCase()
+  );
+  if (option?.imageUrl) return getImageUrl(option.imageUrl) || option.imageUrl;
+  return product.imageUrl ? getImageUrl(product.imageUrl) || product.imageUrl : null;
+};
+
+const isFeaturedColorSold = (product: Product, colorName: string): boolean => {
+  if (!colorName) return false;
+  const normalized = colorName.trim().toLowerCase();
+  const option = product.colorOptions?.find(
+    (c) => c.name.trim().toLowerCase() === normalized
+  );
+  if (option && option.isInStock === false) return true;
+  const matches = (product.variants || []).filter(
+    (v) => v.color.trim().toLowerCase() === normalized
+  );
+  if (matches.length) return matches.every((v) => (Number(v.quantity) || 0) <= 0);
+  return false;
+};
+
+/** Badge shown for the featured color: Sold if that color is gone, else product New Arrival / None. */
+const adminListBadge = (product: Product): ProductDisplayBadge => {
+  if (product.hasVariants && (product.colorOptions?.length ?? 0) > 0) {
+    const color = featuredColorName(product);
+    if (color && isFeaturedColorSold(product, color)) return 'sold';
+    return product.displayBadge === 'sold' ? null : (product.displayBadge ?? null);
+  }
+  return product.displayBadge ?? null;
+};
 
 const BADGE_OPTIONS: Array<{ value: ProductDisplayBadge; label: string }> = [
   { value: null, label: 'None' },
@@ -58,7 +117,7 @@ export default function AdminProductsPage() {
     try {
       setLoading(true);
       const cacheBuster = `&t=${Date.now()}`;
-      const res = await fetcher(`/products?limit=50${cacheBuster}`);
+      const res = await fetcher(`/products?limit=50&sort=createdAt&order=DESC${cacheBuster}`);
       const json = await res.json();
       if (res.ok) {
         setProducts(json.data.products);
@@ -83,20 +142,33 @@ export default function AdminProductsPage() {
     fetchProducts();
   }, [fetcher]); // Include fetcher in dependency array
 
-  const handleBadgeChange = async (productId: number, displayBadge: ProductDisplayBadge) => {
+  const handleBadgeChange = async (
+    productId: number,
+    displayBadge: ProductDisplayBadge,
+    color?: string | null
+  ) => {
     try {
       setUpdatingBadgeId(productId);
       const res = await fetcher(`/products/${productId}/display-badge`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayBadge }),
+        body: JSON.stringify({ displayBadge, color: color || undefined }),
       });
       const json = await res.json();
       if (res.ok) {
+        const updated = json.data.product as Product;
         setProducts((prev) =>
           prev.map((p) =>
             p.id === productId
-              ? { ...p, displayBadge: json.data.product.displayBadge ?? null }
+              ? {
+                  ...p,
+                  displayBadge: updated.displayBadge ?? null,
+                  quantity: updated.quantity ?? p.quantity,
+                  stockInfo: updated.stockInfo ?? p.stockInfo,
+                  colorOptions: updated.colorOptions ?? p.colorOptions,
+                  variants: updated.variants ?? p.variants,
+                  hasVariants: updated.hasVariants ?? p.hasVariants,
+                }
               : p
           )
         );
@@ -154,8 +226,14 @@ export default function AdminProductsPage() {
     productId: number,
     defaultDisplayColor: string | null
   ) => {
+    const previous = products.find((p) => p.id === productId)?.defaultDisplayColor ?? null;
     try {
       setUpdatingColorId(productId);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, defaultDisplayColor } : p
+        )
+      );
       const res = await fetcher(`/products/${productId}/default-display-color`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -174,9 +252,19 @@ export default function AdminProductsPage() {
           )
         );
       } else {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, defaultDisplayColor: previous } : p
+          )
+        );
         console.error('Failed to update featured color:', json.message);
       }
     } catch (error) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, defaultDisplayColor: previous } : p
+        )
+      );
       console.error('Error updating featured color:', error);
     } finally {
       setUpdatingColorId(null);
@@ -256,7 +344,10 @@ export default function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {products.map((product) => (
+                  {products.map((product) => {
+                    const thumbUrl = adminProductThumb(product);
+                    const selectedColor = featuredColorName(product);
+                    return (
                     <tr 
                       key={product.id} 
                       className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200 hover:shadow-sm"
@@ -265,9 +356,9 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-12 w-12 relative">
-                            {product.imageUrl ? (
+                            {thumbUrl ? (
                               <Image 
-                                src={getImageUrl(product.imageUrl) || ''} 
+                                src={thumbUrl} 
                                 alt={product.name}
                                 fill
                                 unoptimized
@@ -287,6 +378,21 @@ export default function AdminProductsPage() {
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {product.slug}
                             </div>
+                            {product.colorOptions && product.colorOptions.length > 1 ? (
+                              <div
+                                className="mt-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ColorSwatches
+                                  colors={product.colorOptions}
+                                  selectedColor={selectedColor}
+                                  onSelect={(color) => {
+                                    handleDefaultDisplayColorChange(product.id, color);
+                                  }}
+                                  maxVisible={4}
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -309,9 +415,18 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {(() => {
-                          const quantity = Number(
-                            product.stockInfo?.quantity ?? product.quantity ?? 0
-                          );
+                          const featured = featuredColorName(product);
+                          const colorQty =
+                            product.hasVariants && featured && product.variants?.length
+                              ? product.variants
+                                  .filter(
+                                    (v) =>
+                                      v.color.trim().toLowerCase() ===
+                                      featured.trim().toLowerCase()
+                                  )
+                                  .reduce((sum, v) => sum + (Number(v.quantity) || 0), 0)
+                              : Number(product.stockInfo?.quantity ?? product.quantity ?? 0);
+                          const quantity = Number(colorQty);
                           const isOutOfStock = quantity <= 0;
                           const isLowStock = quantity > 0 && quantity <= 10;
 
@@ -373,9 +488,13 @@ export default function AdminProductsPage() {
                             }}
                             className="block w-full min-w-[8.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                           >
-                            {product.colorOptions.map((option) => (
+                            {orderColorsSelectedFirst(
+                              product.colorOptions,
+                              product.defaultDisplayColor ?? product.colorOptions[0]?.name
+                            ).map((option) => (
                               <option key={option.name} value={option.name}>
                                 {option.name}
+                                {isFeaturedColorSold(product, option.name) ? ' (Sold)' : ''}
                               </option>
                             ))}
                           </select>
@@ -410,13 +529,19 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <select
                           aria-label={`Badge for ${product.name}`}
-                          value={product.displayBadge ?? ''}
+                          title={
+                            product.hasVariants && (product.colorOptions?.length ?? 0) > 1
+                              ? 'Sold applies to the featured color only. Switch color to see the other.'
+                              : undefined
+                          }
+                          value={adminListBadge(product) ?? ''}
                           disabled={updatingBadgeId === product.id}
                           onChange={(e) => {
                             const value = e.target.value;
                             handleBadgeChange(
                               product.id,
-                              value === '' ? null : (value as 'new_arrival' | 'sold')
+                              value === '' ? null : (value as 'new_arrival' | 'sold'),
+                              featuredColorName(product) || null
                             );
                           }}
                           className="block w-full min-w-[8.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
@@ -427,6 +552,11 @@ export default function AdminProductsPage() {
                             </option>
                           ))}
                         </select>
+                        {product.hasVariants && (product.colorOptions?.length ?? 0) > 1 ? (
+                          <p className="mt-1 max-w-[10rem] text-[10px] leading-tight text-gray-500 dark:text-gray-400">
+                            Sold is for {featuredColorName(product) || 'this color'} only
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -438,7 +568,8 @@ export default function AdminProductsPage() {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

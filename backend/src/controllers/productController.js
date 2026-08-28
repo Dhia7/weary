@@ -14,7 +14,8 @@ const {
 	computeProductStockFromVariants,
 	getActiveVariants
 } = require('../utils/variantHelpers');
-const { isSoldBadge, isMadeToOrderProduct } = require('../utils/productAvailability');
+const { isProductLevelSold, isMadeToOrderProduct } = require('../utils/productAvailability');
+const { getReservedQtyMap, sumReservedForProduct, availableQty } = require('../utils/stockHelpers');
 
 // Ensure associations are loaded
 require('../models/associations');
@@ -63,7 +64,7 @@ const normalizeProductPrices = (productData) => {
 	return productData;
 };
 
-const formatProductForUser = (product, isAdmin = false) => {
+const formatProductForUser = (product, isAdmin = false, reserved = null) => {
 	const productData = normalizeProductPrices(product.toJSON ? product.toJSON() : product);
 	
 	// Ensure imageUrl is set from images array if missing
@@ -103,13 +104,17 @@ const formatProductForUser = (product, isAdmin = false) => {
 	let overallIsInStock = productData.quantity > 0;
 	let overallIsLowStock = productData.quantity > 0 && productData.quantity <= 10;
 
-	if (isSoldBadge(productData)) {
+	if (isProductLevelSold(productData)) {
 		overallIsInStock = false;
 		overallIsLowStock = false;
 	} else if (madeToOrder) {
 		overallIsInStock = true;
 		overallIsLowStock = productData.quantity > 0 && productData.quantity <= 10;
 		overallQuantity = productData.quantity;
+	} else if (!hasVariants && !isAdmin && reserved) {
+		overallQuantity = availableQty(productData.quantity, sumReservedForProduct(reserved, productData.id));
+		overallIsInStock = overallQuantity > 0;
+		overallIsLowStock = overallQuantity > 0 && overallQuantity <= 10;
 	}
 
 	let formatted;
@@ -148,7 +153,7 @@ const formatProductForUser = (product, isAdmin = false) => {
 	}
 
 	if (hasVariants) {
-		const withVariants = attachVariantSummary(formatted, variants, isAdmin);
+		const withVariants = attachVariantSummary(formatted, variants, isAdmin, isAdmin ? null : reserved);
 		if (!isAdmin) {
 			delete withVariants.costPrice;
 			if (Array.isArray(withVariants.variants)) {
@@ -158,31 +163,22 @@ const formatProductForUser = (product, isAdmin = false) => {
 				});
 			}
 		}
-		if (isSoldBadge(productData)) {
-			withVariants.stockInfo = {
-				...(withVariants.stockInfo || {}),
-				isInStock: false,
-				isLowStock: false,
-				status: 'Out of Stock',
-				...(isAdmin ? { quantity: overallQuantity } : {})
-			};
-			if (Array.isArray(withVariants.variants)) {
-				withVariants.variants = withVariants.variants.map((v) => ({
-					...v,
-					stockInfo: {
-						...(v.stockInfo || {}),
-						isInStock: false,
-						isLowStock: false,
-						status: 'Out of Stock',
-						...(isAdmin ? { quantity: v.quantity } : {})
-					}
-				}));
-			}
-		}
 		return withVariants;
 	}
 
 	return formatted;
+};
+
+const formatProductsForUser = async (products, isAdmin = false) => {
+	const list = Array.isArray(products) ? products : [];
+	const reserved = isAdmin ? null : await getReservedQtyMap(list.map((p) => p.id));
+	return list.map((p) => formatProductForUser(p, isAdmin, reserved));
+};
+
+const formatSingleProductForUser = async (product, isAdmin = false) => {
+	if (!product) return product;
+	const reserved = isAdmin ? null : await getReservedQtyMap([product.id]);
+	return formatProductForUser(product, isAdmin, reserved);
 };
 
 const validateVariantSkus = async (variantsPayload, excludeProductId = null) => {
@@ -234,6 +230,40 @@ const parseDisplayBadge = (value) => {
 	if (value === null || value === '' || value === 'none') return null;
 	if (value === 'new_arrival' || value === 'sold') return value;
 	return null;
+};
+
+const colorMatches = (variantColor, colorName) =>
+	String(variantColor || '').trim().toLowerCase() === String(colorName || '').trim().toLowerCase();
+
+/** Mark every active SKU of a color sold (qty 0) or restock qty-0 SKUs to 1. */
+const setColorSoldState = async (productId, colorName, sold, transaction) => {
+	const variants = await ProductVariant.findAll({
+		where: { productId, isActive: true },
+		transaction
+	});
+	const matches = variants.filter((v) => colorMatches(v.color, colorName));
+	if (!matches.length) {
+		const err = new Error('COLOR_NOT_FOUND');
+		err.code = 'COLOR_NOT_FOUND';
+		throw err;
+	}
+	for (const variant of matches) {
+		if (sold) {
+			if (Number(variant.quantity) !== 0) {
+				await variant.update({ quantity: 0 }, { transaction });
+			}
+		} else if (Number(variant.quantity) <= 0) {
+			await variant.update({ quantity: 1 }, { transaction });
+		}
+	}
+	const remaining = await ProductVariant.findAll({
+		where: { productId, isActive: true },
+		transaction
+	});
+	await Product.update(
+		{ quantity: computeProductStockFromVariants(remaining) },
+		{ where: { id: productId }, transaction }
+	);
 };
 
 /** Homepage collage slot 1–4, or null to hide. */
@@ -549,7 +579,7 @@ const createProduct = async (req, res) => {
 		}
 		
 		// Format products based on user role
-		const formattedProducts = rows.map(product => formatProductForUser(product, isAdmin));
+		const formattedProducts = await formatProductsForUser(rows, isAdmin);
 
 		const totalPages = Math.ceil(count / limit);
 		console.log('✅ Products found:', count, 'Formatted:', formattedProducts.length);
@@ -603,7 +633,7 @@ const getProduct = async (req, res) => {
 		}
 		
 		// Format product based on user role (pass productData instead of product instance)
-		const formattedProduct = formatProductForUser(productData, isAdmin);
+		const formattedProduct = await formatSingleProductForUser(productData, isAdmin);
 		
 		res.json({ success: true, data: { product: formattedProduct } });
 	} catch (error) {
@@ -872,7 +902,7 @@ const updateProduct = async (req, res) => {
 			}
 		}
 
-		const formattedProduct = formatProductForUser(updated, isAdmin);
+		const formattedProduct = await formatSingleProductForUser(updated, isAdmin);
 		res.json({ success: true, message: 'Product updated', data: { product: formattedProduct } });
 	} catch (error) {
 		console.error('Update product error:', error);
@@ -954,13 +984,16 @@ const searchAutocomplete = async (req, res) => {
 							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 						]
 					},
-					include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+					include: [
+						{ model: Category, as: 'categories', through: { attributes: [] } },
+						variantInclude
+					],
 					attributes: { exclude: ['sizeStock'] },
 					limit,
 					order: [['name', 'ASC']]
 				});
 
-				results.products = products.map(p => formatProductForUser(p, false));
+				results.products = await formatProductsForUser(products, false);
 			} catch (error) {
 				// Fallback to ILIKE if full-text search fails
 				const products = await Product.findAll({
@@ -971,12 +1004,15 @@ const searchAutocomplete = async (req, res) => {
 							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 						]
 					},
-					include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+					include: [
+						{ model: Category, as: 'categories', through: { attributes: [] } },
+						variantInclude
+					],
 					attributes: { exclude: ['sizeStock'] },
 					limit,
 					order: [['name', 'ASC']]
 				});
-				results.products = products.map(p => formatProductForUser(p, false));
+				results.products = await formatProductsForUser(products, false);
 			}
 
 			// Search categories
@@ -998,12 +1034,15 @@ const searchAutocomplete = async (req, res) => {
 		// Always include popular products (most recently created active products)
 		const popularProducts = await Product.findAll({
 			where: { isActive: true },
-			include: [{ model: Category, as: 'categories', through: { attributes: [] } }],
+			include: [
+				{ model: Category, as: 'categories', through: { attributes: [] } },
+				variantInclude
+			],
 			attributes: { exclude: ['sizeStock'] },
 			limit: 5,
 			order: [['createdAt', 'DESC']]
 		});
-		results.popularProducts = popularProducts.map(p => formatProductForUser(p, false));
+		results.popularProducts = await formatProductsForUser(popularProducts, false);
 
 		res.json({ success: true, data: results });
 	} catch (error) {
@@ -1012,23 +1051,73 @@ const searchAutocomplete = async (req, res) => {
 	}
 };
 
-// Update product display badge (admin, quick toggle from list)
+// Update product display badge (admin, quick toggle from list).
+// For multi-color products, Sold applies to `color` only (featured color).
 const updateProductDisplayBadge = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { displayBadge } = req.body;
+		const nextBadge = parseDisplayBadge(req.body.displayBadge);
+		const requestedColor =
+			req.body.color != null && String(req.body.color).trim()
+				? String(req.body.color).trim()
+				: null;
 
 		const product = await Product.findByPk(id, {
+			include: [variantInclude],
 			attributes: { exclude: ['sizeStock'] }
 		});
 		if (!product) {
 			return res.status(404).json({ success: false, message: 'Product not found' });
 		}
 
-		product.displayBadge = parseDisplayBadge(displayBadge);
-		await product.save();
+		const activeVariants = getActiveVariants(product.variants || []);
+		const t = await sequelize.transaction();
+		try {
+			if (activeVariants.length > 0) {
+				const colorName =
+					requestedColor ||
+					product.defaultDisplayColor ||
+					activeVariants[0]?.color;
+				if (!colorName) {
+					await t.rollback();
+					return res.status(400).json({
+						success: false,
+						message: 'Select a color to mark sold'
+					});
+				}
 
-		const formattedProduct = formatProductForUser(product, true);
+				if (nextBadge === 'sold') {
+					await setColorSoldState(product.id, colorName, true, t);
+				} else {
+					await setColorSoldState(product.id, colorName, false, t);
+					product.displayBadge = nextBadge ?? null;
+					await product.save({ transaction: t, fields: ['displayBadge'] });
+				}
+			} else {
+				product.displayBadge = nextBadge ?? null;
+				await product.save({ transaction: t, fields: ['displayBadge'] });
+			}
+
+			await t.commit();
+		} catch (inner) {
+			await t.rollback();
+			if (inner.code === 'COLOR_NOT_FOUND') {
+				return res.status(400).json({
+					success: false,
+					message: 'Color not found on this product'
+				});
+			}
+			throw inner;
+		}
+
+		const refreshed = await Product.findByPk(id, {
+			include: [
+				{ model: Category, as: 'categories', through: { attributes: [] } },
+				variantInclude
+			],
+			attributes: { exclude: ['sizeStock'] }
+		});
+		const formattedProduct = formatProductForUser(refreshed, true);
 		res.json({ success: true, data: { product: formattedProduct } });
 	} catch (error) {
 		console.error('Update product display badge error:', error);
@@ -1126,7 +1215,10 @@ module.exports = {
 	updateProductHomepageCollageOrder,
 	deleteProduct,
 	setProductCategories,
-	searchAutocomplete
+	searchAutocomplete,
+	formatProductForUser,
+	formatProductsForUser,
+	formatSingleProductForUser
 };
 
 

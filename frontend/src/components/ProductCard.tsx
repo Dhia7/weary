@@ -10,16 +10,18 @@ import { getImageUrl } from '@/lib/utils';
 import WishlistButton from './WishlistButton';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-import type { Product, ProductDisplayBadge } from '@/lib/types/product';
+import type { Product } from '@/lib/types/product';
 import {
   findVariant,
   formatProductPriceLabel,
   getColorCompareAtPrice,
   getColorPrice,
+  getDisplayBadge,
   getListingPrice,
   getProductHref,
   getProductMaxStock,
   getVariantPrice,
+  isColorSold,
   isProductSoldOut,
   productHasSizes,
   resolveProductColor,
@@ -40,10 +42,6 @@ interface ProductCardProps {
   variant?: ProductCardVariant;
 }
 
-function getDisplayBadge(product: Product): ProductDisplayBadge {
-  return product.displayBadge ?? null;
-}
-
 const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -51,7 +49,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
 
   useEffect(() => {
     setSelectedColor(resolveProductColor(product));
-  }, [product.id, product.colorOptions, product.defaultDisplayColor]);
+  }, [product.id, product.colorOptions, product.defaultDisplayColor, product.variants]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product.hasVariants || !selectedColor) return undefined;
+    return findVariant(product.variants, selectedColor);
+  }, [product, selectedColor]);
 
   const productHref = getProductHref(product.slug, selectedColor || undefined);
   const colorOpts = { selectedColor: selectedColor || undefined };
@@ -82,11 +85,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
       return;
     }
 
+    if (isProductSoldOut(product, selectedVariant) || isColorSold(product, selectedColor)) return;
+
     try {
-      const selectedVariant =
-        product.hasVariants && selectedColor
-          ? findVariant(product.variants, selectedColor)
-          : undefined;
       const cartPrice = selectedVariant
         ? getVariantPrice(selectedVariant, product)
         : selectedColor && product.hasVariants
@@ -187,11 +188,14 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     return categoryMap[rawName.toLowerCase()] ?? rawName;
   };
 
-  const soldOut = isProductSoldOut(product);
+  const soldOut =
+    Boolean(selectedColor && isColorSold(product, selectedColor)) ||
+    isProductSoldOut(product, selectedVariant);
   const inStock = !soldOut;
+  const productSoldOut = isProductSoldOut(product);
+  const badge = getDisplayBadge(product, selectedColor);
 
   if (variant === 'editorial') {
-    const badge = getDisplayBadge(product);
 
     return (
       <div className="group">
@@ -338,12 +342,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             </div>
           )}
 
-          {getDisplayBadge(product) === 'sold' && (
+          {badge === 'sold' && (
             <span className="absolute top-3 left-3 z-[6] bg-gray-900/90 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
               {isFrench ? 'Vendu' : 'Sold'}
             </span>
           )}
-          {getDisplayBadge(product) === 'new_arrival' && (
+          {badge === 'new_arrival' && (
             <span className="absolute top-3 left-3 z-[6] bg-indigo-600 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
               {isFrench ? 'Nouveaute' : 'New Arrival'}
             </span>
@@ -362,7 +366,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               <button
                 type="button"
                 onClick={handleQuickView}
-                disabled={soldOut}
+                disabled={productSoldOut}
                 className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-muted-foreground hover:bg-muted transition-colors border-r border-border disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <EyeIcon className="w-4 h-4 mr-2" />
@@ -446,8 +450,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     prevProps.product.priceRange?.max === nextProps.product.priceRange?.max &&
     prevProps.product.quantity === nextProps.product.quantity &&
     prevProps.product.compareAtPrice === nextProps.product.compareAtPrice &&
-    prevProps.product.stockInfo?.status === nextProps.product.stockInfo?.status &&
+    prevProps.product.stockInfo?.isInStock === nextProps.product.stockInfo?.isInStock &&
     prevProps.product.displayBadge === nextProps.product.displayBadge &&
+    prevProps.product.colorOptions === nextProps.product.colorOptions &&
     prevProps.product.createdAt === nextProps.product.createdAt &&
     prevProps.product.updatedAt === nextProps.product.updatedAt
   );

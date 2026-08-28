@@ -31,6 +31,8 @@ export interface ColorOption {
   imageUrl?: string | null;
   /** Lowest price for this color (across sizes), when variants differ */
   price?: number;
+  /** False when every size of this color is sold or reserved */
+  isInStock?: boolean;
 }
 
 export interface ProductPriceRange {
@@ -113,22 +115,65 @@ export const isMadeToOrderProduct = (
       product.displayBadge !== 'sold'
   );
 
-/** True when the product cannot be purchased (sold badge or no stock). */
-export const isProductSoldOut = (
-  product: Product,
-  selectedVariant?: ProductVariant
+/** True when every SKU for this color is sold or reserved. */
+export const isColorSold = (
+  product: Pick<Product, 'colorOptions' | 'variants'>,
+  colorName?: string | null
 ): boolean => {
-  if (product.displayBadge === 'sold') return true;
+  if (!colorName?.trim()) return false;
+  const normalized = colorName.trim().toLowerCase();
+  const option = product.colorOptions?.find(
+    (c) => c.name.trim().toLowerCase() === normalized
+  );
+  if (option && option.isInStock === false) return true;
+  if (product.variants?.length) {
+    const matches = product.variants.filter(
+      (v) => v.color.trim().toLowerCase() === normalized
+    );
+    if (!matches.length) return false;
+    return matches.every((v) => !(v.stockInfo?.isInStock ?? v.quantity > 0));
+  }
+  return false;
+};
 
+/** Storefront badge for the selected color: Sold wins over New Arrival for that color. */
+export const getDisplayBadge = (
+  product: Product,
+  selectedColor?: string | null
+): ProductDisplayBadge => {
+  if (selectedColor && isColorSold(product, selectedColor)) return 'sold';
+  if (isProductSoldOut(product)) return 'sold';
+  if (product.displayBadge === 'sold') return null;
+  return product.displayBadge ?? null;
+};
+
+type SoldOutVariant = {
+  color: string;
+  quantity: number;
+  stockInfo?: { isInStock: boolean; quantity?: number };
+};
+
+/** True when the product (or selected SKU) cannot be purchased. */
+export const isProductSoldOut = (
+  product: Pick<Product, 'quantity'> & {
+    hasVariants?: boolean;
+    displayBadge?: ProductDisplayBadge;
+    variants?: SoldOutVariant[];
+    stockInfo?: Product['stockInfo'];
+    size?: string | null;
+  },
+  selectedVariant?: SoldOutVariant
+): boolean => {
   if (product.hasVariants && product.variants?.length) {
     if (selectedVariant) {
       return !(selectedVariant.stockInfo?.isInStock ?? selectedVariant.quantity > 0);
     }
-    const anyInStock = product.variants.some(
+    return !product.variants.some(
       (v) => v.stockInfo?.isInStock ?? v.quantity > 0
     );
-    return !(product.stockInfo?.isInStock ?? anyInStock);
   }
+
+  if (product.displayBadge === 'sold') return true;
 
   if (isMadeToOrderProduct(product)) return false;
 
@@ -140,10 +185,13 @@ export const getProductMaxStock = (
   product: Pick<Product, 'quantity' | 'size' | 'stockInfo' | 'hasVariants' | 'displayBadge'>,
   variant?: ProductVariant
 ): number => {
-  if (product.displayBadge === 'sold') return 0;
   if (variant) {
     return variant.stockInfo?.quantity ?? variant.quantity ?? 0;
   }
+  if (product.hasVariants) {
+    return product.stockInfo?.quantity ?? product.quantity ?? 0;
+  }
+  if (product.displayBadge === 'sold') return 0;
   if (isMadeToOrderProduct(product)) return 999;
   return product.stockInfo?.quantity ?? product.quantity ?? 0;
 };
@@ -295,7 +343,7 @@ export const formatProductPriceLabel = (
 
 /** Match a URL/query color param to a product color option, or fall back to admin default / first. */
 export const resolveProductColor = (
-  product: Pick<Product, 'colorOptions' | 'defaultDisplayColor'>,
+  product: Pick<Product, 'colorOptions' | 'defaultDisplayColor' | 'variants'>,
   colorParam?: string | null
 ): string => {
   const options = product.colorOptions;
@@ -311,9 +359,25 @@ export const resolveProductColor = (
       (c) =>
         c.name.trim().toLowerCase() === product.defaultDisplayColor!.trim().toLowerCase()
     );
-    if (match) return match.name;
+    if (match && !isColorSold(product, match.name)) return match.name;
   }
+  const firstInStock = options.find((c) => !isColorSold(product, c.name));
+  if (firstInStock) return firstInStock.name;
   return options[0]?.name || '';
+};
+
+/** Put the selected/URL color first; keep the rest in catalog order. */
+export const orderColorsSelectedFirst = <T extends { name: string }>(
+  colors: T[] | undefined | null,
+  selectedColor?: string | null
+): T[] => {
+  if (!colors?.length) return [];
+  const selected = selectedColor?.trim().toLowerCase();
+  if (!selected) return [...colors];
+  const match = colors.filter((c) => c.name.trim().toLowerCase() === selected);
+  if (!match.length) return [...colors];
+  const rest = colors.filter((c) => c.name.trim().toLowerCase() !== selected);
+  return [...match, ...rest];
 };
 
 export const getProductHref = (slug: string, color?: string | null): string => {

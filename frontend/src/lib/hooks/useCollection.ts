@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { productListConfig } from '@/lib/swr/config';
+import type { Product } from '@/lib/types/product';
 
 export interface CollectionProduct {
   id: number;
@@ -15,6 +16,10 @@ export interface CollectionProduct {
   size?: string | null;
   hasVariants?: boolean;
   availableSizes?: string[];
+  displayBadge?: 'new_arrival' | 'sold' | null;
+  variants?: Product['variants'];
+  colorOptions?: Product['colorOptions'];
+  stockInfo?: Product['stockInfo'];
   categories?: Array<{ id: number; name: string; slug: string }>;
 }
 

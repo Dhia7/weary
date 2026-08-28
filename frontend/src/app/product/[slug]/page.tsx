@@ -19,6 +19,8 @@ import {
   getEffectiveCompareAtPrice,
   getProductMaxStock,
   isProductSoldOut,
+  isColorSold,
+  getDisplayBadge,
   resolveProductColor,
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
@@ -98,8 +100,9 @@ export default function ProductDetailPage() {
 
   const isOutOfStock = useMemo(() => {
     if (!product) return false;
+    if (selectedColor && isColorSold(product, selectedColor)) return true;
     return isProductSoldOut(product, selectedVariant);
-  }, [product, selectedVariant]);
+  }, [product, selectedVariant, selectedColor]);
 
   const maxPurchasableQty = useMemo(() => {
     if (!product) return 0;
@@ -381,12 +384,12 @@ export default function ProductDetailPage() {
               <h1 className="font-serif text-3xl sm:text-4xl text-swisse-ink dark:text-foreground">
                 {displayName}
               </h1>
-              {product.displayBadge === 'sold' && (
+              {getDisplayBadge(product, selectedColor) === 'sold' && (
                 <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background">
                   {isFrench ? 'Vendu' : 'Sold'}
                 </span>
               )}
-              {product.displayBadge === 'new_arrival' && (
+              {getDisplayBadge(product, selectedColor) === 'new_arrival' && (
                 <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-gold text-white">
                   {isFrench ? 'Nouveauté' : 'New Arrival'}
                 </span>
@@ -492,12 +495,18 @@ export default function ProductDetailPage() {
                     }
                   }}
                   size="md"
+                  maxVisible={product.colorOptions.length}
                 />
                 {colorError && (
                   <p className="text-sm text-red-600 dark:text-red-400">{colorError}</p>
                 )}
                 {selectedColor && !colorError && (
-                  <p className={`text-sm ${bodyTextClass}`}>{t.selected(selectedColorLabel)}</p>
+                  <p className={`text-sm ${bodyTextClass}`}>
+                    {t.selected(selectedColorLabel)}
+                    {isColorSold(product, selectedColor)
+                      ? ` — ${isFrench ? 'Vendu' : 'Sold'}`
+                      : ''}
+                  </p>
                 )}
               </div>
             )}

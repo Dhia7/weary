@@ -121,7 +121,21 @@ const syncProductVariants = async (productId, variantsPayload, parentSku, transa
 const getActiveVariants = (variants) =>
 	(variants || []).filter((v) => v.isActive !== false);
 
-const deriveColorOptions = (variants, productPrice = 0) => {
+const availableVariantQty = (variant, reserved) => {
+	const warehouse = Number(variant?.quantity) || 0;
+	if (!reserved?.byVariantId) return warehouse;
+	let reservedQty = 0;
+	if (variant?.id != null) {
+		reservedQty = reserved.byVariantId.get(Number(variant.id)) || 0;
+	}
+	if (!reservedQty && variant?.productId != null) {
+		const key = `${variant.productId}::${String(variant.color || '').trim().toLowerCase()}::${String(variant.size || '').trim()}`;
+		reservedQty = reserved.byProductKey?.get(key) || 0;
+	}
+	return Math.max(0, warehouse - reservedQty);
+};
+
+const deriveColorOptions = (variants, productPrice = 0, reserved = null) => {
 	const map = new Map();
 	const basePrice = parseFloat(productPrice) || 0;
 	for (const v of getActiveVariants(variants)) {
@@ -129,13 +143,15 @@ const deriveColorOptions = (variants, productPrice = 0) => {
 		const key = `${json.color}::${json.colorHex || ''}`;
 		const effectivePrice =
 			json.price != null && json.price !== '' ? parseFloat(json.price) : basePrice;
+		const inStock = availableVariantQty(json, reserved) > 0;
 		if (!map.has(key)) {
 			map.set(key, {
 				name: json.color,
 				nameFr: json.colorFr || null,
 				hex: json.colorHex || null,
 				imageUrl: json.imageUrl || (Array.isArray(json.images) && json.images[0]) || null,
-				price: effectivePrice
+				price: effectivePrice,
+				isInStock: inStock
 			});
 		} else {
 			const existing = map.get(key);
@@ -145,6 +161,7 @@ const deriveColorOptions = (variants, productPrice = 0) => {
 			if (effectivePrice < existing.price) {
 				existing.price = effectivePrice;
 			}
+			if (inStock) existing.isInStock = true;
 		}
 	}
 	return Array.from(map.values());
@@ -254,16 +271,28 @@ const computeProductStockFromVariants = (variants) => {
 	return getActiveVariants(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
 };
 
-const attachVariantSummary = (productData, variants, isAdmin = false) => {
+const attachVariantSummary = (productData, variants, isAdmin = false, reserved = null) => {
 	const activeVariants = getActiveVariants(variants);
 	const hasVariants = activeVariants.length > 0;
-	const colorOptions = deriveColorOptions(activeVariants, productData.price);
+	const storefrontReserved = isAdmin ? null : reserved;
+	const colorOptions = deriveColorOptions(activeVariants, productData.price, storefrontReserved);
 	const sizeOptions = deriveSizeOptions(activeVariants);
 	const priceRange = hasVariants ? computePriceRange(activeVariants, productData.price) : null;
 
+	const mapped = activeVariants.map((v) => {
+		const json = v.toJSON ? v.toJSON() : { ...v };
+		const warehouseQty = Number(json.quantity) || 0;
+		const available = isAdmin ? warehouseQty : availableVariantQty(json, storefrontReserved);
+		return {
+			...json,
+			quantity: isAdmin ? warehouseQty : available,
+			stockInfo: getVariantStockInfo({ ...json, quantity: available }, isAdmin)
+		};
+	});
+
 	let stockInfo;
 	if (hasVariants) {
-		const totalQty = computeProductStockFromVariants(activeVariants);
+		const totalQty = mapped.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0);
 		const isInStock = totalQty > 0;
 		const isLowStock = totalQty > 0 && totalQty <= 10;
 		stockInfo = isAdmin
@@ -283,15 +312,10 @@ const attachVariantSummary = (productData, variants, isAdmin = false) => {
 	return {
 		...productData,
 		hasVariants,
-		variants: activeVariants.map((v) => {
-			const json = v.toJSON ? v.toJSON() : v;
-			return {
-				...json,
-				stockInfo: getVariantStockInfo(json, isAdmin)
-			};
-		}),
+		variants: mapped,
 		colorOptions,
 		availableSizes: sizeOptions.length > 0 ? sizeOptions : undefined,
+		...(priceRange ? { priceRange } : {}),
 		...(stockInfo ? { stockInfo } : {})
 	};
 };
@@ -310,5 +334,6 @@ module.exports = {
 	resolveCartLinePrice,
 	getVariantStockInfo,
 	computeProductStockFromVariants,
+	availableVariantQty,
 	attachVariantSummary
 };

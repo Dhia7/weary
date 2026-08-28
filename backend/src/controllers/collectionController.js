@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
-const { Collection, Product, ProductCollection } = require('../models/associations');
+const { Collection, Product, ProductCollection, ProductVariant } = require('../models/associations');
+const { formatProductsForUser } = require('./productController');
 const { withTimeout, TIMEOUTS, handleTimeoutError } = require('../utils/queryTimeout');
 
 // List collections
@@ -104,6 +105,8 @@ const getCollection = async (req, res) => {
 		// Get products for the collection separately
 		const products = await withTimeout(
 			collection.getProducts({
+				include: [{ model: ProductVariant, as: 'variants', required: false }],
+				attributes: { exclude: ['sizeStock'] },
 				through: { attributes: ['position'] },
 				order: [[ProductCollection, 'position', 'ASC']],
 				limit: 100 // Limit products to prevent huge queries
@@ -112,9 +115,8 @@ const getCollection = async (req, res) => {
 			'Collection products query'
 		);
 
-		// Add products to collection data
 		const collectionData = collection.toJSON();
-		collectionData.products = products;
+		collectionData.products = await formatProductsForUser(products, false);
 
 		res.json({ success: true, data: { collection: collectionData } });
 	} catch (error) {

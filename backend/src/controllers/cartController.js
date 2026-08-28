@@ -10,6 +10,12 @@ const {
 	resolveCartLinePrice
 } = require('../utils/variantHelpers');
 const { isSoldBadge, isMadeToOrderProduct } = require('../utils/productAvailability');
+const {
+	getReservedQtyMap,
+	getReservedQtyForVariant,
+	sumReservedForProduct,
+	availableQty
+} = require('../utils/stockHelpers');
 
 const cartListInclude = [
 	{
@@ -20,15 +26,17 @@ const cartListInclude = [
 	{ model: ProductVariant, as: 'variant', required: false }
 ];
 
-const getPurchasableStock = (product, variant) => {
-	if (isSoldBadge(product)) return 0;
-	if (variant) return Number(variant.quantity) || 0;
+const getPurchasableStock = (product, variant, reserved) => {
 	const activeVariants = getActiveVariants(product.variants || []);
 	const hasVariants = activeVariants.length > 0;
+	if (isSoldBadge(product) && !hasVariants) return 0;
+	if (variant) {
+		return availableQty(variant.quantity, getReservedQtyForVariant(reserved, variant));
+	}
 	if (isMadeToOrderProduct({ ...product.toJSON?.() ?? product, variants: product.variants, hasVariants })) {
 		return 999;
 	}
-	return Number(product.quantity) || 0;
+	return availableQty(product.quantity, sumReservedForProduct(reserved, product.id));
 };
 
 /** Match a cart line the same way addToCart does (variantId first, then size/color). */
@@ -91,7 +99,7 @@ const findCartLine = async (userId, productId, selectors = {}, include) => {
 };
 
 // Helper function to transform cart items with unique IDs
-const transformCartItems = (cartItems) => {
+const transformCartItems = (cartItems, reserved) => {
   try {
     if (!Array.isArray(cartItems)) {
       console.error('transformCartItems: cartItems is not an array:', typeof cartItems);
@@ -140,9 +148,7 @@ const transformCartItems = (cartItems) => {
             product.imageUrl ||
             null;
 
-          const maxStock = variant
-            ? Number(variant.quantity) || 0
-            : Number(product.quantity) || 0;
+          const maxStock = getPurchasableStock(product, variant, reserved);
           const allowCustomerQuantity = Boolean(product.allowCustomerQuantity);
 
           const canonicalColor = itemData.color || variant?.color || undefined;
@@ -192,6 +198,17 @@ const transformCartItems = (cartItems) => {
   }
 };
 
+const transformCartItemsWithReserved = async (cartItems) => {
+  const ids = [];
+  for (const item of cartItems || []) {
+    const data = item.toJSON ? item.toJSON() : item;
+    const id = data.productId || data.Product?.id;
+    if (id) ids.push(id);
+  }
+  const reserved = await getReservedQtyMap(ids);
+  return transformCartItems(cartItems, reserved);
+};
+
 // Get user's cart items
 const getCart = async (req, res) => {
   try {
@@ -204,7 +221,7 @@ const getCart = async (req, res) => {
     });
 
     // Transform the data to match frontend expectations
-    const transformedItems = transformCartItems(cartItems);
+    const transformedItems = await transformCartItemsWithReserved(cartItems);
 
     res.json({
       success: true,
@@ -250,12 +267,15 @@ const addToCart = async (req, res) => {
       });
     }
 
-    if (isSoldBadge(product)) {
+    const activeVariants = getActiveVariants(product.variants || []);
+    if (isSoldBadge(product) && activeVariants.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'This item is sold out and is no longer available for purchase'
       });
     }
+
+    const reserved = await getReservedQtyMap([product.id]);
 
     const allowCustomerQuantity = Boolean(product.allowCustomerQuantity);
     let requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
@@ -263,7 +283,6 @@ const addToCart = async (req, res) => {
       requestedQty = 1;
     }
 
-    const activeVariants = getActiveVariants(product.variants || []);
     let resolvedVariant = null;
     if (activeVariants.length > 0) {
       resolvedVariant = findMatchingVariant(activeVariants, { variantId, color, size });
@@ -273,11 +292,13 @@ const addToCart = async (req, res) => {
           message: 'Please select a valid color and size for this product'
         });
       }
-      const variantStock = getPurchasableStock(product, resolvedVariant);
+      const variantStock = getPurchasableStock(product, resolvedVariant, reserved);
       if (variantStock < requestedQty) {
         return res.status(400).json({
           success: false,
-          message: 'Not enough stock for the selected option'
+          message: variantStock <= 0
+            ? 'This color is sold out and is no longer available for purchase'
+            : 'Not enough stock for the selected option'
         });
       }
     } else if (product.size && product.size.trim().length > 0 && !size) {
@@ -290,7 +311,7 @@ const addToCart = async (req, res) => {
     const finalVariantId = resolvedVariant?.id || null;
     const finalColor = resolvedVariant?.color || color;
     const finalSize = resolvedVariant?.size || size;
-    const maxStock = getPurchasableStock(product, resolvedVariant);
+    const maxStock = getPurchasableStock(product, resolvedVariant, reserved);
 
     if (!resolvedVariant && maxStock < requestedQty) {
       return res.status(400).json({
@@ -449,7 +470,7 @@ const addToCart = async (req, res) => {
       });
 
       console.log('Cart items fetched:', cartItems.length);
-      const transformedItems = transformCartItems(cartItems);
+      const transformedItems = await transformCartItemsWithReserved(cartItems);
       console.log('Transformed items:', transformedItems.length);
 
       res.json({
@@ -557,7 +578,7 @@ const updateCartItem = async (req, res) => {
       order: [['createdAt', 'ASC']]
     });
 
-    const transformedItems = transformCartItems(cartItems);
+    const transformedItems = await transformCartItemsWithReserved(cartItems);
 
     res.json({
       success: true,
@@ -610,7 +631,7 @@ const removeFromCart = async (req, res) => {
       order: [['createdAt', 'ASC']]
     });
 
-    const transformedItems = transformCartItems(cartItems);
+    const transformedItems = await transformCartItemsWithReserved(cartItems);
 
     res.json({
       success: true,
@@ -738,7 +759,7 @@ const syncCart = async (req, res) => {
       order: [['createdAt', 'ASC']]
     });
 
-    const transformedItems = transformCartItems(cartItems);
+    const transformedItems = await transformCartItemsWithReserved(cartItems);
 
     res.json({
       success: true,

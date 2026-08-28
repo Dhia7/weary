@@ -12,7 +12,7 @@ import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
-import { productHasSizes } from '@/lib/types/product';
+import { productHasSizes, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 
 export default function CollectionDetailPage() {
@@ -30,7 +30,8 @@ export default function CollectionDetailPage() {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
+    if (isProductSoldOut(product)) return; 
     // If product has sizes, redirect to product page for size selection
     if (productHasSizes(product)) {
       router.push(`/product/${product.slug}`);
@@ -139,7 +140,9 @@ export default function CollectionDetailPage() {
         {/* Products Grid */}
         {collection.products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {collection.products.map((product) => (
+            {collection.products.map((product) => {
+              const soldOut = isProductSoldOut(product);
+              return (
               <div
                 key={product.id}
                 className="group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
@@ -177,11 +180,11 @@ export default function CollectionDetailPage() {
                 <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                   <button
                     onClick={(e) => handleAddToCart(product, e)}
-                    disabled={product.quantity === 0}
+                    disabled={soldOut}
                     className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                    {product.quantity === 0 
+                    {soldOut
                       ? 'Out of Stock' 
                       : productHasSizes(product)
                       ? 'Select Size'
@@ -219,11 +222,11 @@ export default function CollectionDetailPage() {
                   {/* Stock Status */}
                   <div className="flex items-center justify-between">
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      product.quantity > 0 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      soldOut
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     }`}>
-                      {product.quantity > 0 ? 'In Stock' : 'Out of Stock'}
+                      {soldOut ? 'Out of Stock' : 'In Stock'}
                     </span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">
                       SKU: {product.SKU}
@@ -231,7 +234,8 @@ export default function CollectionDetailPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">

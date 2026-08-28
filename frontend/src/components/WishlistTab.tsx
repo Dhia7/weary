@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import type { CartItem } from '@/lib/contexts/CartContext';
+import { isProductSoldOut } from '@/lib/types/product';
 
 interface WishlistTabProps {
   className?: string;
@@ -183,7 +184,9 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
 
       <div className="grid grid-cols-3 gap-6">
         <AnimatePresence>
-          {wishlistItems.map((item) => (
+          {wishlistItems.map((item) => {
+            const soldOut = isProductSoldOut(item.Product);
+            return (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 20 }}
@@ -240,14 +243,14 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                 {/* Stock Status */}
                 <div className="flex items-center space-x-2 mb-4">
                   <div className={`w-2 h-2 rounded-full ${
-                    item.Product.quantity > 0 ? 'bg-green-500' : 'bg-red-500'
+                    soldOut ? 'bg-red-500' : 'bg-green-500'
                   }`} />
                   <span className={`text-xs ${
-                    item.Product.quantity > 0 
-                      ? 'text-green-600 dark:text-green-400' 
-                      : 'text-red-600 dark:text-red-400'
+                    soldOut
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-green-600 dark:text-green-400'
                   }`}>
-                    {item.Product.quantity > 0 ? 'In Stock' : 'Out of Stock'}
+                    {soldOut ? 'Out of Stock' : 'In Stock'}
                   </span>
                 </div>
 
@@ -263,9 +266,9 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                   
                   <button
                     onClick={() => handleAddToCart(item.Product.id)}
-                    disabled={item.Product.quantity === 0 || addingToCart.has(item.Product.id)}
+                    disabled={soldOut || addingToCart.has(item.Product.id)}
                     className={`flex items-center justify-center space-x-2 px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-                      item.Product.quantity === 0
+                      soldOut
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         : addingToCart.has(item.Product.id)
                         ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
@@ -278,7 +281,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                       <ShoppingCart className="w-4 h-4" />
                     )}
                     <span className="whitespace-nowrap">
-                      {item.Product.quantity === 0 
+                      {soldOut
                         ? 'Out of Stock' 
                         : addingToCart.has(item.Product.id) 
                         ? 'Adding...' 
@@ -289,7 +292,8 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                 </div>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </AnimatePresence>
       </div>
     </div>

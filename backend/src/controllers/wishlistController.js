@@ -1,5 +1,27 @@
-const { Wishlist, Product } = require('../models/associations');
+const { Wishlist, Product, ProductVariant } = require('../models/associations');
 const { Op } = require('sequelize');
+const { formatProductsForUser } = require('./productController');
+
+const wishlistProductInclude = {
+  model: Product,
+  include: [{ model: ProductVariant, as: 'variants', required: false }],
+  attributes: { exclude: ['sizeStock'] }
+};
+
+const formatWishlistItems = async (wishlistItems) => {
+  const activeItems = (wishlistItems || []).filter((item) => item.Product && item.Product.isActive);
+  const formattedProducts = await formatProductsForUser(
+    activeItems.map((item) => item.Product),
+    false
+  );
+  return activeItems.map((item, index) => {
+    const json = item.toJSON ? item.toJSON() : item;
+    return {
+      ...json,
+      Product: formattedProducts[index]
+    };
+  });
+};
 
 // Get user's wishlist
 const getUserWishlist = async (req, res) => {
@@ -8,29 +30,11 @@ const getUserWishlist = async (req, res) => {
 
     const wishlistItems = await Wishlist.findAll({
       where: { userId },
-      include: [
-        {
-          model: Product,
-          attributes: [
-            'id',
-            'name',
-            'slug',
-            'description',
-            'price',
-            'compareAtPrice',
-            'imageUrl',
-            'images',
-            'mainThumbnailIndex',
-            'isActive',
-            'quantity'
-          ]
-        }
-      ],
+      include: [wishlistProductInclude],
       order: [['addedAt', 'DESC']]
     });
 
-    // Filter out inactive products
-    const activeItems = wishlistItems.filter(item => item.Product && item.Product.isActive);
+    const activeItems = await formatWishlistItems(wishlistItems);
 
     res.json({
       success: true,
@@ -96,31 +100,15 @@ const addToWishlist = async (req, res) => {
 
     // Fetch the created item with product details
     const newItem = await Wishlist.findByPk(wishlistItem.id, {
-      include: [
-        {
-          model: Product,
-          as: 'Product',
-          attributes: [
-            'id',
-            'name',
-            'slug',
-            'description',
-            'price',
-            'compareAtPrice',
-            'imageUrl',
-            'images',
-            'mainThumbnailIndex',
-            'isActive',
-            'quantity'
-          ]
-        }
-      ]
+      include: [wishlistProductInclude]
     });
+
+    const [formatted] = await formatWishlistItems(newItem ? [newItem] : []);
 
     res.status(201).json({
       success: true,
       message: 'Product added to wishlist',
-      data: newItem
+      data: formatted || newItem
     });
   } catch (error) {
     console.error('Error adding to wishlist:', error);
