@@ -308,9 +308,9 @@ export default function DeliveryRouteMapLeaflet({
       style={{ background: '#f5f0e8', height: '100%', width: '100%' }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="/map-tiles/{z}/{x}/{y}{r}.png"
-        maxZoom={18}
+        attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>'
+        url="/map-tiles/{z}/{x}/{y}.png"
+        maxZoom={16}
       />
       <FitRouteBounds positions={route} breakpoint={breakpoint} />
       <Polyline

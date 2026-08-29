@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://*.onrender.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://*.onrender.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org",
       "font-src 'self' data:",
       "connect-src 'self' https://*.onrender.com http://localhost:3001",
       "frame-src https://accounts.google.com",
@@ -149,15 +149,19 @@ const nextConfig: NextConfig = {
       { source: '/categorie/sacs-de-voyage', destination: '/category/travel-bags' },
     ];
 
-    // Same-origin map tiles (CSP img-src 'self') — CARTO light basemap
+    // Same-origin map tiles (CSP img-src 'self'). CARTO's public light_all
+    // CDN now returns "API KEY REQUIRED" placeholders, so we use Esri's
+    // World Light Gray canvas (no key). Esri tile path is z/y/x.
     const mapTileRewrites = [
       {
         source: '/map-tiles/:z/:x/:y.png',
-        destination: 'https://a.basemaps.cartocdn.com/light_all/:z/:x/:y.png',
+        destination:
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/:z/:y/:x',
       },
       {
         source: '/map-tiles/:z/:x/:y@2x.png',
-        destination: 'https://a.basemaps.cartocdn.com/light_all/:z/:x/:y@2x.png',
+        destination:
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/:z/:y/:x',
       },
     ];
 
