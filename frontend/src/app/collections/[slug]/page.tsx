@@ -14,6 +14,7 @@ import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import { productHasSizes, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SoldBadge from '@/components/product/SoldBadge';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 export default function CollectionDetailPage() {
@@ -164,6 +165,9 @@ export default function CollectionDetailPage() {
                         <span className="text-6xl">{getCategoryEmoji(product.categories)}</span>
                       </div>
                     )}
+                    {soldOut ? (
+                      <SoldBadge overlay label={isFrench ? 'Vendu' : 'Sold'} />
+                    ) : null}
                   </div>
                 </Link>
 

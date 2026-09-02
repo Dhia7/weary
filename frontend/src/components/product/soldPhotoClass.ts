@@ -1,6 +1,5 @@
-/** Full faded gray + light blur so sold photos stay readable. */
-export const soldPhotoClass =
-  'grayscale brightness-125 contrast-90 blur-[2px] scale-105';
+/** Sold listing photos: grayscale only, no fade or blur. */
+export const soldPhotoClass = 'grayscale';
 
 
 

@@ -196,6 +196,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const inStock = !soldOut;
   const productSoldOut = isProductSoldOut(product);
   const badge = getDisplayBadge(product, selectedColor);
+  const soldLabel = isFrench ? 'Vendu' : 'Sold';
 
   if (variant === 'editorial') {
 
@@ -237,6 +238,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               </div>
             )}
           </Link>
+          {badge === 'sold' ? <SoldBadge overlay label={soldLabel} /> : null}
           {badge === 'new_arrival' && (
             <span className="absolute top-4 left-4 z-[6] bg-swisse-gold text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
               {isFrench ? 'Nouveaute' : 'New Arrival'}
@@ -262,11 +264,6 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               <h3 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
                 {displayName}
               </h3>
-              {badge === 'sold' ? (
-                <div className="mb-1">
-                  <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
-                </div>
-              ) : null}
               <p className="text-xs text-swisse-ink/60 dark:text-muted-foreground">
                 {getCategoryName(product.categories)}
               </p>
@@ -344,6 +341,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             </div>
           )}
 
+          {badge === 'sold' ? <SoldBadge overlay label={soldLabel} /> : null}
           {badge === 'new_arrival' && (
             <span className="absolute top-3 left-3 z-[6] bg-indigo-600 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
               {isFrench ? 'Nouveaute' : 'New Arrival'}
@@ -396,11 +394,6 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           <p className="text-sm text-muted-foreground mb-1">{getCategoryName(product.categories)}</p>
 
           <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{displayName}</h3>
-          {badge === 'sold' ? (
-            <div className="mb-2">
-              <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
-            </div>
-          ) : null}
 
           {product.colorOptions && product.colorOptions.length > 1 && (
             <div className="mb-2">

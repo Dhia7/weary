@@ -18,7 +18,9 @@ import {
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import type { CartItem } from '@/lib/contexts/CartContext';
 import { isProductSoldOut } from '@/lib/types/product';
+import SoldBadge from '@/components/product/SoldBadge';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 interface WishlistTabProps {
   className?: string;
@@ -36,6 +38,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
   
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
+  const { isFrench } = useLanguage();
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
   const [addingToCart, setAddingToCart] = useState<Set<string>>(new Set());
 
@@ -207,6 +210,9 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                     }`}
                   />
                 </Link>
+                {soldOut ? (
+                  <SoldBadge overlay label={isFrench ? 'Vendu' : 'Sold'} />
+                ) : null}
                 
                 {/* Wishlist Button */}
                 <button
