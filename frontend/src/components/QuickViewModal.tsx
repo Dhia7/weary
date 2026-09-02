@@ -25,6 +25,7 @@ import {
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SoldBadge from '@/components/product/SoldBadge';
 import {
   getPrimaryDisplayImage,
   getProductDisplayImages,
@@ -247,11 +248,6 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
         <div className="flex flex-col md:flex-row h-full max-h-[90vh] overflow-hidden">
           {/* Image Section */}
           <div className="relative w-full md:w-1/2 bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-            {getDisplayBadge(product, selectedColor) === 'sold' && (
-              <span className="absolute top-4 left-4 z-10 bg-gray-900/90 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
-                {isFrench ? 'Vendu' : 'Sold'}
-              </span>
-            )}
             {selectedImage ? (
               <div className="relative aspect-square w-full h-full">
                 <Image
@@ -313,6 +309,11 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               <h2 id="quick-view-title" className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                 {displayName}
               </h2>
+              {getDisplayBadge(product, selectedColor) === 'sold' ? (
+                <div>
+                  <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
+                </div>
+              ) : null}
 
               {/* SKU */}
               <p className="text-sm text-gray-500 dark:text-gray-400">

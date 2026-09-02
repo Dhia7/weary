@@ -9,6 +9,7 @@ import type { ColorOption, Product as CatalogProduct, ProductDisplayBadge } from
 import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import { orderColorsSelectedFirst } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
+import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 interface Product {
   id: number;
@@ -105,6 +106,11 @@ const COLLAGE_OPTIONS: Array<{ value: number | null; label: string }> = [
   { value: 4, label: 'Slot 4' },
 ];
 
+const VISIBILITY_OPTIONS: Array<{ value: 'visible' | 'hidden'; label: string }> = [
+  { value: 'visible', label: 'Visible' },
+  { value: 'hidden', label: 'Hidden' },
+];
+
 export default function AdminProductsPage() {
   const fetcher = useAuthorizedFetch();
   const [products, setProducts] = useState<Product[]>([]);
@@ -112,6 +118,7 @@ export default function AdminProductsPage() {
   const [updatingBadgeId, setUpdatingBadgeId] = useState<number | null>(null);
   const [updatingColorId, setUpdatingColorId] = useState<number | null>(null);
   const [updatingCollageId, setUpdatingCollageId] = useState<number | null>(null);
+  const [updatingVisibilityId, setUpdatingVisibilityId] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -219,6 +226,47 @@ export default function AdminProductsPage() {
       console.error('Error updating collage slot:', error);
     } finally {
       setUpdatingCollageId(null);
+    }
+  };
+
+  const handleVisibilityChange = async (productId: number, isActive: boolean) => {
+    const previous = products.find((p) => p.id === productId)?.isActive ?? true;
+    try {
+      setUpdatingVisibilityId(productId);
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, isActive } : p))
+      );
+      const res = await fetcher(`/products/${productId}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId
+              ? { ...p, isActive: json.data.product.isActive ?? isActive }
+              : p
+          )
+        );
+      } else {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, isActive: previous } : p
+          )
+        );
+        console.error('Failed to update visibility:', json.message);
+      }
+    } catch (error) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, isActive: previous } : p
+        )
+      );
+      console.error('Error updating visibility:', error);
+    } finally {
+      setUpdatingVisibilityId(null);
     }
   };
 
@@ -339,7 +387,7 @@ export default function AdminProductsPage() {
                       Badge
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Status
+                      Visibility
                     </th>
                   </tr>
                 </thead>
@@ -347,6 +395,9 @@ export default function AdminProductsPage() {
                   {products.map((product) => {
                     const thumbUrl = adminProductThumb(product);
                     const selectedColor = featuredColorName(product);
+                    const featuredSold = Boolean(
+                      selectedColor && isFeaturedColorSold(product, selectedColor)
+                    );
                     return (
                     <tr 
                       key={product.id} 
@@ -362,7 +413,9 @@ export default function AdminProductsPage() {
                                 alt={product.name}
                                 fill
                                 unoptimized
-                                className="object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+                                className={`object-cover rounded-lg border border-gray-200 dark:border-gray-600 ${
+                                  featuredSold ? soldPhotoClass : ''
+                                }`}
                                 sizes="48px"
                               />
                             ) : (
@@ -558,14 +611,25 @@ export default function AdminProductsPage() {
                           </p>
                         ) : null}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          product.isActive 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {product.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          aria-label={`Visibility for ${product.name}`}
+                          value={product.isActive ? 'visible' : 'hidden'}
+                          disabled={updatingVisibilityId === product.id}
+                          onChange={(e) => {
+                            handleVisibilityChange(
+                              product.id,
+                              e.target.value === 'visible'
+                            );
+                          }}
+                          className="block w-full min-w-[7.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                          {VISIBILITY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                     </tr>
                     );

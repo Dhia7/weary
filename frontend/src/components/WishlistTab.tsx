@@ -18,6 +18,7 @@ import {
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import type { CartItem } from '@/lib/contexts/CartContext';
 import { isProductSoldOut } from '@/lib/types/product';
+import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 interface WishlistTabProps {
   className?: string;
@@ -201,7 +202,9 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                     src={getProductImage(item.Product)}
                     alt={item.Product.name}
                     fill
-                    className="object-cover hover:scale-105 transition-transform duration-300"
+                    className={`object-cover hover:scale-105 transition-[transform,filter] duration-300 ${
+                      soldOut ? soldPhotoClass : ''
+                    }`}
                   />
                 </Link>
                 

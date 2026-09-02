@@ -14,6 +14,7 @@ import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import { productHasSizes, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -154,7 +155,9 @@ export default function CollectionDetailPage() {
                       <img
                         src={getImageUrl(product.imageUrl) || ''}
                         alt={getProductDisplayName(product, isFrench)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-[transform,filter] duration-300 ${
+                          soldOut ? soldPhotoClass : ''
+                        }`}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">

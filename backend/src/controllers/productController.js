@@ -635,6 +635,14 @@ const getProduct = async (req, res) => {
 		// Format product based on user role (pass productData instead of product instance)
 		const formattedProduct = await formatSingleProductForUser(productData, isAdmin);
 		
+		if (!formattedProduct) {
+			return res.status(404).json({ success: false, message: 'Product not found' });
+		}
+
+		if (!product.isActive && !isAdmin) {
+			return res.status(404).json({ success: false, message: 'Product not found' });
+		}
+
 		res.json({ success: true, data: { product: formattedProduct } });
 	} catch (error) {
 		console.error('Get product error:', error);
@@ -1205,6 +1213,35 @@ const updateProductHomepageCollageOrder = async (req, res) => {
 	}
 };
 
+// Hide or show a product on the storefront (admin, quick toggle from list)
+const updateProductVisibility = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { isActive } = req.body;
+		if (isActive === undefined) {
+			return res.status(400).json({ success: false, message: 'isActive is required' });
+		}
+
+		const product = await Product.findByPk(id, {
+			attributes: { exclude: ['sizeStock'] }
+		});
+		if (!product) {
+			return res.status(404).json({ success: false, message: 'Product not found' });
+		}
+
+		product.isActive = isActive === true || isActive === 'true';
+		await product.save({ fields: ['isActive'] });
+
+		res.json({
+			success: true,
+			data: { product: { id: product.id, isActive: product.isActive } }
+		});
+	} catch (error) {
+		console.error('Update product visibility error:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
 module.exports = {
 	createProduct,
 	listProducts,
@@ -1213,6 +1250,7 @@ module.exports = {
 	updateProductDisplayBadge,
 	updateProductDefaultDisplayColor,
 	updateProductHomepageCollageOrder,
+	updateProductVisibility,
 	deleteProduct,
 	setProductCategories,
 	searchAutocomplete,

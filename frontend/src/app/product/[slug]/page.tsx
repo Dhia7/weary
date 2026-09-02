@@ -27,6 +27,7 @@ import QuantitySelector from '@/components/product/QuantitySelector';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 import ColorSwatches from '@/components/ColorSwatches';
 import ProductImageGallery from '@/components/product/ProductImageGallery';
+import SoldBadge from '@/components/product/SoldBadge';
 import {
   getPrimaryDisplayImage,
   getProductDisplayImages,
@@ -385,9 +386,7 @@ export default function ProductDetailPage() {
                 {displayName}
               </h1>
               {getDisplayBadge(product, selectedColor) === 'sold' && (
-                <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-ink text-swisse-canvas dark:bg-foreground dark:text-background">
-                  {isFrench ? 'Vendu' : 'Sold'}
-                </span>
+                <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
               )}
               {getDisplayBadge(product, selectedColor) === 'new_arrival' && (
                 <span className="inline-flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-swisse-gold text-white">
@@ -501,11 +500,11 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-red-600 dark:text-red-400">{colorError}</p>
                 )}
                 {selectedColor && !colorError && (
-                  <p className={`text-sm ${bodyTextClass}`}>
-                    {t.selected(selectedColorLabel)}
-                    {isColorSold(product, selectedColor)
-                      ? ` — ${isFrench ? 'Vendu' : 'Sold'}`
-                      : ''}
+                  <p className={`text-sm inline-flex flex-wrap items-center gap-2 ${bodyTextClass}`}>
+                    <span>{t.selected(selectedColorLabel)}</span>
+                    {isColorSold(product, selectedColor) ? (
+                      <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
+                    ) : null}
                   </p>
                 )}
               </div>

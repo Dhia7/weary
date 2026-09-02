@@ -32,6 +32,8 @@ import { getHoverDisplayImage, getPrimaryDisplayImage } from '@/lib/utils/produc
 import { getProductDisplayName } from '@/lib/i18n/product';
 import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SoldBadge from '@/components/product/SoldBadge';
+import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
 
@@ -211,9 +213,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                   src={primaryImageUrl}
                   alt={displayName}
                   fill
-                  className={`object-cover transition-transform duration-700 ${
+                  className={`object-cover transition-[transform,filter,opacity] duration-700 ${
                     hoverRevealed ? 'scale-105' : ''
-                  }`}
+                  } ${soldOut ? soldPhotoClass : ''}`}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                 />
                 {showHoverSwap && hoverImageUrl ? (
@@ -224,7 +226,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                     aria-hidden
                     className={`object-cover transition-opacity duration-500 ease-out ${
                       hoverRevealed ? 'opacity-100' : 'opacity-0'
-                    }`}
+                    } ${soldOut ? soldPhotoClass : ''}`}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                   />
                 ) : null}
@@ -238,11 +240,6 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           {badge === 'new_arrival' && (
             <span className="absolute top-4 left-4 z-[6] bg-swisse-gold text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
               {isFrench ? 'Nouveaute' : 'New Arrival'}
-            </span>
-          )}
-          {badge === 'sold' && (
-            <span className="absolute top-4 left-4 z-[6] bg-swisse-ink/90 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
-              {isFrench ? 'Vendu' : 'Sold'}
             </span>
           )}
           <div className="absolute top-4 right-4 z-[9] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -265,6 +262,11 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               <h3 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
                 {displayName}
               </h3>
+              {badge === 'sold' ? (
+                <div className="mb-1">
+                  <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
+                </div>
+              ) : null}
               <p className="text-xs text-swisse-ink/60 dark:text-muted-foreground">
                 {getCategoryName(product.categories)}
               </p>
@@ -318,9 +320,9 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                 src={primaryImageUrl}
                 alt={displayName}
                 fill
-                className={`object-cover transition-transform duration-500 ease-in-out ${
+                className={`object-cover transition-[transform,filter] duration-500 ease-in-out ${
                   hoverRevealed ? 'scale-110' : ''
-                }`}
+                } ${soldOut ? soldPhotoClass : ''}`}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
               {showHoverSwap && hoverImageUrl ? (
@@ -331,7 +333,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
                   aria-hidden
                   className={`object-cover transition-opacity duration-500 ease-out ${
                     hoverRevealed ? 'opacity-100' : 'opacity-0'
-                  }`}
+                  } ${soldOut ? soldPhotoClass : ''}`}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
               ) : null}
@@ -342,11 +344,6 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             </div>
           )}
 
-          {badge === 'sold' && (
-            <span className="absolute top-3 left-3 z-[6] bg-gray-900/90 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider dark:bg-foreground/90 dark:text-background">
-              {isFrench ? 'Vendu' : 'Sold'}
-            </span>
-          )}
           {badge === 'new_arrival' && (
             <span className="absolute top-3 left-3 z-[6] bg-indigo-600 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
               {isFrench ? 'Nouveaute' : 'New Arrival'}
@@ -399,6 +396,11 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           <p className="text-sm text-muted-foreground mb-1">{getCategoryName(product.categories)}</p>
 
           <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{displayName}</h3>
+          {badge === 'sold' ? (
+            <div className="mb-2">
+              <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
+            </div>
+          ) : null}
 
           {product.colorOptions && product.colorOptions.length > 1 && (
             <div className="mb-2">

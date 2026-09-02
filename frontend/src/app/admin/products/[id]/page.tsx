@@ -1146,8 +1146,13 @@ export default function EditProductPage() {
                     onChange={(e) => updateProduct('isActive', e.target.checked)} 
                     className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="active" className="text-sm font-medium text-gray-700 dark:text-gray-300">Product is active</label>
+                  <label htmlFor="active" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Visible in shop
+                  </label>
                 </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Uncheck to hide this product from the store. It stays in admin.
+                </p>
               </div>
             </div>
 

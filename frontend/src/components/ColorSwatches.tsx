@@ -66,7 +66,7 @@ export default function ColorSwatches({
             }}
             className={`relative ${dim} rounded-full border-2 shrink-0 transition-transform overflow-hidden ${
               isSelected ? 'border-swisse-gold scale-110 ring-1 ring-swisse-gold/50' : 'border-gray-300 dark:border-gray-600'
-            } ${isSold ? 'opacity-50' : ''} ${onSelect ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
+            } ${isSold ? 'grayscale opacity-50' : ''} ${onSelect ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
             style={swatchStyle}
             aria-label={isSold ? `${label}, ${soldLabel}` : label}
           >

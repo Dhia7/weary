@@ -934,7 +934,9 @@ export default function NewProductPage() {
                   onChange={(e) => setIsActive(e.target.checked)} 
                   className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <label htmlFor="active" className="text-sm font-medium text-gray-700 dark:text-gray-300">Product is active</label>
+                <label htmlFor="active" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Visible in shop
+                </label>
               </div>
             </div>
           </div>

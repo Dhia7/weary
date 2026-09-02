@@ -21,6 +21,7 @@ router.put('/:id', protect, admin, uploadMultipleImages, controller.updateProduc
 router.patch('/:id/display-badge', protect, admin, controller.updateProductDisplayBadge);
 router.patch('/:id/default-display-color', protect, admin, controller.updateProductDefaultDisplayColor);
 router.patch('/:id/homepage-collage-order', protect, admin, controller.updateProductHomepageCollageOrder);
+router.patch('/:id/visibility', protect, admin, controller.updateProductVisibility);
 router.delete('/:id', protect, admin, controller.deleteProduct);
 router.put('/:id/categories', protect, admin, controller.setProductCategories);
 
