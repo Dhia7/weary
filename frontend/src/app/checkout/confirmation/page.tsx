@@ -77,8 +77,8 @@ function CheckoutConfirmationContent() {
         </h1>
         <p className="mt-4 text-sm text-swisse-ink/70 dark:text-muted-foreground leading-relaxed max-w-lg mx-auto">
           {isFrench
-            ? 'Merci. Votre commande est enregistrée. Cette pièce unique n’est pas encore réservée. Nous vous contactons bientôt par téléphone ou email pour confirmer — après ce contact, elle est réservée pour vous. Paiement à la livraison.'
-            : 'Thank you. Your order is registered. This unique piece is not reserved yet. We will contact you soon by phone or email to confirm — after that contact, it is held for you. Cash on delivery at the door.'}
+            ? 'Merci. Votre commande est enregistrée. Cette pièce unique n’est pas encore réservée. Nous vous contactons bientôt par téléphone ou email pour confirmer — après ce contact, elle est réservée pour vous. Paiement de la pièce à la porte. La livraison se règle à part à la réception.'
+            : 'Thank you. Your order is registered. This unique piece is not reserved yet. We will contact you soon by phone or email to confirm — after that contact, it is held for you. Pay for the piece at the door. Shipping is settled separately on delivery.'}
         </p>
 
         {orderId && (

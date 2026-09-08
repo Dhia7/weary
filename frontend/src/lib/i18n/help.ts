@@ -21,10 +21,10 @@ const EN = {
     {
       title: 'Shipping & Delivery',
       topics: [
-        'Free shipping across Tunisia',
+        'Shipping paid at the door — not included',
         'About 5–7 days after confirmation',
         'Prepared in Geneva by our team',
-        'Price you see is what you pay (TND)',
+        'Prices in TND',
       ],
       href: undefined as string | undefined,
     },
@@ -74,10 +74,10 @@ const FR = {
     {
       title: 'Livraison',
       topics: [
-        'Livraison gratuite partout en Tunisie',
+        'Livraison à la porte — non incluse',
         'Environ 5–7 jours après confirmation',
         'Préparé à Genève par notre équipe',
-        'Le prix affiché est le prix payé (TND)',
+        'Prix en TND',
       ],
       href: undefined as string | undefined,
     },

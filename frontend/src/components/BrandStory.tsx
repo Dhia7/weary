@@ -41,8 +41,8 @@ export default function BrandStory() {
             </p>
             <p className="text-lg text-swisse-ink/70 mb-12">
               {isFrench
-                ? 'Nos prix sont affichés en dinar tunisien (TND). Ce que vous voyez est exactement ce que vous payez : une expérience premium, claire et sans surprise.'
-                : 'Our prices are displayed in Tunisian dinar (TND). What you see is exactly what you pay: a premium, transparent experience with no surprises.'}
+                ? 'Nos prix sont affichés en dinar tunisien (TND). Vous payez la pièce à la porte ; la livraison se règle à part à la réception — nous ne la prenons pas en charge.'
+                : 'Our prices are displayed in Tunisian dinar (TND). You pay the piece at the door; shipping is settled separately on delivery — we do not cover that cost.'}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               <div>

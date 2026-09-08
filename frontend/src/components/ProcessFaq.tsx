@@ -57,8 +57,8 @@ const FAQS: FaqItem[] = [
       fr: 'Quel est le coût de la livraison ?',
     },
     answer: {
-      en: 'Shipping is free. The price you see is the price you pay — in Tunisian dinar (TND). No hidden fees at the door.',
-      fr: 'La livraison est gratuite. Le prix affiché est le prix que vous payez — en dinar tunisien (TND). Aucun frais caché à la porte.',
+      en: 'Shipping is paid at the door when your order arrives. It is not included in the piece price — we do not collect or cover that cost.',
+      fr: 'La livraison se règle à la porte à la réception de votre commande. Elle n’est pas incluse dans le prix de la pièce — nous ne la prenons pas en charge.',
     },
   },
   {

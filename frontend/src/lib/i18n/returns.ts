@@ -5,7 +5,7 @@ const EN = {
   missRefuseHeading: 'If you miss or refuse delivery',
   important: 'Important',
   importantBody:
-    'Pieces are reserved only after support confirms your order by phone. Shipping is free across Tunisia (about 5–7 days after confirmation). Unused items can be returned within 7 days of delivery. Changes, refusals, and delivery issues are handled case by case — email admin@swisia.store or the number that confirmed your order. We do not publish a public phone line for returns.',
+    'Pieces are reserved only after support confirms your order by phone. Shipping is paid at the door and is not included in the piece price (about 5–7 days after confirmation). Unused items can be returned within 7 days of delivery. Changes, refusals, and delivery issues are handled case by case — email admin@swisia.store or the number that confirmed your order. We do not publish a public phone line for returns.',
   needChange: 'Need to change something?',
   needChangeBody:
     'Because each piece is confirmed with you personally, size, collection, or address changes are arranged with support — not through an automated exchange form. Contact us before or after delivery and we will guide you.',
@@ -30,9 +30,9 @@ const EN = {
         'Pay at the door in cash or by bank check. Nothing is charged when you place the order.',
     },
     {
-      title: 'Free shipping',
+      title: 'Paid at the door',
       description:
-        'Delivery is free. The price you see is what you pay — in TND.',
+        'Shipping is paid when your order arrives. It is not included in the piece price.',
     },
     {
       title: '7-day returns',
@@ -80,7 +80,7 @@ const FR = {
   missRefuseHeading: 'Si vous ratez ou refusez la livraison',
   important: 'Important',
   importantBody:
-    'Les pièces ne sont réservées qu’après confirmation téléphonique par le support. La livraison est gratuite partout en Tunisie (environ 5–7 jours après confirmation). Les articles non utilisés peuvent être retournés sous 7 jours après livraison. Modifications, refus et problèmes de livraison sont traités au cas par cas — écrivez à admin@swisia.store ou au numéro qui a confirmé votre commande. Nous ne publions pas de ligne téléphonique publique pour les retours.',
+    'Les pièces ne sont réservées qu’après confirmation téléphonique par le support. La livraison se règle à la porte et n’est pas incluse dans le prix de la pièce (environ 5–7 jours après confirmation). Les articles non utilisés peuvent être retournés sous 7 jours après livraison. Modifications, refus et problèmes de livraison sont traités au cas par cas — écrivez à admin@swisia.store ou au numéro qui a confirmé votre commande. Nous ne publions pas de ligne téléphonique publique pour les retours.',
   needChange: 'Besoin de modifier quelque chose ?',
   needChangeBody:
     'Chaque pièce étant confirmée avec vous personnellement, les changements de taille, de collection ou d’adresse se font avec le support — pas via un formulaire d’échange automatisé. Contactez-nous avant ou après la livraison et nous vous guiderons.',
@@ -106,9 +106,9 @@ const FR = {
         'Payez à la porte en espèces ou par chèque bancaire. Rien n’est débité à la commande.',
     },
     {
-      title: 'Livraison gratuite',
+      title: 'À régler à la porte',
       description:
-        'La livraison est gratuite. Le prix affiché est le prix payé — en TND.',
+        'La livraison se règle à la réception. Elle n’est pas incluse dans le prix de la pièce.',
     },
     {
       title: 'Retours sous 7 jours',

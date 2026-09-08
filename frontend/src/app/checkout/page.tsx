@@ -125,10 +125,6 @@ export default function CheckoutPage() {
   const [localityRows, setLocalityRows] = useState<LocalityOption[]>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
   const [localityError, setLocalityError] = useState<string | null>(null);
-  const FREE_SHIPPING_THRESHOLD_TND = 100;
-  const qualifiesForFreeShipping = subtotal > FREE_SHIPPING_THRESHOLD_TND;
-  const baseDeliveryCost = 10;
-  const deliveryCost = qualifiesForFreeShipping ? 0 : baseDeliveryCost;
   const hasItems = items.length > 0;
 
   const payloadItems = useMemo(() =>
@@ -325,7 +321,7 @@ export default function CheckoutPage() {
           items: payloadItems,
           shippingAddress,
           currency: 'TND',
-          shippingCostCents: Math.round(deliveryCost * 100),
+          shippingCostCents: 0,
           billingInfo: {
             firstName: nameParts.firstName,
             lastName: nameParts.lastName,
@@ -870,16 +866,9 @@ export default function CheckoutPage() {
                   <div className="bg-white/50 dark:bg-card/60 border border-swisse-gold/15 dark:border-border p-6">
                     <p className="text-sm text-swisse-ink/80 dark:text-muted-foreground leading-relaxed">
                       {isFrench
-                        ? 'Payez à la réception de votre commande. Votre commande sera confirmée et suivie via le tableau de bord administrateur.'
-                        : 'Pay when your order arrives. Your order will be confirmed and tracked by the admin dashboard.'}
+                        ? 'Payez la pièce à la réception de votre commande. La livraison se règle à la porte — nous ne la prenons pas en charge. Votre commande sera confirmée et suivie via le tableau de bord administrateur.'
+                        : 'Pay for the piece when your order arrives. Shipping is paid at the door — we do not cover that cost. Your order will be confirmed and tracked by the admin dashboard.'}
                     </p>
-                    {qualifiesForFreeShipping && (
-                      <p className="mt-4 text-xs text-swisse-ink/60 dark:text-muted-foreground">
-                        {isFrench
-                          ? `Livraison gratuite appliquée pour les commandes supérieures à ${FREE_SHIPPING_THRESHOLD_TND} TND.`
-                          : `Free shipping applied for orders over ${FREE_SHIPPING_THRESHOLD_TND} TND.`}
-                      </p>
-                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                       <div className="space-y-2">
                         <label htmlFor="checkout-alt-phone" className="text-[10px] uppercase tracking-[0.22em] text-swisse-ink/60 dark:text-muted-foreground font-bold ml-1">
@@ -958,7 +947,7 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-xs text-swisse-ink/60 dark:text-muted-foreground uppercase tracking-[0.22em]">
                       <span>{isFrench ? 'Livraison' : 'Shipping'}</span>
                       <span className="font-bold">
-                        {deliveryCost === 0 ? (isFrench ? 'GRATUIT' : 'FREE') : formatPrice(deliveryCost)}
+                        {isFrench ? 'À la porte' : 'At the door'}
                       </span>
                     </div>
                     <div className="flex justify-between text-xs text-swisse-ink/60 dark:text-muted-foreground uppercase tracking-[0.22em]">
@@ -967,7 +956,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-lg font-serif font-bold pt-6 border-t border-swisse-gold/20">
                       <span>Total</span>
-                      <span className="text-swisse-gold">{formatPrice(subtotal + deliveryCost)}</span>
+                      <span className="text-swisse-gold">{formatPrice(subtotal)}</span>
                     </div>
                   </div>
 
@@ -1062,8 +1051,8 @@ export default function CheckoutPage() {
                 <span className="text-swisse-gold font-bold shrink-0">3.</span>
                 <span>
                   {isFrench
-                    ? 'Paiement à la livraison. Gardez votre téléphone disponible.'
-                    : 'Cash on delivery at the door. Keep your phone available.'}
+                    ? 'Paiement à la porte pour la pièce, en espèces ou chèque. La livraison se règle à part à la porte — nous ne la prenons pas en charge. Gardez votre téléphone disponible.'
+                    : 'Pay for the piece at the door, cash or bank check. Shipping is settled separately at the door — we do not cover it. Keep your phone available.'}
                 </span>
               </li>
               {!token && (

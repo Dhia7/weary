@@ -135,10 +135,10 @@ export default function ReturnsPage() {
                 {isFrench ? (
                   <>
                     Les pièces ne sont réservées qu’après confirmation téléphonique par le
-                    support. La livraison est gratuite partout en Tunisie (environ 5–7 jours
-                    après confirmation). Les articles non utilisés peuvent être retournés sous
-                    7 jours après livraison. Modifications, refus et problèmes de livraison
-                    sont traités au cas par cas — écrivez à{' '}
+                    support. La livraison se règle à la porte et n’est pas incluse dans le prix
+                    de la pièce (environ 5–7 jours après confirmation). Les articles non utilisés
+                    peuvent être retournés sous 7 jours après livraison. Modifications, refus et
+                    problèmes de livraison sont traités au cas par cas — écrivez à{' '}
                     <a
                       href="mailto:admin@swisia.store"
                       className="text-swisse-gold underline-offset-2 hover:underline"
@@ -151,9 +151,9 @@ export default function ReturnsPage() {
                 ) : (
                   <>
                     Pieces are reserved only after support confirms your order by phone. Shipping
-                    is free across Tunisia (about 5–7 days after confirmation). Unused items can
-                    be returned within 7 days of delivery. Changes, refusals, and delivery issues
-                    are handled case by case — email{' '}
+                    is paid at the door and is not included in the piece price (about 5–7 days after
+                    confirmation). Unused items can be returned within 7 days of delivery. Changes,
+                    refusals, and delivery issues are handled case by case — email{' '}
                     <a
                       href="mailto:admin@swisia.store"
                       className="text-swisse-gold underline-offset-2 hover:underline"
