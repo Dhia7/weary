@@ -5,11 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
-import { Mail, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
+import { Mail, Instagram, Clock, Send, CheckCircle } from 'lucide-react';
 import { apiFetch, getApiErrorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getContactTranslations } from '@/lib/i18n/contact';
+import { CONTACT_EMAIL, INSTAGRAM_HANDLE, INSTAGRAM_URL } from '@/lib/shopLinks';
 
 const inputClassName =
   'w-full px-4 py-3 border border-swisse-gold/25 dark:border-border bg-transparent text-swisse-ink dark:text-foreground placeholder:text-swisse-ink/40 dark:placeholder:text-muted-foreground focus:outline-none focus:border-swisse-gold dark:focus:border-primary transition-colors';
@@ -152,9 +153,13 @@ function ContactPageInner() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="border border-swisse-gold/20 dark:border-border bg-white/90 dark:bg-card shadow-sm p-6 sm:p-8"
           >
-            <h2 className="font-serif text-2xl text-swisse-ink dark:text-foreground mb-8">
+            <h2 className="font-serif text-2xl text-swisse-ink dark:text-foreground mb-3">
               {t.getInTouch}
             </h2>
+            <p className="flex items-start gap-2 text-sm text-swisse-ink/70 dark:text-muted-foreground mb-8">
+              <Clock className="w-4 h-4 text-swisse-gold mt-0.5 shrink-0" />
+              {t.responsePromise}
+            </p>
 
             <div className="space-y-8">
               <div className="flex items-start gap-4">
@@ -163,36 +168,56 @@ function ContactPageInner() {
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
                     {t.email}
                   </h3>
-                  <p className="text-swisse-ink/70 dark:text-muted-foreground">admin@swisia.store</p>
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
+                    className="text-swisse-ink/70 dark:text-muted-foreground hover:text-swisse-gold dark:hover:text-primary transition-colors"
+                  >
+                    {CONTACT_EMAIL}
+                  </a>
                 </div>
               </div>
 
               <div className="flex items-start gap-4">
-                <MapPin className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
+                <Instagram className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
                 <div>
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
-                    {t.address}
+                    {t.instagram}
                   </h3>
-                  <p className="text-swisse-ink/70 dark:text-muted-foreground">{t.addressValue}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <Clock className="w-5 h-5 text-swisse-gold mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-1">
-                    {t.businessHours}
-                  </h3>
-                  <p className="text-swisse-ink/70 dark:text-muted-foreground">
-                    {t.hoursWeekday}
-                    <br />
-                    {t.hoursSaturday}
-                    <br />
-                    {t.hoursSunday}
+                  <a
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-swisse-ink/70 dark:text-muted-foreground hover:text-swisse-gold dark:hover:text-primary transition-colors"
+                  >
+                    {INSTAGRAM_HANDLE}
+                  </a>
+                  <p className="mt-1 text-sm text-swisse-ink/55 dark:text-muted-foreground">
+                    {t.instagramHint}
                   </p>
                 </div>
               </div>
+
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-3">
+                  {t.topicsTitle}
+                </h3>
+                <ul className="space-y-2 text-sm text-swisse-ink/70 dark:text-muted-foreground">
+                  {t.topics.map((topic) => (
+                    <li key={topic} className="flex items-start gap-2">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-swisse-gold" />
+                      {topic}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
+
+            <p className="mt-8 text-sm text-swisse-ink/55 dark:text-muted-foreground lg:hidden">
+              {t.useFormMobile}
+            </p>
+            <p className="mt-8 text-sm text-swisse-ink/55 dark:text-muted-foreground hidden lg:block">
+              {t.useForm}
+            </p>
           </motion.div>
 
           <motion.div
