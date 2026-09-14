@@ -276,11 +276,11 @@ const bulkUpdateMessageStatus = async (req, res) => {
   try {
     const { messageIds, status } = req.body;
 
-    const allowedStatuses = ['read', 'archived'];
+    const allowedStatuses = ['new', 'read', 'archived'];
     if (!status || !allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status. Must be one of: read, archived',
+        message: 'Invalid status. Must be one of: new, read, archived',
       });
     }
 

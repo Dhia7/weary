@@ -128,6 +128,17 @@ export function markMessageAsSeen(messageId: string): void {
   }
 }
 
+export function unmarkMessageAsSeen(messageId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const seenIds = getSeenMessageIds();
+    seenIds.delete(messageId);
+    localStorage.setItem(SEEN_MESSAGES_KEY, JSON.stringify(Array.from(seenIds)));
+  } catch (error) {
+    console.error('Error unmarking message as seen:', error);
+  }
+}
+
 export function isMessageSeen(messageId: string): boolean {
   const seenIds = getSeenMessageIds();
   return seenIds.has(messageId);

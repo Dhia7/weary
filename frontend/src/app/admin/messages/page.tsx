@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
-import { markMessageAsSeen } from '@/lib/utils';
-import { Trash2, Archive, MailOpen } from 'lucide-react';
+import { markMessageAsSeen, unmarkMessageAsSeen } from '@/lib/utils';
+import { Trash2, Archive, Mail, MailOpen } from 'lucide-react';
 import AdminPasswordConfirmModal from '@/components/admin/AdminPasswordConfirmModal';
 
 interface ContactMessage {
@@ -25,10 +25,16 @@ interface ContactMessage {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  read: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+  new: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  read: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   archived: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
 };
+
+function statusLabel(status: ContactMessage['status']) {
+  if (status === 'new') return 'Unread';
+  if (status === 'read') return 'Read';
+  return 'Archived';
+}
 
 function syncMessageInList(
   messages: ContactMessage[],
@@ -39,7 +45,11 @@ function syncMessageInList(
 }
 
 function notifyMessageStatusChanged(messageId: string, status: ContactMessage['status']) {
-  markMessageAsSeen(messageId);
+  if (status === 'new') {
+    unmarkMessageAsSeen(messageId);
+  } else {
+    markMessageAsSeen(messageId);
+  }
   window.dispatchEvent(
     new CustomEvent('messageStatusChanged', { detail: { messageId, status } })
   );
@@ -260,63 +270,33 @@ export default function AdminMessagesPage() {
     }
   };
 
-  const executeBulkArchive = async () => {
+  const executeBulkStatus = async (status: ContactMessage['status']) => {
     if (selectedMessageIds.length === 0) return;
 
     setBulkActionLoading(true);
     try {
       const res = await fetcher('/admin/messages/bulk/status', {
         method: 'PATCH',
-        body: JSON.stringify({ messageIds: selectedMessageIds, status: 'archived' }),
+        body: JSON.stringify({ messageIds: selectedMessageIds, status }),
       });
       const data = await res.json();
 
       if (res.ok) {
         const updatedIds = (data.data?.updated || []).map((item: { id: string }) => item.id);
         setMessages((prev) =>
-          prev.map((m) =>
-            updatedIds.includes(m.id) ? { ...m, status: 'archived' as const } : m
-          )
+          prev.map((m) => (updatedIds.includes(m.id) ? { ...m, status } : m))
         );
-        updatedIds.forEach((id: string) => notifyMessageStatusChanged(id, 'archived'));
+        if (selectedMessage && updatedIds.includes(selectedMessage.id)) {
+          setSelectedMessage({ ...selectedMessage, status });
+        }
+        updatedIds.forEach((id: string) => notifyMessageStatusChanged(id, status));
         setSelectedMessageIds([]);
       } else {
-        alert(data.message || 'Failed to archive selected messages');
+        alert(data.message || 'Failed to update selected messages');
       }
     } catch (error) {
-      console.error('Error bulk archiving messages:', error);
-      alert('Failed to archive selected messages');
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
-
-  const executeBulkMarkRead = async () => {
-    if (selectedMessageIds.length === 0) return;
-
-    setBulkActionLoading(true);
-    try {
-      const res = await fetcher('/admin/messages/bulk/status', {
-        method: 'PATCH',
-        body: JSON.stringify({ messageIds: selectedMessageIds, status: 'read' }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        const updatedIds = (data.data?.updated || []).map((item: { id: string }) => item.id);
-        setMessages((prev) =>
-          prev.map((m) =>
-            updatedIds.includes(m.id) ? { ...m, status: 'read' as const } : m
-          )
-        );
-        updatedIds.forEach((id: string) => notifyMessageStatusChanged(id, 'read'));
-        setSelectedMessageIds([]);
-      } else {
-        alert(data.message || 'Failed to mark selected messages as read');
-      }
-    } catch (error) {
-      console.error('Error bulk marking messages as read:', error);
-      alert('Failed to mark selected messages as read');
+      console.error('Error bulk updating messages:', error);
+      alert('Failed to update selected messages');
     } finally {
       setBulkActionLoading(false);
     }
@@ -471,7 +451,7 @@ export default function AdminMessagesPage() {
                 className="w-full sm:w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="">All</option>
-                <option value="new">New</option>
+                <option value="new">Unread</option>
                 <option value="read">Read</option>
                 <option value="archived">Archived</option>
               </select>
@@ -492,15 +472,23 @@ export default function AdminMessagesPage() {
                 Clear selection
               </button>
               <button
-                onClick={executeBulkMarkRead}
+                onClick={() => executeBulkStatus('new')}
                 disabled={bulkActionLoading}
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                <Mail className="h-4 w-4 mr-1.5" />
+                Mark as Unread
+              </button>
+              <button
+                onClick={() => executeBulkStatus('read')}
+                disabled={bulkActionLoading}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
               >
                 <MailOpen className="h-4 w-4 mr-1.5" />
                 Mark as Read
               </button>
               <button
-                onClick={executeBulkArchive}
+                onClick={() => executeBulkStatus('archived')}
                 disabled={bulkActionLoading}
                 className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50"
               >
@@ -557,7 +545,7 @@ export default function AdminMessagesPage() {
                         key={message.id}
                         onClick={() => handleMessageClick(message)}
                         className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                          isNewUnseen ? 'bg-blue-50 dark:bg-blue-950/30 font-medium' : ''
+                          isNewUnseen ? 'bg-red-50 dark:bg-red-950/30 font-medium' : ''
                         }`}
                       >
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -577,8 +565,8 @@ export default function AdminMessagesPage() {
                         </td>
                         <td className="px-4 py-3 max-w-xs truncate">{message.subject}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_STYLES[message.status] || ''}`}>
-                            {message.status}
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[message.status] || ''}`}>
+                            {statusLabel(message.status)}
                           </span>
                         </td>
                       </tr>
@@ -658,8 +646,8 @@ export default function AdminMessagesPage() {
                   <div>
                     <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
                     <p>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_STYLES[selectedMessage.status] || ''}`}>
-                        {selectedMessage.status}
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[selectedMessage.status] || ''}`}>
+                        {statusLabel(selectedMessage.status)}
                       </span>
                     </p>
                   </div>
@@ -670,11 +658,21 @@ export default function AdminMessagesPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  {selectedMessage.status !== 'new' && (
+                    <button
+                      onClick={() => updateMessageStatus(selectedMessage.id, 'new')}
+                      disabled={updatingStatus === selectedMessage.id}
+                      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <Mail className="h-4 w-4 mr-1.5" />
+                      Mark as Unread
+                    </button>
+                  )}
                   {selectedMessage.status !== 'read' && (
                     <button
                       onClick={() => updateMessageStatus(selectedMessage.id, 'read')}
                       disabled={updatingStatus === selectedMessage.id}
-                      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
                     >
                       <MailOpen className="h-4 w-4 mr-1.5" />
                       Mark as Read
