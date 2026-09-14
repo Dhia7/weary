@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ShoppingBagIcon, ArrowLeftIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { ShoppingBagIcon, CreditCardIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { useCart } from '@/lib/contexts/CartContext';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -28,6 +28,9 @@ import StorePriceCaption from '@/components/product/StorePriceCaption';
 import ColorSwatches from '@/components/ColorSwatches';
 import ProductImageGallery from '@/components/product/ProductImageGallery';
 import SoldBadge from '@/components/product/SoldBadge';
+import SoldInquiryPanel from '@/components/product/SoldInquiryPanel';
+import { soldAskButtonClass } from '@/components/product/SoldAskButton';
+import { getSoldInquiryHref } from '@/lib/shopLinks';
 import {
   getPrimaryDisplayImage,
   getProductDisplayImages,
@@ -42,7 +45,6 @@ import {
   inputClass,
   pageShellClass,
 } from '@/lib/content-page-styles';
-import { apiFetch } from '@/lib/api';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -60,10 +62,6 @@ export default function ProductDetailPage() {
   const [showCartPanel, setShowCartPanel] = useState(false);
   // Toast for wishlist success
   const [wishlistToastVisible, setWishlistToastVisible] = useState(false);
-  const [waitlistEmail, setWaitlistEmail] = useState('');
-  const [waitlistPhone, setWaitlistPhone] = useState('');
-  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
-  const [waitlistMessage, setWaitlistMessage] = useState('');
   const { addItem, buyNow } = useCart();
   const { clearAllErrors, showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
@@ -342,7 +340,7 @@ export default function ProductDetailPage() {
   return (
     <div className={pageShellClass}>
       <Navigation />
-      <main id="main-content" className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
+      <main id="main-content" className={`max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 ${isOutOfStock ? 'pb-28 lg:pb-20' : 'pb-20'}`}>
         <nav
           aria-label={t.breadcrumbAria}
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-swisse-ink/50 dark:text-muted-foreground mb-10"
@@ -420,6 +418,15 @@ export default function ProductDetailPage() {
                 </p>
               )}
             </div>
+
+            {isOutOfStock ? (
+              <SoldInquiryPanel
+                slug={product.slug}
+                sku={product.SKU}
+                displayName={displayName}
+                t={t}
+              />
+            ) : null}
 
             {product.description && (
               <div className={`text-sm space-y-2 ${bodyTextClass}`}>
@@ -565,124 +572,54 @@ export default function ProductDetailPage() {
             )}
 
             <div className="space-y-3 pt-2">
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isOutOfStock}
-                  className="flex-1 bg-swisse-ink hover:bg-swisse-gold disabled:opacity-50 disabled:cursor-not-allowed text-swisse-canvas text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors duration-300 flex items-center justify-center gap-2 dark:bg-foreground dark:text-background dark:hover:bg-primary"
-                >
-                  <ShoppingBagIcon className="w-5 h-5" />
-                  {isOutOfStock ? t.outOfStock : t.addToCart}
-                </button>
-
-                <WishlistButton
-                  productId={product.id.toString()}
-                  size="lg"
-                  variant="outline"
-                  onToggle={(inWishlist) => {
-                    if (inWishlist) {
-                      setWishlistToastVisible(true);
-                      window.clearTimeout((window as unknown as { __wl_toast__?: number }).__wl_toast__ || 0);
-                      (window as unknown as { __wl_toast__?: number }).__wl_toast__ = window.setTimeout(() => setWishlistToastVisible(false), 2000);
-                    }
-                  }}
-                />
-              </div>
-
-              <button
-                onClick={handleBuyNow}
-                disabled={isOutOfStock}
-                className="w-full border border-swisse-gold/30 text-swisse-ink hover:border-swisse-gold hover:text-swisse-gold disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors flex items-center justify-center gap-2 dark:text-foreground"
-              >
-                <CreditCardIcon className="w-5 h-5" />
-                {isOutOfStock ? t.outOfStock : t.buyNow}
-              </button>
-
-              {isOutOfStock && (
-                <div className="border border-swisse-gold/20 dark:border-border p-4 space-y-3 bg-swisse-mist/20 dark:bg-muted/20">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground">
-                    {isFrench ? 'Me prévenir' : 'Notify me'}
-                  </p>
-                  <p className={`text-sm ${bodyTextClass}`}>
-                    {isFrench
-                      ? 'Laissez votre email — nous vous préviendrons si cet article revient disponible.'
-                      : 'Leave your email — we will notify you if this item becomes available again.'}
-                  </p>
-                  <input
-                    type="email"
-                    className={inputClass}
-                    placeholder="email@domain.com"
-                    value={waitlistEmail}
-                    onChange={(e) => setWaitlistEmail(e.target.value)}
-                  />
-                  <input
-                    type="tel"
-                    className={inputClass}
-                    placeholder={isFrench ? 'Téléphone (optionnel)' : 'Phone (optional)'}
-                    value={waitlistPhone}
-                    onChange={(e) => setWaitlistPhone(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    disabled={waitlistStatus === 'loading'}
-                    onClick={async () => {
-                      if (!product) return;
-                      setWaitlistStatus('loading');
-                      setWaitlistMessage('');
-                      try {
-                        const res = await apiFetch(`/products/${product.id}/waitlist`, {
-                          method: 'POST',
-                          body: JSON.stringify({
-                            email: waitlistEmail,
-                            phone: waitlistPhone || undefined,
-                            variantId: selectedVariant?.id ?? undefined,
-                          }),
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) {
-                          setWaitlistStatus('error');
-                          setWaitlistMessage(
-                            data.message ||
-                              (isFrench ? 'Impossible de s’inscrire.' : 'Could not join waitlist.')
-                          );
-                          return;
-                        }
-                        setWaitlistStatus('ok');
-                        setWaitlistMessage(
-                          data.message ||
-                            (isFrench
-                              ? 'Vous serez prévenu(e) si l’article revient.'
-                              : 'You will be notified if this item returns.')
-                        );
-                      } catch {
-                        setWaitlistStatus('error');
-                        setWaitlistMessage(
-                          isFrench ? 'Erreur réseau.' : 'Network error.'
-                        );
+              {isOutOfStock ? (
+                <div className="flex justify-end">
+                  <WishlistButton
+                    productId={product.id.toString()}
+                    size="lg"
+                    variant="outline"
+                    onToggle={(inWishlist) => {
+                      if (inWishlist) {
+                        setWishlistToastVisible(true);
+                        window.clearTimeout((window as unknown as { __wl_toast__?: number }).__wl_toast__ || 0);
+                        (window as unknown as { __wl_toast__?: number }).__wl_toast__ = window.setTimeout(() => setWishlistToastVisible(false), 2000);
                       }
                     }}
-                    className="w-full bg-swisse-ink text-swisse-canvas text-[10px] font-bold uppercase tracking-widest py-3 disabled:opacity-50 dark:bg-foreground dark:text-background"
-                  >
-                    {waitlistStatus === 'loading'
-                      ? isFrench
-                        ? 'Envoi…'
-                        : 'Sending…'
-                      : isFrench
-                        ? 'Rejoindre la liste'
-                        : 'Join waitlist'}
-                  </button>
-                  {waitlistMessage && (
-                    <p
-                      className={`text-sm ${
-                        waitlistStatus === 'error'
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-swisse-ink/70 dark:text-muted-foreground'
-                      }`}
-                    >
-                      {waitlistMessage}
-                    </p>
-                  )}
+                  />
                 </div>
+              ) : (
+                <>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleAddToCart}
+                      className="flex-1 bg-swisse-ink hover:bg-swisse-gold text-swisse-canvas text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors duration-300 flex items-center justify-center gap-2 dark:bg-foreground dark:text-background dark:hover:bg-primary"
+                    >
+                      <ShoppingBagIcon className="w-5 h-5" />
+                      {t.addToCart}
+                    </button>
+
+                    <WishlistButton
+                      productId={product.id.toString()}
+                      size="lg"
+                      variant="outline"
+                      onToggle={(inWishlist) => {
+                        if (inWishlist) {
+                          setWishlistToastVisible(true);
+                          window.clearTimeout((window as unknown as { __wl_toast__?: number }).__wl_toast__ || 0);
+                          (window as unknown as { __wl_toast__?: number }).__wl_toast__ = window.setTimeout(() => setWishlistToastVisible(false), 2000);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleBuyNow}
+                    className="w-full border border-swisse-gold/30 text-swisse-ink hover:border-swisse-gold hover:text-swisse-gold text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 transition-colors flex items-center justify-center gap-2 dark:text-foreground"
+                  >
+                    <CreditCardIcon className="w-5 h-5" />
+                    {t.buyNow}
+                  </button>
+                </>
               )}
             </div>
 
@@ -700,6 +637,22 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </main>
+
+      {isOutOfStock ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden border-t border-swisse-gold/30 bg-swisse-canvas/95 dark:bg-background/95 backdrop-blur px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <Link
+            href={getSoldInquiryHref({
+              slug: product.slug,
+              name: displayName,
+              sku: product.SKU,
+            })}
+            className={soldAskButtonClass}
+          >
+            <EnvelopeIcon className="w-5 h-5" />
+            {t.askAboutPiece}
+          </Link>
+        </div>
+      ) : null}
       
       {/* Cart Panel */}
       <CartPanel 

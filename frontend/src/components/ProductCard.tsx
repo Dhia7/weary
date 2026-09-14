@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, memo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { ShoppingBagIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { useCart } from '@/lib/contexts/CartContext';
 import { getImageUrl } from '@/lib/utils';
@@ -29,10 +30,12 @@ import {
 } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
 import { getHoverDisplayImage, getPrimaryDisplayImage } from '@/lib/utils/productImages';
-import { getProductDisplayName } from '@/lib/i18n/product';
+import { getProductDisplayName, getProductTranslations } from '@/lib/i18n/product';
+import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 import SoldBadge from '@/components/product/SoldBadge';
+import SoldAskButton from '@/components/product/SoldAskButton';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
@@ -73,7 +76,14 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const { addItem } = useCart();
   const { showAddToCart } = useOrderNotification();
   const { isFrench } = useLanguage();
+  const t = getProductTranslations(isFrench);
   const displayName = getProductDisplayName(product, isFrench);
+  const router = useRouter();
+  const soldInquiryHref = getSoldInquiryHref({
+    slug: product.slug,
+    name: displayName,
+    sku: product.SKU,
+  });
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -129,6 +139,12 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     } catch (error) {
       console.error('Error adding item to cart:', error);
     }
+  };
+
+  const handleSoldInquiry = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(soldInquiryHref);
   };
 
   const handleQuickView = (e: React.MouseEvent) => {
@@ -193,8 +209,6 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const soldOut =
     Boolean(selectedColor && isColorSold(product, selectedColor)) ||
     isProductSoldOut(product, selectedVariant);
-  const inStock = !soldOut;
-  const productSoldOut = isProductSoldOut(product);
   const badge = getDisplayBadge(product, selectedColor);
   const soldLabel = isFrench ? 'Vendu' : 'Sold';
 
@@ -247,16 +261,21 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           <div className="absolute top-4 right-4 z-[9] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <WishlistButton productId={product.id.toString()} size="md" variant="default" />
           </div>
-          <div className="absolute inset-0 z-[8] flex items-end p-6 bg-swisse-canvas/0 opacity-0 transition-opacity duration-300 group-hover:bg-swisse-canvas/20 group-hover:opacity-100 pointer-events-none">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={!inStock}
-              className="w-full py-3 bg-swisse-ink text-swisse-canvas text-[10px] font-bold uppercase tracking-widest opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-swisse-gold pointer-events-auto disabled:opacity-40 disabled:cursor-not-allowed dark:bg-foreground dark:text-background dark:hover:bg-primary"
-            >
-              {inStock ? (isFrench ? 'Ajout rapide' : 'Quick Add') : (isFrench ? 'Rupture de stock' : 'Out of Stock')}
-            </button>
-          </div>
+          {soldOut ? (
+            <div className="absolute inset-x-0 bottom-0 z-[12] p-4">
+              <SoldAskButton href={soldInquiryHref} label={t.askUs} onClick={handleSoldInquiry} />
+            </div>
+          ) : (
+            <div className="absolute inset-0 z-[8] flex items-end p-6 bg-swisse-canvas/0 opacity-0 transition-opacity duration-300 group-hover:bg-swisse-canvas/20 group-hover:opacity-100 pointer-events-none">
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="w-full py-3 bg-swisse-ink text-swisse-canvas text-[10px] font-bold uppercase tracking-widest opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-swisse-gold pointer-events-auto dark:bg-foreground dark:text-background dark:hover:bg-primary"
+              >
+                {isFrench ? 'Ajout rapide' : 'Quick Add'}
+              </button>
+            </div>
+          )}
         </div>
         <Link href={productHref} className="block">
           <div className="flex justify-between items-start gap-4">
@@ -352,42 +371,42 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             <WishlistButton productId={product.id.toString()} size="md" variant="default" />
           </div>
 
-          <div
-            className={`absolute bottom-0 left-0 right-0 bg-card transform transition-transform duration-300 ${
-              isHovered ? 'translate-y-0' : 'translate-y-full'
-            }`}
-          >
-            <div className="flex border-t border-border">
-              <button
-                type="button"
-                onClick={handleQuickView}
-                disabled={productSoldOut}
-                className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-muted-foreground hover:bg-muted transition-colors border-r border-border disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <EyeIcon className="w-4 h-4 mr-2" />
-                {isFrench ? 'Apercu rapide' : 'Quick View'}
-              </button>
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={!inStock}
-                className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                {!inStock
-                  ? isFrench
-                    ? 'Rupture de stock'
-                    : 'Out of Stock'
-                  : productHasSizes(product)
+          {soldOut ? (
+            <div className="absolute inset-x-0 bottom-0 z-[12] p-3">
+              <SoldAskButton href={soldInquiryHref} label={t.askUs} onClick={handleSoldInquiry} />
+            </div>
+          ) : (
+            <div
+              className={`absolute bottom-0 left-0 right-0 bg-card transform transition-transform duration-300 ${
+                isHovered ? 'translate-y-0' : 'translate-y-full'
+              }`}
+            >
+              <div className="flex border-t border-border">
+                <button
+                  type="button"
+                  onClick={handleQuickView}
+                  className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-muted-foreground hover:bg-muted transition-colors border-r border-border"
+                >
+                  <EyeIcon className="w-4 h-4 mr-2" />
+                  {isFrench ? 'Apercu rapide' : 'Quick View'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="flex-1 py-3 px-4 flex items-center justify-center text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <ShoppingBagIcon className="w-4 h-4 mr-2" />
+                  {productHasSizes(product)
                     ? isFrench
                       ? 'Choisir taille'
                       : 'Select Size'
                     : isFrench
                       ? 'Ajouter au panier'
                       : 'Add to Cart'}
-              </button>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="p-4">
@@ -419,10 +438,16 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           </div>
 
           {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{product.description}</p>
           )}
         </div>
       </Link>
+      {soldOut ? (
+        <div className="px-4 pb-4 space-y-2">
+          <p className="text-xs text-swisse-ink/70 dark:text-muted-foreground">{t.askSameHint}</p>
+          <SoldAskButton href={soldInquiryHref} label={t.askUs} onClick={handleSoldInquiry} />
+        </div>
+      ) : null}
 
       {isQuickViewOpen ? (
         <QuickViewModal

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
@@ -16,13 +17,23 @@ const inputClassName =
 const labelClassName =
   'block text-[10px] font-bold uppercase tracking-widest text-swisse-ink/80 dark:text-muted-foreground mb-2';
 
-export default function ContactPage() {
-  useAuth();
+function clipSubject(value: string) {
+  return value.length <= 200 ? value : value.slice(0, 197) + '…';
+}
+
+function ContactPageInner() {
+  const { user } = useAuth();
   const { isFrench } = useLanguage();
   const t = getContactTranslations(isFrench);
+  const searchParams = useSearchParams();
+  const soldName = searchParams.get('name');
+  const soldSku = searchParams.get('sku');
+  const soldSlug = searchParams.get('slug');
+  const isSoldInquiry = searchParams.get('reason') === 'sold' && Boolean(soldName);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     subject: '',
     message: '',
   });
@@ -32,6 +43,36 @@ export default function ContactPage() {
   const [submittedEmail, setSubmittedEmail] = useState('');
   const [confirmationEmailSent, setConfirmationEmailSent] = useState(false);
 
+  useEffect(() => {
+    setFormData((prev) => {
+      const next = { ...prev };
+      if (user) {
+        if (!next.name.trim()) {
+          next.name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.fullName || '';
+        }
+        if (!next.email.trim()) next.email = user.email || '';
+        if (!next.phone.trim() && user.phone) next.phone = user.phone;
+      }
+      if (isSoldInquiry && soldName) {
+        const listingPath = soldSlug ? `/product/${soldSlug}` : '';
+        const generatedSubject = clipSubject(t.soldInquirySubject(soldName, soldSku));
+        const generatedMessage = t.soldInquiryMessage(soldName, soldSku, listingPath);
+        const subjectUntouched =
+          !prev.subject.trim() ||
+          prev.subject === clipSubject(t.soldInquirySubject(soldName, soldSku)) ||
+          prev.subject.startsWith('Looking for:') ||
+          prev.subject.startsWith('Recherche :');
+        const messageUntouched =
+          !prev.message.trim() ||
+          prev.message.startsWith('Hello,') ||
+          prev.message.startsWith('Bonjour,');
+        if (subjectUntouched) next.subject = generatedSubject;
+        if (messageUntouched) next.message = generatedMessage;
+      }
+      return next;
+    });
+  }, [user, isSoldInquiry, soldName, soldSku, soldSlug, t]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -40,11 +81,16 @@ export default function ContactPage() {
     setSubmittedEmail('');
     setConfirmationEmailSent(false);
 
+    const phone = formData.phone.trim();
+    const bodyMessage = phone
+      ? `${t.phoneLine(phone)}\n\n${formData.message.trim()}`
+      : formData.message.trim();
+
     const payload = {
       name: formData.name.trim(),
       email: formData.email.trim(),
-      subject: formData.subject.trim(),
-      message: formData.message.trim(),
+      subject: clipSubject(formData.subject.trim()),
+      message: bodyMessage,
     };
 
     try {
@@ -64,7 +110,7 @@ export default function ContactPage() {
       setSubmitStatus('success');
       setSubmittedEmail(data.data?.email || payload.email);
       setConfirmationEmailSent(Boolean(data.data?.confirmationEmailSent));
-      setFormData({ name: '', email: '', subject: '', message: '' });
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch {
       setSubmitStatus('error');
       setErrorMessage(t.failedLater);
@@ -95,7 +141,7 @@ export default function ContactPage() {
             {t.title}
           </h1>
           <p className="text-swisse-ink/70 dark:text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            {t.subtitle}
+            {isSoldInquiry && soldName ? t.soldInquiryBanner(soldName) : t.subtitle}
           </p>
         </motion.div>
 
@@ -189,6 +235,21 @@ export default function ContactPage() {
               </div>
 
               <div>
+                <label htmlFor="phone" className={labelClassName}>
+                  {t.phone}
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className={inputClassName}
+                />
+                <p className="mt-2 text-xs text-swisse-ink/50 dark:text-muted-foreground">{t.phoneHint}</p>
+              </div>
+
+              <div>
                 <label htmlFor="subject" className={labelClassName}>
                   {t.subject}
                 </label>
@@ -199,6 +260,7 @@ export default function ContactPage() {
                   value={formData.subject}
                   onChange={handleChange}
                   required
+                  maxLength={200}
                   className={inputClassName}
                 />
               </div>
@@ -260,6 +322,14 @@ export default function ContactPage() {
                       setSubmitStatus('idle');
                       setSubmittedEmail('');
                       setConfirmationEmailSent(false);
+                      if (isSoldInquiry && soldName) {
+                        const listingPath = soldSlug ? `/product/${soldSlug}` : '';
+                        setFormData((prev) => ({
+                          ...prev,
+                          subject: clipSubject(t.soldInquirySubject(soldName, soldSku)),
+                          message: t.soldInquiryMessage(soldName, soldSku, listingPath),
+                        }));
+                      }
                     }}
                     className="mt-3 text-sm font-medium text-swisse-gold hover:text-swisse-ink dark:text-primary dark:hover:text-foreground transition-colors"
                   >
@@ -282,5 +352,21 @@ export default function ContactPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-swisse-canvas text-swisse-ink dark:bg-background dark:text-foreground">
+          <Navigation />
+          <main className="max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20" />
+          <Footer />
+        </div>
+      }
+    >
+      <ContactPageInner />
+    </Suspense>
   );
 }

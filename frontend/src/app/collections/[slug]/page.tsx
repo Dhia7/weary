@@ -12,6 +12,7 @@ import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
+import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { productHasSizes, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 import SoldBadge from '@/components/product/SoldBadge';
@@ -149,9 +150,8 @@ export default function CollectionDetailPage() {
                 key={product.id}
                 className="group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
               >
-                <Link href={`/product/${product.slug}`} className="block">
-                  {/* Product Image */}
-                  <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
+                <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
+                  <Link href={`/product/${product.slug}`} className="absolute inset-0 block">
                     {product.imageUrl ? (
                       <img
                         src={getImageUrl(product.imageUrl) || ''}
@@ -165,13 +165,38 @@ export default function CollectionDetailPage() {
                         <span className="text-6xl">{getCategoryEmoji(product.categories)}</span>
                       </div>
                     )}
-                    {soldOut ? (
-                      <SoldBadge overlay label={isFrench ? 'Vendu' : 'Sold'} />
-                    ) : null}
-                  </div>
-                </Link>
+                  </Link>
+                  {soldOut ? (
+                    <SoldBadge overlay label={isFrench ? 'Vendu' : 'Sold'} />
+                  ) : null}
+                  {soldOut ? (
+                    <div className="absolute inset-x-0 bottom-0 z-10 p-3">
+                      <Link
+                        href={getSoldInquiryHref({
+                          slug: product.slug,
+                          name: getProductDisplayName(product, isFrench),
+                          sku: product.SKU,
+                        })}
+                        className="w-full py-3 px-4 flex items-center justify-center text-[11px] font-bold uppercase tracking-widest bg-swisse-gold text-white hover:bg-swisse-ink transition-colors"
+                      >
+                        {isFrench ? 'Vous voulez le même ?' : 'Want the same piece?'}
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      <button
+                        onClick={(e) => handleAddToCart(product, e)}
+                        className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors"
+                      >
+                        <ShoppingBagIcon className="w-4 h-4 mr-2" />
+                        {productHasSizes(product)
+                          ? 'Select Size'
+                          : 'Quick Add'}
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-                {/* Wishlist Button */}
                 <button
                   onClick={() => handleWishlist(product.id)}
                   className="absolute top-3 right-3 p-2 bg-white dark:bg-gray-800 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
@@ -182,22 +207,6 @@ export default function CollectionDetailPage() {
                     <HeartIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                   )}
                 </button>
-
-                {/* Quick Add to Cart */}
-                <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                  <button
-                    onClick={(e) => handleAddToCart(product, e)}
-                    disabled={soldOut}
-                    className="w-full py-3 px-4 flex items-center justify-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                    {soldOut
-                      ? 'Out of Stock' 
-                      : productHasSizes(product)
-                      ? 'Select Size'
-                      : 'Quick Add'}
-                  </button>
-                </div>
 
                 {/* Product Info */}
                 <div className="p-4">

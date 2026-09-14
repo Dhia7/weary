@@ -10,6 +10,15 @@ const EN = {
   hoursSaturday: 'Saturday: 10:00 AM - 4:00 PM',
   hoursSunday: 'Sunday: Closed',
   name: 'Name',
+  phone: 'Phone (optional)',
+  phoneHint: 'Leave a number if you prefer we call you back.',
+  soldInquiryBanner: (name: string) =>
+    `You are asking about “${name}”, a unique piece that has been sold. Tell us what you are looking for — we will reply if we can source another.`,
+  soldInquirySubject: (name: string, sku?: string | null) =>
+    sku ? `Looking for: ${name} (${sku})` : `Looking for: ${name}`,
+  soldInquiryMessage: (name: string, sku: string | null | undefined, listingPath: string) =>
+    `Hello,\n\nI am looking for the same model or a similar unique piece to “${name}”${sku ? ` (SKU ${sku})` : ''}.\nListing: ${listingPath}\n\nPlease let me know if you can source another.\n\nThank you.`,
+  phoneLine: (phone: string) => `Phone: ${phone}`,
   subject: 'Subject',
   message: 'Message',
   sending: 'Sending...',
@@ -37,6 +46,15 @@ const FR = {
   hoursSaturday: 'Samedi : 10h00 - 16h00',
   hoursSunday: 'Dimanche : Fermé',
   name: 'Nom',
+  phone: 'Téléphone (optionnel)',
+  phoneHint: 'Laissez un numéro si vous préférez que nous vous rappelions.',
+  soldInquiryBanner: (name: string) =>
+    `Vous demandez « ${name} », une pièce unique déjà vendue. Dites-nous ce que vous cherchez — nous vous dirons si nous pouvons en trouver une autre.`,
+  soldInquirySubject: (name: string, sku?: string | null) =>
+    sku ? `Recherche : ${name} (${sku})` : `Recherche : ${name}`,
+  soldInquiryMessage: (name: string, sku: string | null | undefined, listingPath: string) =>
+    `Bonjour,\n\nJe cherche le même modèle ou une pièce unique similaire à « ${name} »${sku ? ` (réf. ${sku})` : ''}.\nFiche : ${listingPath}\n\nMerci de me dire si vous pouvez en sourcer une autre.\n\nCordialement,`,
+  phoneLine: (phone: string) => `Téléphone : ${phone}`,
   subject: 'Sujet',
   message: 'Message',
   sending: 'Envoi…',

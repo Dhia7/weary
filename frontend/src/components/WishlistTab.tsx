@@ -18,6 +18,8 @@ import {
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import type { CartItem } from '@/lib/contexts/CartContext';
 import { isProductSoldOut } from '@/lib/types/product';
+import { getSoldInquiryHref } from '@/lib/shopLinks';
+import { getProductDisplayName } from '@/lib/i18n/product';
 import SoldBadge from '@/components/product/SoldBadge';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
@@ -272,32 +274,37 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                     <Eye className="w-4 h-4" />
                     <span className="whitespace-nowrap">View</span>
                   </Link>
-                  
-                  <button
-                    onClick={() => handleAddToCart(item.Product.id)}
-                    disabled={soldOut || addingToCart.has(item.Product.id)}
-                    className={`flex items-center justify-center space-x-2 px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-                      soldOut
-                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                        : addingToCart.has(item.Product.id)
-                        ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    {addingToCart.has(item.Product.id) ? (
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <ShoppingCart className="w-4 h-4" />
-                    )}
-                    <span className="whitespace-nowrap">
-                      {soldOut
-                        ? 'Out of Stock' 
-                        : addingToCart.has(item.Product.id) 
-                        ? 'Adding...' 
-                        : 'Add to Cart'
-                      }
-                    </span>
-                  </button>
+
+                  {soldOut ? (
+                    <Link
+                      href={getSoldInquiryHref({
+                        slug: item.Product.slug,
+                        name: getProductDisplayName(item.Product, isFrench),
+                      })}
+                      className="flex-1 flex items-center justify-center px-3 py-2 text-xs md:text-sm font-bold uppercase tracking-wide rounded-lg bg-swisse-gold text-white hover:bg-swisse-ink transition-colors whitespace-nowrap"
+                    >
+                      {isFrench ? 'Vous voulez le même ?' : 'Want the same piece?'}
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => handleAddToCart(item.Product.id)}
+                      disabled={addingToCart.has(item.Product.id)}
+                      className={`flex items-center justify-center space-x-2 px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                        addingToCart.has(item.Product.id)
+                          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {addingToCart.has(item.Product.id) ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <ShoppingCart className="w-4 h-4" />
+                      )}
+                      <span className="whitespace-nowrap">
+                        {addingToCart.has(item.Product.id) ? 'Adding...' : 'Add to Cart'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>

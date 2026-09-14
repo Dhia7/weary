@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { footerHeadingClass, footerLinkClass } from '@/lib/content-page-styles';
 import { SHOP_CATEGORIES } from '@/lib/shopCategories';
+import { INSTAGRAM_URL } from '@/lib/shopLinks';
 
 const Footer = () => {
   const [currentYear, setCurrentYear] = useState('');
@@ -78,7 +79,7 @@ const Footer = () => {
 
             <div className="flex gap-5">
               <a
-                href="https://www.instagram.com/swisia.store/"
+                href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-swisse-gold hover:text-swisse-ink dark:hover:text-primary transition-colors"

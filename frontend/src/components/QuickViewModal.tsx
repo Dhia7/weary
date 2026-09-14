@@ -33,6 +33,7 @@ import {
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
 import { getProductTranslations, translateCategoryName, getProductDisplayName } from '@/lib/i18n/product';
+import { getSoldInquiryHref } from '@/lib/shopLinks';
 
 interface QuickViewModalProps {
   isOpen: boolean;
@@ -422,21 +423,30 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={
-                    isOutOfStock ||
-                    (sizeChoices.length > 0 && !selectedSize)
-                  }
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-                >
-                  <ShoppingBagIcon className="w-5 h-5" />
-                  {isOutOfStock
-                    ? t.outOfStock
-                    : sizeChoices.length > 0 && !selectedSize
+                {isOutOfStock ? (
+                  <Link
+                    href={getSoldInquiryHref({
+                      slug: product.slug,
+                      name: displayName,
+                      sku: product.SKU,
+                    })}
+                    onClick={onClose}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-swisse-gold hover:bg-swisse-ink text-white font-bold uppercase tracking-wide rounded-lg transition-colors"
+                  >
+                    {t.askAboutPiece}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={sizeChoices.length > 0 && !selectedSize}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+                  >
+                    <ShoppingBagIcon className="w-5 h-5" />
+                    {sizeChoices.length > 0 && !selectedSize
                       ? t.selectSizeFirst
                       : t.addToCart}
-                </button>
+                  </button>
+                )}
                 <Link
                   href={getProductHref(product.slug, selectedColor || undefined)}
                   onClick={onClose}
