@@ -4,6 +4,8 @@ import { productAutocompleteConfig } from '@/lib/swr/config';
 export interface AutocompleteProduct {
   id: number;
   name: string;
+  nameFr?: string | null;
+  brand?: string | null;
   slug: string;
   imageUrl?: string;
   price: number;

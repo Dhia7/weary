@@ -231,6 +231,13 @@ const connectDB = async () => {
       }
 
       try {
+        const addProductBrand = require('../scripts/add-product-brand');
+        await addProductBrand();
+      } catch (error) {
+        console.warn('Product brand migration failed (non-critical):', error.message);
+      }
+
+      try {
         const addCostPrice = require('../scripts/add-cost-price');
         await addCostPrice();
       } catch (error) {

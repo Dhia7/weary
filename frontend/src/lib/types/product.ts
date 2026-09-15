@@ -47,6 +47,7 @@ export interface Product {
   id: number;
   name: string;
   nameFr?: string | null;
+  brand?: string | null;
   slug: string;
   description: string;
   SKU: string;

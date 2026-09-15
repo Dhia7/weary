@@ -20,6 +20,7 @@ import type { CartItem } from '@/lib/contexts/CartContext';
 import { isProductSoldOut } from '@/lib/types/product';
 import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { getProductDisplayName } from '@/lib/i18n/product';
+import ProductTitle from '@/components/product/ProductTitle';
 import SoldBadge from '@/components/product/SoldBadge';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
@@ -233,8 +234,13 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
               {/* Product Info */}
               <div className="p-4">
                 <Link href={`/product/${item.Product.slug}`}>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                    {item.Product.name}
+                  <h3 className="mb-2 text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                    <ProductTitle
+                      product={item.Product}
+                      isFrench={isFrench}
+                      brandClassName="text-sm mb-0.5"
+                      className="font-medium line-clamp-2"
+                    />
                   </h3>
                 </Link>
 

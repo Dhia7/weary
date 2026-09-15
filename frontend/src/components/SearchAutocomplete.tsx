@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import ProductTitle from '@/components/product/ProductTitle';
 import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 
 interface SearchAutocompleteProps {
@@ -432,7 +433,7 @@ const SearchAutocomplete = ({
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {product.name}
+                            <ProductTitle product={product} isFrench={isFrench} layout="inline" />
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {formatPrice(product.price)}
@@ -477,7 +478,7 @@ const SearchAutocomplete = ({
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {product.name}
+                            <ProductTitle product={product} isFrench={isFrench} layout="inline" />
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {formatPrice(product.price)}

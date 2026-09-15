@@ -37,7 +37,7 @@ import {
 } from '@/lib/utils/productImages';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
-import { getProductTranslations, translateCategoryName, getProductDisplayName, getColorDisplayName } from '@/lib/i18n/product';
+import { getProductTranslations, translateCategoryName, getProductDisplayName, getProductTitleParts, getColorDisplayName } from '@/lib/i18n/product';
 import { useProduct } from '@/lib/hooks/useProduct';
 import {
   bodyTextClass,
@@ -379,10 +379,16 @@ export default function ProductDetailPage() {
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-serif text-3xl sm:text-4xl text-swisse-ink dark:text-foreground">
-                {displayName}
-              </h1>
+            <div className="space-y-2">
+              {product.brand?.trim() ? (
+                <p className="font-bold text-swisse-ink dark:text-foreground">
+                  {product.brand.trim()}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="font-serif text-3xl sm:text-4xl font-normal text-swisse-ink dark:text-foreground">
+                  {getProductTitleParts(product, isFrench).rest || displayName}
+                </h1>
               {getDisplayBadge(product, selectedColor) === 'sold' && (
                 <SoldBadge label={isFrench ? 'Vendu' : 'Sold'} />
               )}
@@ -391,6 +397,7 @@ export default function ProductDetailPage() {
                   {isFrench ? 'Nouveauté' : 'New Arrival'}
                 </span>
               )}
+            </div>
             </div>
 
             <p className={`text-xs uppercase tracking-widest ${bodyTextClass}`}>

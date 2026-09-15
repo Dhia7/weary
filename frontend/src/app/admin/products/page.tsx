@@ -10,10 +10,12 @@ import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import { orderColorsSelectedFirst } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
+import ProductTitle from '@/components/product/ProductTitle';
 
 interface Product {
   id: number;
   name: string;
+  brand?: string | null;
   slug: string;
   SKU: string;
   isActive: boolean;
@@ -425,8 +427,8 @@ export default function AdminProductsPage() {
                             )}
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {product.name}
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              <ProductTitle product={product} brandClassName="text-sm mb-0.5" className="font-medium" />
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {product.slug}

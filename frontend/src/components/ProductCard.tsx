@@ -36,6 +36,7 @@ import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 import SoldBadge from '@/components/product/SoldBadge';
 import SoldAskButton from '@/components/product/SoldAskButton';
+import ProductTitle from '@/components/product/ProductTitle';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
 const QuickViewModal = dynamic(() => import('./QuickViewModal'), { ssr: false });
@@ -280,8 +281,13 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
         <Link href={productHref} className="block">
           <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
-              <h3 className="text-sm uppercase tracking-wider mb-1 text-swisse-ink dark:text-foreground line-clamp-2">
-                {displayName}
+              <h3 className="mb-1 text-swisse-ink dark:text-foreground">
+                <ProductTitle
+                  product={product}
+                  isFrench={isFrench}
+                  brandClassName="text-sm mb-0.5"
+                  className="text-sm uppercase tracking-wider line-clamp-2"
+                />
               </h3>
               <p className="text-xs text-swisse-ink/60 dark:text-muted-foreground">
                 {getCategoryName(product.categories)}
@@ -371,11 +377,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
             <WishlistButton productId={product.id.toString()} size="md" variant="default" />
           </div>
 
-          {soldOut ? (
-            <div className="absolute inset-x-0 bottom-0 z-[12] p-3">
-              <SoldAskButton href={soldInquiryHref} label={t.askUs} onClick={handleSoldInquiry} />
-            </div>
-          ) : (
+          {soldOut ? null : (
             <div
               className={`absolute bottom-0 left-0 right-0 bg-card transform transition-transform duration-300 ${
                 isHovered ? 'translate-y-0' : 'translate-y-full'
@@ -412,7 +414,14 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
         <div className="p-4">
           <p className="text-sm text-muted-foreground mb-1">{getCategoryName(product.categories)}</p>
 
-          <h3 className="text-sm font-medium text-foreground mb-2 line-clamp-2">{displayName}</h3>
+          <h3 className="mb-2 text-foreground">
+            <ProductTitle
+              product={product}
+              isFrench={isFrench}
+              brandClassName="text-sm mb-0.5"
+              className="text-sm font-medium line-clamp-2"
+            />
+          </h3>
 
           {product.colorOptions && product.colorOptions.length > 1 && (
             <div className="mb-2">

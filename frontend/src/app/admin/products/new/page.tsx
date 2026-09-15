@@ -8,6 +8,7 @@ import ImageEditor from '@/components/ImageEditor';
 import VariantEditor, { type VariantDraft } from '@/components/admin/VariantEditor';
 import ProductImagesMedia from '@/components/admin/ProductImagesMedia';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import ProductTitle from '@/components/product/ProductTitle';
 
 interface Category {
   id: number;
@@ -23,6 +24,7 @@ export default function NewProductPage() {
   // Product Title & Description
   const [name, setName] = useState('');
   const [nameFr, setNameFr] = useState('');
+  const [brand, setBrand] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   
@@ -380,6 +382,7 @@ export default function NewProductPage() {
       const formData = new FormData();
       formData.append('name', name);
       formData.append('nameFr', nameFr.trim());
+      formData.append('brand', brand.trim());
       formData.append('slug', slug);
       formData.append('description', description);
       formData.append('price', price === '' ? '0' : price.toString());
@@ -488,6 +491,27 @@ export default function NewProductPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Product Title & Description</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="lg:col-span-2">
+                <label htmlFor="brand" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Brand / mark
+                </label>
+                <input
+                  id="brand"
+                  placeholder="Jacquemus"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  maxLength={80}
+                />
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Shown on its own line above the product title, in bold.
+                </p>
+                {brand.trim() ? (
+                  <div className="mt-2 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 px-3 py-2 text-gray-900 dark:text-gray-100">
+                    <ProductTitle product={{ name, nameFr, brand }} />
+                  </div>
+                ) : null}
+              </div>
               <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
                   Product Title (EN){requiredStar(fieldErrors.name)}

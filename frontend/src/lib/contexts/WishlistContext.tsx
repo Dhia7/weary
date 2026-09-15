@@ -12,6 +12,8 @@ interface WishlistItem {
   Product: {
     id: string;
     name: string;
+    nameFr?: string | null;
+    brand?: string | null;
     slug: string;
     description: string;
     price: number;

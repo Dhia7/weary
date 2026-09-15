@@ -12,6 +12,7 @@ import NotFoundState from '@/components/NotFoundState';
 import { getImageUrl } from '@/lib/utils';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
+import ProductTitle from '@/components/product/ProductTitle';
 import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { productHasSizes, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
@@ -219,8 +220,13 @@ export default function CollectionDetailPage() {
                   
                   {/* Product Name */}
                   <Link href={`/product/${product.slug}`}>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                      {getProductDisplayName(product, isFrench)}
+                    <h3 className="mb-2 text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                      <ProductTitle
+                        product={product}
+                        isFrench={isFrench}
+                        brandClassName="text-sm mb-0.5"
+                        className="text-sm font-medium line-clamp-2"
+                      />
                     </h3>
                   </Link>
 

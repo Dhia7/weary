@@ -26,6 +26,7 @@ import {
 import QuantitySelector from '@/components/product/QuantitySelector';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 import SoldBadge from '@/components/product/SoldBadge';
+import ProductTitle from '@/components/product/ProductTitle';
 import {
   getPrimaryDisplayImage,
   getProductDisplayImages,
@@ -307,8 +308,13 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
               )}
 
               {/* Product Name */}
-              <h2 id="quick-view-title" className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {displayName}
+              <h2 id="quick-view-title" className="text-gray-900 dark:text-white">
+                <ProductTitle
+                  product={product}
+                  isFrench={isFrench}
+                  brandClassName="text-base md:text-lg mb-1"
+                  className="text-2xl md:text-3xl font-medium"
+                />
               </h2>
               {getDisplayBadge(product, selectedColor) === 'sold' ? (
                 <div>

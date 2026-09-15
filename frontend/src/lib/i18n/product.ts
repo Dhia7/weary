@@ -135,13 +135,34 @@ export function getProductTranslations(isFrench: boolean): ProductTranslations {
   return isFrench ? FR : EN;
 }
 
-/** Storefront product title: French when available, else English. */
+/** Storefront product title: French when available, else English. Prefixes brand if missing. */
 export function getProductDisplayName(
-  product: { name: string; nameFr?: string | null },
+  product: { name: string; nameFr?: string | null; brand?: string | null },
   isFrench: boolean
 ): string {
-  if (isFrench && product.nameFr?.trim()) return product.nameFr.trim();
-  return product.name;
+  const title = isFrench && product.nameFr?.trim() ? product.nameFr.trim() : product.name;
+  const brand = product.brand?.trim();
+  if (!brand) return title;
+  if (title.toLowerCase().startsWith(brand.toLowerCase())) return title;
+  return `${brand} ${title}`.trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Brand shown first in bold, then the rest of the title without repeating the brand. */
+export function getProductTitleParts(
+  product: { name: string; nameFr?: string | null; brand?: string | null },
+  isFrench: boolean
+): { brand: string | null; rest: string } {
+  const title = getProductDisplayName(product, isFrench);
+  const brand = product.brand?.trim() || null;
+  if (!brand) return { brand: null, rest: title };
+  const leading = new RegExp(`^${escapeRegExp(brand)}(?:\\s*[:\\-–—]\\s*|\\s+|$)`, 'i');
+  if (!leading.test(title)) return { brand, rest: title };
+  const rest = title.replace(leading, '').trim();
+  return { brand, rest };
 }
 
 /** Storefront color label from a ColorOption or canonical name + options lookup. */

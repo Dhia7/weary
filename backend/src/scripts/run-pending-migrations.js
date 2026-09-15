@@ -21,6 +21,8 @@ async function main() {
 		console.log('');
 		await require('./add-product-fr-fields')();
 		console.log('');
+		await require('./add-product-brand')();
+		console.log('');
 		await require('./add-cost-price')();
 		console.log('');
 		await require('./add-hover-image-index')();

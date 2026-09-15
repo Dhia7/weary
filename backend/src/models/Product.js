@@ -15,6 +15,11 @@ const Product = sequelize.define('Product', {
 		allowNull: true,
 		comment: 'French display title; falls back to name on storefront'
 	},
+	brand: {
+		type: DataTypes.STRING(80),
+		allowNull: true,
+		comment: 'Designer / mark shown first in bold on the shop, e.g. Jacquemus'
+	},
 	slug: {
 		type: DataTypes.STRING(220),
 		allowNull: false,

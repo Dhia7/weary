@@ -211,6 +211,12 @@ const parseOptionalDecimal = (value) => {
 	return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
+const parseBrand = (value) => {
+	if (value === undefined || value === null) return undefined;
+	const trimmed = String(value).trim();
+	return trimmed ? trimmed.slice(0, 80) : null;
+};
+
 const parseSpecFields = (body) => ({
 	depthCm: null,
 	widthCm: null,
@@ -305,7 +311,7 @@ const normalizeSizeField = (size) => {
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, allowCustomerQuantity, homepageCollageOrder } = req.body;
+		const { name, nameFr, brand, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, allowCustomerQuantity, homepageCollageOrder } = req.body;
 		const specs = parseSpecFields(req.body);
 		
 		// Parse categoryIds if it's a string (from FormData)
@@ -370,6 +376,7 @@ const createProduct = async (req, res) => {
 		const product = await Product.create({ 
 			name,
 			nameFr: nameFr != null && String(nameFr).trim() ? String(nameFr).trim() : null,
+			brand: parseBrand(brand) ?? null,
 			slug, 
 			description, 
 			SKU, 
@@ -452,11 +459,12 @@ const createProduct = async (req, res) => {
 				// Full-text search with bound parameter (via sequelize.fn) + ILIKE fallbacks
 				where[Op.or] = [
 					sequelize.where(
-						sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", ''))`),
+						sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("brand", '') || ' ' || COALESCE("description", ''))`),
 						'@@',
 						sequelize.fn('plainto_tsquery', 'english', searchTerm)
 					),
 					{ name: { [Op.iLike]: `%${searchTerm}%` } },
+					{ brand: { [Op.iLike]: `%${searchTerm}%` } },
 					{ description: { [Op.iLike]: `%${searchTerm}%` } },
 					{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 				];
@@ -541,6 +549,7 @@ const createProduct = async (req, res) => {
 				}
 				fallbackWhere[Op.or] = [
 					{ name: { [Op.iLike]: `%${searchTerm}%` } },
+					{ brand: { [Op.iLike]: `%${searchTerm}%` } },
 					{ description: { [Op.iLike]: `%${searchTerm}%` } },
 					{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 				];
@@ -654,7 +663,7 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, nameFr, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity, homepageCollageOrder } = req.body;
+		const { name, nameFr, brand, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity, homepageCollageOrder } = req.body;
 		
 		console.log('=== UPDATE PRODUCT REQUEST ===');
 		console.log('Product ID:', id);
@@ -763,6 +772,9 @@ const updateProduct = async (req, res) => {
 		if (name !== undefined) product.name = name;
 		if (nameFr !== undefined) {
 			product.nameFr = nameFr != null && String(nameFr).trim() ? String(nameFr).trim() : null;
+		}
+		if (brand !== undefined) {
+			product.brand = parseBrand(brand) ?? null;
 		}
 		if (slug !== undefined) product.slug = slug;
 		if (description !== undefined) product.description = description;
@@ -984,11 +996,12 @@ const searchAutocomplete = async (req, res) => {
 						isActive: true,
 						[Op.or]: [
 							sequelize.where(
-								sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("description", ''))`),
+								sequelize.literal(`to_tsvector('english', COALESCE("name", '') || ' ' || COALESCE("brand", '') || ' ' || COALESCE("description", ''))`),
 								'@@',
 								sequelize.fn('plainto_tsquery', 'english', searchTerm)
 							),
 							{ name: { [Op.iLike]: `%${searchTerm}%` } },
+							{ brand: { [Op.iLike]: `%${searchTerm}%` } },
 							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 						]
 					},
@@ -1009,6 +1022,7 @@ const searchAutocomplete = async (req, res) => {
 						isActive: true,
 						[Op.or]: [
 							{ name: { [Op.iLike]: `%${searchTerm}%` } },
+							{ brand: { [Op.iLike]: `%${searchTerm}%` } },
 							{ SKU: { [Op.iLike]: `%${searchTerm}%` } }
 						]
 					},
