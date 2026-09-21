@@ -29,7 +29,7 @@ export default function BrandStory() {
             transition={{ duration: 0.8, delay: 0.15 }}
           >
             <span className="text-swisse-gold text-xs uppercase tracking-widest mb-6 block font-bold">
-              {isFrench ? 'Comment ça marche' : 'How it works'}
+              {isFrench ? 'À propos' : 'About us'}
             </span>
             <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl text-swisse-ink mb-8 leading-tight">
               {isFrench ? 'De Suisse à Tunis, Sans Compromis' : 'From Switzerland to Tunisia, No Compromise'}

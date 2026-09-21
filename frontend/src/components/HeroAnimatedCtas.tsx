@@ -28,7 +28,7 @@ export default function HeroAnimatedCtas({ isFrench }: HeroAnimatedCtasProps) {
         onClick={() => scrollToHomeSection('brand-story')}
         className="group inline-flex items-center justify-center sm:justify-start gap-3 text-xs font-bold uppercase tracking-widest text-swisse-ink dark:text-swisse-canvas"
       >
-        <span>{isFrench ? 'Comment ca marche ?' : 'How it Works?'}</span>
+        <span>{isFrench ? 'À propos' : 'About us'}</span>
         <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-2" />
       </button>
     </motion.div>

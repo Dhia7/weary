@@ -37,7 +37,7 @@ const mainNav: MainNavItem[] = [
   { name: 'Home', href: '/' },
   { name: 'Collections', href: '/products' },
   { name: 'Featured', href: '/products', sectionId: 'most-loved' },
-  { name: 'How it Works', href: '/', sectionId: 'brand-story' },
+  { name: 'About us', href: '/', sectionId: 'brand-story' },
 ];
 
 const Navigation = () => {
@@ -81,7 +81,7 @@ const Navigation = () => {
       Home: 'Accueil',
       Collections: 'Collections',
       Featured: 'Coups de coeur',
-      'How it Works': 'Comment ça marche',
+      'About us': 'À propos',
     };
 
     return { ...item, name: translations[item.name] ?? item.name };
