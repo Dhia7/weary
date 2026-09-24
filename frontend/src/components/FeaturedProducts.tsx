@@ -38,13 +38,18 @@ interface Product {
 const PRODUCT_LIMIT = 6;
 const COLLAGE_LIMIT = 4;
 
-function productImageUrls(items: Product[]): string[] {
-  return items
-    .map((p) => {
-      const src = getPrimaryDisplayImage(p as CatalogProduct) || p.imageUrl;
-      return src ? getImageUrl(src) : null;
-    })
-    .filter((url): url is string => Boolean(url));
+function collageSlots(items: Product[]): { url: string }[] {
+  const slots: { url: string }[] = [];
+  const seen = new Set<string>();
+  for (const p of items) {
+    const catalog = p as CatalogProduct;
+    const src = getPrimaryDisplayImage(catalog) || p.imageUrl;
+    const url = src ? getImageUrl(src) : null;
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    slots.push({ url });
+  }
+  return slots;
 }
 
 const FeaturedProducts = () => {
@@ -64,11 +69,12 @@ const FeaturedProducts = () => {
     ? 'Des pièces sélectionnées, prêtes à commander — photos réelles, prix en TND.'
     : 'Handpicked pieces ready to order — real photos, prices in TND.';
 
-  const collageFromAdmin = productImageUrls(collageProducts as Product[]);
-  const collageFallback = productImageUrls(products as Product[]);
+  const collageFromAdmin = collageSlots(collageProducts as Product[]);
+  const adminUrls = new Set(collageFromAdmin.map((slot) => slot.url));
+  const collageFallback = collageSlots(products as Product[]);
   const collageImages = [
     ...collageFromAdmin,
-    ...collageFallback.filter((url) => !collageFromAdmin.includes(url)),
+    ...collageFallback.filter((slot) => !adminUrls.has(slot.url)),
   ].slice(0, COLLAGE_LIMIT);
 
   if (loading && products.length === 0) {
@@ -132,7 +138,8 @@ const FeaturedProducts = () => {
                 {/* Same 4-up 3:4 collage on every breakpoint so framing stays identical */}
                 <div className="grid grid-cols-4 w-full">
                   {Array.from({ length: COLLAGE_LIMIT }, (_, i) => {
-                    const src = collageImages[i] ?? null;
+                    const slot = collageImages[i] ?? null;
+                    const src = slot?.url ?? null;
                     return (
                       <div
                         key={src ? `${src}-${i}` : `slot-${i}`}

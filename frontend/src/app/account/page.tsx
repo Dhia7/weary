@@ -27,6 +27,7 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import SecuritySettings from '@/components/SecuritySettings';
 import WishlistTab from '@/components/WishlistTab';
 import OrdersTab from '@/components/OrdersTab';
+import AccountSettings from '@/components/AccountSettings';
 
 function formatMemberSince(createdAt?: string) {
   if (!createdAt) return '—';
@@ -443,41 +444,7 @@ function AccountPageContent() {
               )}
 
               {/* Settings Tab */}
-              {activeTab === 'settings' && (
-                <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                    Account Settings
-                  </h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <div>
-                        <h3 className="font-medium text-gray-900 dark:text-white">
-                          Email Notifications
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Manage your email preferences
-                        </p>
-                      </div>
-                      <button className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                        Manage
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <div>
-                        <h3 className="font-medium text-gray-900 dark:text-white">
-                          Privacy Settings
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Control your privacy and data settings
-                        </p>
-                      </div>
-                      <button className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                        Manage
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {activeTab === 'settings' && <AccountSettings />}
             </div>
             )}
           </motion.div>

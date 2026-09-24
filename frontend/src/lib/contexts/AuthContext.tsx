@@ -26,11 +26,15 @@ interface User {
   isAdmin?: boolean;
   role?: 'customer' | 'staff' | 'admin';
   twoFactorEnabled?: boolean;
+  /** False when the account was created with Google and has no site password yet. */
+  hasLocalPassword?: boolean;
   createdAt?: string;
   addresses?: UserAddress[];
   preferences?: {
     newsletter: boolean;
     marketingEmails: boolean;
+    orderEmails?: boolean;
+    stockEmails?: boolean;
     sizePreference: string;
     favoriteCategories: string[];
   };
@@ -85,10 +89,10 @@ interface AuthContextType {
       isDefault: boolean;
     }>;
   }) => Promise<{ success: boolean; message: string }>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  changePassword: (newPassword: string, currentPassword?: string) => Promise<{ success: boolean; message: string }>;
   toggleTwoFactorAuth: (
     enable: boolean,
-    password: string
+    options?: { password?: string; code?: string }
   ) => Promise<{
     success: boolean;
     message: string;
@@ -153,6 +157,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const ping = () => {
+      apiFetch('/auth/presence', { method: 'POST' }).catch(() => {});
+    };
+    ping();
+    const timer = window.setInterval(ping, 20000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') ping();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [user?.id]);
 
   const login = async (email: string, password: string, twoFactorCode?: string) => {
     try {
@@ -383,7 +405,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
+  const changePassword = async (newPassword: string, currentPassword?: string) => {
     if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
@@ -391,7 +413,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiFetch('/auth/change-password', {
         method: 'PUT',
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({
+          newPassword,
+          ...(currentPassword ? { currentPassword } : {}),
+        }),
       });
 
       const responseData = await response.json();
@@ -415,7 +440,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const toggleTwoFactorAuth = async (enable: boolean, password: string) => {
+  const toggleTwoFactorAuth = async (
+    enable: boolean,
+    options?: { password?: string; code?: string }
+  ) => {
     if (!user) {
       return { success: false, message: 'Not authenticated' };
     }
@@ -423,7 +451,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiFetch('/auth/2fa', {
         method: 'PUT',
-        body: JSON.stringify({ enable, password }),
+        body: JSON.stringify({
+          enable,
+          ...(options?.password ? { password: options.password } : {}),
+          ...(options?.code ? { code: options.code } : {}),
+        }),
       });
 
       const responseData = await response.json();

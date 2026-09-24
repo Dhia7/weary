@@ -11,6 +11,16 @@ const {
 
 const router = express.Router();
 
+async function enforcePasswordPolicy(value) {
+  const { readSettings } = require('../controllers/settingsController');
+  const settings = await readSettings();
+  const min = Number(settings.passwordMinLength) || 6;
+  if (String(value || '').length < min) {
+    throw new Error(`Password must be at least ${min} characters long`);
+  }
+  return true;
+}
+
 // Validation middleware
 const registerValidation = [
   body('email')
@@ -21,7 +31,8 @@ const registerValidation = [
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long')
     .matches(/\d/)
-    .withMessage('Password must contain at least one number'),
+    .withMessage('Password must contain at least one number')
+    .custom(enforcePasswordPolicy),
   body('firstName')
     .trim()
     .isLength({ min: 2, max: 50 })
@@ -174,17 +185,20 @@ const resetPasswordValidation = [
     .withMessage('Password must be at least 6 characters long')
     .matches(/\d/)
     .withMessage('Password must contain at least one number')
+    .custom(enforcePasswordPolicy)
 ];
 
 const changePasswordValidation = [
   body('currentPassword')
-    .notEmpty()
-    .withMessage('Current password is required'),
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage('Current password must be a string'),
   body('newPassword')
     .isLength({ min: 6 })
     .withMessage('New password must be at least 6 characters long')
     .matches(/\d/)
     .withMessage('New password must contain at least one number')
+    .custom(enforcePasswordPolicy)
 ];
 
 const toggleTwoFactorValidation = [
@@ -192,8 +206,13 @@ const toggleTwoFactorValidation = [
     .isBoolean()
     .withMessage('Enable must be a boolean value'),
   body('password')
-    .notEmpty()
-    .withMessage('Password is required to enable/disable 2FA')
+    .optional({ values: 'falsy' })
+    .isString()
+    .withMessage('Password must be a string'),
+  body('code')
+    .optional({ values: 'falsy' })
+    .isLength({ min: 6, max: 16 })
+    .withMessage('Authenticator code must be 6–16 characters')
 ];
 
 const verifyTwoFactorValidation = [
@@ -232,7 +251,9 @@ router.post('/profile/avatar', protect, uploadAvatarImage, authController.upload
 router.put('/change-password', protect, changePasswordValidation, authController.changePassword);
 router.put('/2fa', protect, toggleTwoFactorValidation, authController.toggleTwoFactorAuth);
 router.post('/2fa/verify', protect, verifyTwoFactorValidation, authController.verifyTwoFactorCode);
+router.delete('/account', protect, authController.deleteAccount);
 // Logout clears cookies even if the access token is already expired
+router.post('/presence', protect, authController.recordPresence);
 router.post('/logout', authController.logout);
 
 module.exports = router;

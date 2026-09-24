@@ -101,6 +101,7 @@ require('./models/Wishlist');
 require('./models/ContactMessage');
 require('./models/CodBlocklist');
 require('./models/StockWaitlist');
+require('./models/ShopSetting');
 
 // Import associations
 require('./models/associations');

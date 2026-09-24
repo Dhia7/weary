@@ -1,5 +1,11 @@
 const User = require('../models/User');
 const Address = require('../models/Address');
+const Order = require('../models/Order');
+const Cart = require('../models/Cart');
+const Wishlist = require('../models/Wishlist');
+const StockWaitlist = require('../models/StockWaitlist');
+const ContactMessage = require('../models/ContactMessage');
+const { sequelize } = require('../config/database');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
@@ -35,6 +41,7 @@ const formatUserProfile = (user, addresses = user.addresses || []) => ({
   isEmailVerified: user.isEmailVerified,
   isAdmin: user.isAdmin,
   twoFactorEnabled: !!user.twoFactorEnabled,
+  hasLocalPassword: user.hasLocalPassword !== false,
   role: resolveUserRole(user),
   preferences: user.preferences,
   createdAt: user.createdAt,
@@ -379,6 +386,7 @@ const googleAuth = async (req, res) => {
         firstName,
         lastName,
         isEmailVerified: true,
+        hasLocalPassword: false,
         password: crypto.randomBytes(32).toString('hex'),
         avatarUrl: typeof payload.picture === 'string' ? payload.picture : null,
       });
@@ -609,6 +617,8 @@ const updateProfile = async (req, res) => {
           lastName: user.lastName,
           fullName: user.getFullName(),
           phone: user.phone,
+          avatarUrl: user.avatarUrl || null,
+          lastSeenAt: user.lastSeenAt,
           preferences: user.preferences
         }
       }
@@ -788,6 +798,7 @@ const resetPassword = async (req, res) => {
 
     // Set new password
     user.password = password;
+    user.hasLocalPassword = true;
     user.passwordResetToken = null;
     user.passwordResetExpires = null;
 
@@ -829,31 +840,40 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-    if (!isCurrentPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password is incorrect. Please enter your current password correctly.'
-      });
+    const settingFirstPassword = user.hasLocalPassword === false;
+
+    if (!settingFirstPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required'
+        });
+      }
+
+      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect. Please enter your current password correctly.'
+        });
+      }
+
+      const isNewPasswordSameAsCurrent = await user.comparePassword(newPassword);
+      if (isNewPasswordSameAsCurrent) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password cannot be the same as your current password. Please choose a different password.'
+        });
+      }
     }
 
-    // Check if new password is the same as current password
-    const isNewPasswordSameAsCurrent = await user.comparePassword(newPassword);
-    if (isNewPasswordSameAsCurrent) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password cannot be the same as your current password. Please choose a different password.'
-      });
-    }
-
-    // Update password
     user.password = newPassword;
+    user.hasLocalPassword = true;
     await user.save();
 
     res.json({
       success: true,
-      message: 'Password changed successfully'
+      message: settingFirstPassword ? 'Password set successfully' : 'Password changed successfully'
     });
   } catch (error) {
     console.error('Change password error:', error);
@@ -877,7 +897,7 @@ const toggleTwoFactorAuth = async (req, res) => {
       });
     }
 
-    const { enable, password } = req.body;
+    const { enable, password, code } = req.body;
     
     const user = await User.findByPk(req.user.userId);
     if (!user) {
@@ -887,13 +907,38 @@ const toggleTwoFactorAuth = async (req, res) => {
       });
     }
 
-    // Verify password before enabling/disabling 2FA
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password is incorrect. Please enter your current password to enable/disable 2FA.'
-      });
+    // Google-created accounts have no site password. The active session is the
+    // proof for enabling 2FA. Disabling still requires a current authenticator code.
+    if (user.hasLocalPassword === false) {
+      if (!enable) {
+        if (!user.twoFactorEnabled) {
+          return res.status(400).json({
+            success: false,
+            message: 'Two-factor authentication is not enabled'
+          });
+        }
+        const codeOk = await verifyTwoFactorOrBackup(user, code);
+        if (!codeOk) {
+          return res.status(400).json({
+            success: false,
+            message: 'Authenticator code is incorrect. Enter the current code from your app or a backup code.'
+          });
+        }
+      }
+    } else {
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is required to enable/disable 2FA.'
+        });
+      }
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is incorrect. Please enter your current password to enable/disable 2FA.'
+        });
+      }
     }
 
     if (enable) {
@@ -1126,11 +1171,104 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.isAdmin || user.role === 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin accounts cannot be deleted from account settings.',
+      });
+    }
+
+    const { password, code, confirmation } = req.body || {};
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Type DELETE to confirm account deletion.',
+      });
+    }
+
+    if (user.hasLocalPassword !== false) {
+      const valid = password && (await user.comparePassword(password));
+      if (!valid) {
+        return res.status(400).json({ success: false, message: 'Password is incorrect.' });
+      }
+    } else if (user.twoFactorEnabled) {
+      const valid = await verifyTwoFactorOrBackup(user, code);
+      if (!valid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Authenticator code is incorrect.',
+        });
+      }
+    }
+
+    const t = await sequelize.transaction();
+    try {
+      if (user.avatarUrl && user.avatarUrl.includes('res.cloudinary.com')) {
+        await deleteFromCloudinary(user.avatarUrl);
+      }
+      await Order.update({ userId: null }, { where: { userId: user.id }, transaction: t });
+      await Address.destroy({ where: { userId: user.id }, transaction: t });
+      await Cart.destroy({ where: { userId: user.id }, transaction: t });
+      await Wishlist.destroy({ where: { userId: user.id }, transaction: t });
+      await StockWaitlist.destroy({
+        where: {
+          [Op.or]: [{ userId: user.id }, { email: user.email }],
+        },
+        transaction: t,
+      });
+      await ContactMessage.update({ userId: null }, { where: { userId: user.id }, transaction: t });
+      await user.destroy({ transaction: t });
+      await t.commit();
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
+
+    clearAuthCookies(res);
+    return res.json({ success: true, message: 'Account deleted' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    return res.status(500).json({ success: false, message: 'Could not delete account' });
+  }
+};
+
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
+const recordPresence = async (req, res) => {
+  try {
+    await User.update(
+      { lastSeenAt: new Date() },
+      { where: { id: req.user.userId } }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Presence error:', error);
+    res.status(500).json({ success: false, message: 'Could not update presence' });
+  }
+};
+
 const logout = async (req, res) => {
   try {
+    const token = require('../utils/authCookies').getAccessTokenFromRequest(req);
+    if (token) {
+      try {
+        const { verifyAccessToken } = require('../utils/jwt');
+        const decoded = verifyAccessToken(token);
+        if (decoded?.userId) {
+          await User.update({ lastSeenAt: null }, { where: { id: decoded.userId } });
+        }
+      } catch {
+        // Expired token still clears the cookie below.
+      }
+    }
     clearAuthCookies(res);
     res.json({
       success: true,
@@ -1161,5 +1299,7 @@ module.exports = {
   verifyTwoFactorCode,
   completeTwoFactorLogin,
   uploadAvatar,
+  recordPresence,
+  deleteAccount,
   logout
 };

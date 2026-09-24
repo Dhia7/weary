@@ -172,6 +172,20 @@ const connectDB = async () => {
       } catch (error) {
         console.warn('googleId migration failed (non-critical):', error.message);
       }
+
+      try {
+        const addHasLocalPassword = require('../scripts/add-has-local-password');
+        await addHasLocalPassword();
+      } catch (error) {
+        console.warn('hasLocalPassword migration failed (non-critical):', error.message);
+      }
+
+      try {
+        const addLastSeenToUsers = require('../scripts/add-last-seen-to-users');
+        await addLastSeenToUsers();
+      } catch (error) {
+        console.warn('lastSeenAt migration failed (non-critical):', error.message);
+      }
       
       // Always ensure constraints are correct (fix old constraint issues)
       try {

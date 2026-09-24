@@ -19,6 +19,12 @@ const User = sequelize.define('User', {
     allowNull: true,
     unique: true
   },
+  // False for accounts created with Google until the user chooses a site password.
+  hasLocalPassword: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
+  },
   password: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -94,6 +100,8 @@ const User = sequelize.define('User', {
     defaultValue: {
       newsletter: true,
       marketingEmails: true,
+      orderEmails: true,
+      stockEmails: true,
       sizePreference: 'M',
       favoriteCategories: []
     }
@@ -137,6 +145,10 @@ const User = sequelize.define('User', {
   },
   avatarUrl: {
     type: DataTypes.STRING,
+    allowNull: true
+  },
+  lastSeenAt: {
+    type: DataTypes.DATE,
     allowNull: true
   },
   loginAttempts: {

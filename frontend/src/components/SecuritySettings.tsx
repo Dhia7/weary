@@ -20,8 +20,8 @@ import {
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters').regex(/\d/, 'Password must contain at least one number'),
   confirmPassword: z.string().min(1, 'Please confirm your new password')
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
@@ -36,9 +36,14 @@ const twoFactorVerifySchema = z.object({
   code: z.string().length(6, 'Code must be 6 digits').regex(/^\d{6}$/, 'Code must contain only numbers')
 });
 
+const twoFactorDisableCodeSchema = z.object({
+  code: z.string().min(6, 'Code must be at least 6 characters').max(16, 'Code is too long'),
+});
+
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 type TwoFactorPasswordFormData = z.infer<typeof twoFactorPasswordSchema>;
 type TwoFactorVerifyFormData = z.infer<typeof twoFactorVerifySchema>;
+type TwoFactorDisableCodeFormData = z.infer<typeof twoFactorDisableCodeSchema>;
 
 export default function SecuritySettings() {
   const { user, changePassword, toggleTwoFactorAuth, verifyTwoFactorCode } = useAuth();
@@ -86,6 +91,17 @@ export default function SecuritySettings() {
     resolver: zodResolver(twoFactorVerifySchema)
   });
 
+  const {
+    register: register2FADisableCode,
+    handleSubmit: handle2FADisableCodeSubmit,
+    formState: { errors: twoFactorDisableCodeErrors },
+    reset: reset2FADisableCodeForm
+  } = useForm<TwoFactorDisableCodeFormData>({
+    resolver: zodResolver(twoFactorDisableCodeSchema)
+  });
+
+  const googleOnlyAccount = user?.hasLocalPassword === false;
+
   useEffect(() => {
     if (!otpauthUrl) {
       setQrCodeDataUrl('');
@@ -103,7 +119,11 @@ export default function SecuritySettings() {
     setSuccess('');
 
     try {
-      const result = await changePassword(data.currentPassword, data.newPassword);
+      if (!googleOnlyAccount && !data.currentPassword) {
+        setError('Current password is required');
+        return;
+      }
+      const result = await changePassword(data.newPassword, data.currentPassword);
       
       if (result.success) {
         setSuccess(result.message);
@@ -124,49 +144,77 @@ export default function SecuritySettings() {
     setPending2FAEnable(enable);
     setShowPasswordPrompt(true);
     reset2FAPasswordForm();
+    reset2FADisableCodeForm();
   };
 
   const cancelPasswordPrompt = () => {
     setShowPasswordPrompt(false);
     setPending2FAEnable(null);
     reset2FAPasswordForm();
+    reset2FADisableCodeForm();
   };
 
-  const on2FAPasswordSubmit = async (data: TwoFactorPasswordFormData) => {
-    if (pending2FAEnable === null) return;
+  const applyToggleResult = (
+    enable: boolean,
+    result: { success: boolean; message: string; data?: { secret?: string; otpauthUrl?: string } }
+  ) => {
+    if (!result.success) {
+      setError(result.message);
+      return;
+    }
 
+    setShowPasswordPrompt(false);
+    setPending2FAEnable(null);
+    reset2FAPasswordForm();
+    reset2FADisableCodeForm();
+
+    if (enable && result.data) {
+      setTwoFactorSecret(result.data.secret ?? '');
+      setOtpauthUrl(result.data.otpauthUrl ?? '');
+      setBackupCodes([]);
+      setShowTwoFactorSetup(true);
+    } else {
+      setShowTwoFactorSetup(false);
+      setTwoFactorSecret('');
+      setOtpauthUrl('');
+      setBackupCodes([]);
+      setSuccess(result.message);
+    }
+  };
+
+  const startTwoFactorChange = async (
+    enable: boolean,
+    options?: { password?: string; code?: string }
+  ) => {
     setIsToggling2FA(true);
     setError('');
     setSuccess('');
 
     try {
-      const result = await toggleTwoFactorAuth(pending2FAEnable, data.password);
-      
-      if (result.success) {
-        setShowPasswordPrompt(false);
-        setPending2FAEnable(null);
-        reset2FAPasswordForm();
-
-        if (pending2FAEnable && result.data) {
-          setTwoFactorSecret(result.data.secret ?? '');
-          setOtpauthUrl(result.data.otpauthUrl ?? '');
-          setBackupCodes([]);
-          setShowTwoFactorSetup(true);
-        } else {
-          setShowTwoFactorSetup(false);
-          setTwoFactorSecret('');
-          setOtpauthUrl('');
-          setBackupCodes([]);
-          setSuccess(result.message);
-        }
-      } else {
-        setError(result.message);
-      }
+      const result = await toggleTwoFactorAuth(enable, options);
+      applyToggleResult(enable, result);
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsToggling2FA(false);
     }
+  };
+
+  const onEnableClick = () => {
+    if (googleOnlyAccount && !user?.twoFactorEnabled) {
+      void startTwoFactorChange(true);
+      return;
+    }
+    openPasswordPrompt(!user?.twoFactorEnabled);
+  };
+
+  const on2FAPasswordSubmit = async (data: TwoFactorPasswordFormData) => {
+    if (pending2FAEnable === null) return;
+    await startTwoFactorChange(pending2FAEnable, { password: data.password });
+  };
+
+  const on2FADisableCodeSubmit = async (data: TwoFactorDisableCodeFormData) => {
+    await startTwoFactorChange(false, { code: data.code });
   };
 
   const onVerifyTwoFactor = async (data: TwoFactorVerifyFormData) => {
@@ -230,11 +278,18 @@ export default function SecuritySettings() {
           <div className="flex items-center space-x-3 mb-6">
             <Lock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Change Password
+              {googleOnlyAccount ? 'Set a Password' : 'Change Password'}
             </h2>
           </div>
 
+          {googleOnlyAccount && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              You signed in with Google, so there is no current website password to enter. Choose one below. You can keep using Google sign-in after that.
+            </p>
+          )}
+
           <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
+            {!googleOnlyAccount && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Current Password
@@ -264,10 +319,11 @@ export default function SecuritySettings() {
                 </p>
               )}
             </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                New Password
+                {googleOnlyAccount ? 'Password' : 'New Password'}
               </label>
               <div className="relative">
                 <input
@@ -297,7 +353,7 @@ export default function SecuritySettings() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Confirm New Password
+                {googleOnlyAccount ? 'Confirm Password' : 'Confirm New Password'}
               </label>
               <div className="relative">
                 <input
@@ -335,7 +391,7 @@ export default function SecuritySettings() {
               ) : (
                 <Lock className="w-4 h-4" />
               )}
-              <span>Change Password</span>
+              <span>{googleOnlyAccount ? 'Set Password' : 'Change Password'}</span>
             </button>
           </form>
         </div>
@@ -362,7 +418,9 @@ export default function SecuritySettings() {
                   Two-Factor Authentication
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Add an extra layer of security to your account
+                  {googleOnlyAccount
+                    ? 'You signed in with Google. Enabling two-factor authentication uses this signed-in session, then a code from an authenticator app.'
+                    : 'Add an extra layer of security to your account'}
                 </p>
                 <div className="flex items-center space-x-2 mt-2">
                   {user?.twoFactorEnabled ? (
@@ -379,7 +437,7 @@ export default function SecuritySettings() {
                 </div>
               </div>
               <button
-                onClick={() => openPasswordPrompt(!user?.twoFactorEnabled)}
+                onClick={onEnableClick}
                 disabled={isToggling2FA || showPasswordPrompt}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   user?.twoFactorEnabled
@@ -402,8 +460,53 @@ export default function SecuritySettings() {
                   {pending2FAEnable ? 'Enable Two-Factor Authentication' : 'Disable Two-Factor Authentication'}
                 </h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Enter your current password to {pending2FAEnable ? 'enable' : 'disable'} two-factor authentication.
+                  {googleOnlyAccount && !pending2FAEnable
+                    ? 'You signed in with Google, so there is no website password. Enter the current code from your authenticator app, or a backup code, to turn two-factor authentication off.'
+                    : `Enter your current password to ${pending2FAEnable ? 'enable' : 'disable'} two-factor authentication.`}
                 </p>
+                {googleOnlyAccount && !pending2FAEnable ? (
+                <form onSubmit={handle2FADisableCodeSubmit(on2FADisableCodeSubmit)} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Authenticator or backup code
+                    </label>
+                    <input
+                      {...register2FADisableCode('code')}
+                      type="text"
+                      autoFocus
+                      autoComplete="one-time-code"
+                      className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {twoFactorDisableCodeErrors.code && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {twoFactorDisableCodeErrors.code.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      disabled={isToggling2FA}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors"
+                    >
+                      {isToggling2FA ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Shield className="w-4 h-4" />
+                      )}
+                      <span>Confirm</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelPasswordPrompt}
+                      disabled={isToggling2FA}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+                ) : (
                 <form onSubmit={handle2FAPasswordSubmit(on2FAPasswordSubmit)} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -458,6 +561,7 @@ export default function SecuritySettings() {
                     </button>
                   </div>
                 </form>
+                )}
               </motion.div>
             )}
 

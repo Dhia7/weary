@@ -19,6 +19,10 @@ async function main() {
 		console.log('');
 		await require('./add-avatar-url-to-users')();
 		console.log('');
+		await require('./add-google-id-to-users')();
+		console.log('');
+		await require('./add-has-local-password')();
+		console.log('');
 		await require('./add-product-fr-fields')();
 		console.log('');
 		await require('./add-product-brand')();

@@ -1,20 +1,62 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useAuthorizedFetch } from '@/lib/admin';
-import { Search, Eye, Trash2, Plus, Shield, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { Search, Eye, Trash2, Plus, Shield, ShieldCheck, UserX, UserCheck } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 import AdminPasswordConfirmModal from '@/components/admin/AdminPasswordConfirmModal';
+
+interface RecentOrder {
+  id: string;
+  status: string;
+  totalAmountCents: number;
+  currency: string;
+  createdAt: string;
+}
+
+interface WishlistItem {
+  id: string;
+  addedAt: string;
+  product: {
+    id: number;
+    name: string;
+    slug: string;
+    imageUrl?: string | null;
+    price?: number | string | null;
+    isActive?: boolean;
+  };
+}
 
 interface User {
   id: number;
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string | null;
   isEmailVerified: boolean;
   isAdmin: boolean;
+  isActive?: boolean;
+  twoFactorEnabled?: boolean;
+  role?: 'customer' | 'staff' | 'admin';
+  signupMethod?: 'google' | 'password' | 'google-and-password';
+  hasLocalPassword?: boolean;
+  lastLogin?: string | null;
+  lastSeenAt?: string | null;
+  avatarUrl?: string | null;
   isFake?: boolean;
   orderCount?: number;
   deliveredOrderCount?: number;
+  totalSpentCents?: number;
+  recentOrders?: RecentOrder[];
+  wishlist?: WishlistItem[];
+  preferences?: {
+    newsletter?: boolean;
+    marketingEmails?: boolean;
+    orderEmails?: boolean;
+    stockEmails?: boolean;
+  };
   createdAt: string;
   addresses: Address[];
 }
@@ -26,6 +68,7 @@ interface Address {
   state: string;
   country: string;
   zipCode: string;
+  type?: string;
   isDefault: boolean;
 }
 
@@ -36,8 +79,33 @@ interface Pagination {
   usersPerPage: number;
 }
 
+function isOnline(lastSeenAt?: string | null) {
+  if (!lastSeenAt) return false;
+  const seen = new Date(lastSeenAt).getTime();
+  if (Number.isNaN(seen)) return false;
+  return Date.now() - seen < 45_000;
+}
+
+function signupLabel(method?: User['signupMethod']) {
+  if (method === 'google') return 'Google';
+  if (method === 'google-and-password') return 'Google + password';
+  return 'Email and password';
+}
+
+function roleLabel(user: Pick<User, 'role' | 'isAdmin'>) {
+  if (user.role === 'staff') return 'Staff';
+  if (user.role === 'admin' || user.isAdmin) return 'Admin';
+  return 'Customer';
+}
+
+function formatMoney(cents?: number, currency = 'TND') {
+  const amount = ((cents || 0) / 100).toFixed(2);
+  return `${amount} ${currency}`;
+}
+
 export default function AdminUsersPage() {
   const fetcher = useAuthorizedFetch();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,10 +121,11 @@ export default function AdminUsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
   const [passwordModal, setPasswordModal] = useState<{
-    action: 'toggleAdmin' | 'delete' | 'bulkDelete';
+    action: 'toggleAdmin' | 'delete' | 'bulkDelete' | 'toggleActive';
     userId?: number;
     userIds?: number[];
     currentAdminStatus?: boolean;
+    nextActive?: boolean;
     title: string;
     description: string;
     confirmLabel: string;
@@ -88,6 +157,10 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    const timer = setInterval(() => {
+      fetchUsers();
+    }, 15000);
+    return () => clearInterval(timer);
   }, [fetchUsers]);
 
   useEffect(() => {
@@ -235,6 +308,59 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openUserDetails = async (user: User) => {
+    setSelectedUser(user);
+    setShowUserModal(true);
+    try {
+      const res = await fetcher(`/admin/users/${user.id}`);
+      const data = await res.json();
+      if (res.ok && data.data?.user) {
+        setSelectedUser({ ...user, ...data.data.user });
+      }
+    } catch (error) {
+      console.error('Error loading user details:', error);
+    }
+  };
+
+  const handleToggleActive = (user: User) => {
+    const nextActive = user.isActive === false;
+    setPasswordModalError('');
+    setPasswordModal({
+      action: 'toggleActive',
+      userId: user.id,
+      nextActive,
+      title: nextActive ? 'Reactivate account' : 'Deactivate account',
+      description: nextActive
+        ? 'This person will be able to sign in again. Enter your password to confirm.'
+        : 'This person will not be able to sign in. Their orders stay in the shop. Enter your password to confirm.',
+      confirmLabel: nextActive ? 'Reactivate' : 'Deactivate',
+    });
+  };
+
+  const executeToggleActive = async (userId: number, nextActive: boolean, password: string) => {
+    try {
+      const res = await fetcher(`/admin/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ isActive: nextActive, password }),
+      });
+      if (res.ok) {
+        setPasswordModal(null);
+        setUsers((current) => current.map((user) => (
+          user.id === userId ? { ...user, isActive: nextActive } : user
+        )));
+        setSelectedUser((current) => (
+          current && current.id === userId ? { ...current, isActive: nextActive } : current
+        ));
+      } else {
+        const error = await res.json();
+        setPasswordModalError(error.message || 'Could not update this account');
+      }
+    } catch (error) {
+      console.error('Error updating account status:', error);
+      setPasswordModalError('Could not update this account');
+    }
+  };
+
   const handleBulkDelete = () => {
     if (selectedUserIds.length === 0) {
       return;
@@ -291,6 +417,8 @@ export default function AdminUsersPage() {
         await executeToggleAdmin(passwordModal.userId, passwordModal.currentAdminStatus, password);
       } else if (passwordModal.action === 'bulkDelete' && passwordModal.userIds?.length) {
         await executeBulkDelete(passwordModal.userIds, password);
+      } else if (passwordModal.action === 'toggleActive' && passwordModal.userId !== undefined && passwordModal.nextActive !== undefined) {
+        await executeToggleActive(passwordModal.userId, passwordModal.nextActive, password);
       }
     } finally {
       setPasswordActionLoading(false);
@@ -468,12 +596,27 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-                              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-300">
-                                {user.firstName?.[0] || user.email[0].toUpperCase()}
-                              </span>
-                            </div>
+                          <div className="relative flex-shrink-0 h-10 w-10">
+                            {getImageUrl(user.avatarUrl) ? (
+                              <img
+                                src={getImageUrl(user.avatarUrl) || ''}
+                                alt=""
+                                className="h-10 w-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
+                                <span className="text-sm font-medium text-indigo-600 dark:text-indigo-300">
+                                  {user.firstName?.[0] || user.email[0].toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                            <span
+                              className={`absolute -right-0.5 -bottom-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-gray-800 ${
+                                isOnline(user.lastSeenAt) ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-500'
+                              }`}
+                              title={isOnline(user.lastSeenAt) ? 'Online now' : 'Offline'}
+                              aria-label={isOnline(user.lastSeenAt) ? 'Online now' : 'Offline'}
+                            />
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -484,6 +627,9 @@ export default function AdminUsersPage() {
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {user.email}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {user.phone || 'No phone'}
                             </div>
                           </div>
                         </div>
@@ -501,6 +647,24 @@ export default function AdminUsersPage() {
                               : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                           }`}>
                             {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                          </span>
+                          {user.isActive === false && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-100">
+                              Inactive
+                            </span>
+                          )}
+                          {user.role === 'staff' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              Staff
+                            </span>
+                          )}
+                          {user.twoFactorEnabled && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                              2FA
+                            </span>
+                          )}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                            {signupLabel(user.signupMethod)}
                           </span>
                           {user.isFake && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
@@ -529,20 +693,29 @@ export default function AdminUsersPage() {
                         {user.addresses?.length || 0} address{user.addresses?.length !== 1 ? 'es' : ''}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(user.createdAt)}
+                        <div>{formatDate(user.createdAt)}</div>
+                        <div className="text-xs">
+                          Last sign-in: {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
                           <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setShowUserModal(true);
-                            }}
+                            onClick={() => openUserDetails(user)}
                             className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                             title="View user details"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
+                          {!user.isAdmin && String(user.id) !== String(currentUser?.id) && (
+                            <button
+                              onClick={() => handleToggleActive(user)}
+                              className="text-amber-600 hover:text-amber-800 dark:text-amber-400"
+                              title={user.isActive === false ? 'Reactivate account' : 'Deactivate account'}
+                            >
+                              {user.isActive === false ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleToggleAdmin(user.id, user.isAdmin)}
                             className={`${
@@ -701,7 +874,7 @@ export default function AdminUsersPage() {
       {/* User Details Modal */}
       {showUserModal && selectedUser && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800 mb-10">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -716,41 +889,87 @@ export default function AdminUsersPage() {
               </div>
               
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                    {selectedUser.firstName && selectedUser.lastName 
-                      ? `${selectedUser.firstName} ${selectedUser.lastName}`
-                      : 'No name provided'
-                    }
-                  </p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-white">{selectedUser.email}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                  <div className="mt-1 flex space-x-2">
-                    {selectedUser.isAdmin && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                        Admin
-                      </span>
+                <div className="flex items-center gap-3">
+                  <div className="relative h-14 w-14 shrink-0">
+                    {getImageUrl(selectedUser.avatarUrl) ? (
+                      <img
+                        src={getImageUrl(selectedUser.avatarUrl) || ''}
+                        alt=""
+                        className="h-14 w-14 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
+                        <span className="text-base font-medium text-indigo-600 dark:text-indigo-300">
+                          {selectedUser.firstName?.[0] || selectedUser.email[0].toUpperCase()}
+                        </span>
+                      </div>
                     )}
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      selectedUser.isEmailVerified
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    }`}>
-                      {selectedUser.isEmailVerified ? 'Verified' : 'Unverified'}
-                    </span>
+                    <span
+                      className={`absolute -right-0.5 -bottom-0.5 h-4 w-4 rounded-full border-2 border-white dark:border-gray-800 ${
+                        isOnline(selectedUser.lastSeenAt) ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-500'
+                      }`}
+                      title={isOnline(selectedUser.lastSeenAt) ? 'Online now' : 'Offline'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {selectedUser.firstName && selectedUser.lastName
+                        ? `${selectedUser.firstName} ${selectedUser.lastName}`
+                        : 'No name provided'}
+                    </p>
+                    <p className={`text-xs ${isOnline(selectedUser.lastSeenAt) ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                      {isOnline(selectedUser.lastSeenAt) ? 'Online now' : 'Offline'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">{selectedUser.email}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">{selectedUser.phone || 'Not added'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">{roleLabel(selectedUser)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sign-in</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">{signupLabel(selectedUser.signupMethod)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {selectedUser.isActive === false ? 'Deactivated' : 'Active'}
+                      {' · '}
+                      {selectedUser.twoFactorEnabled ? 'Two-factor on' : 'Two-factor off'}
+                      {' · '}
+                      {selectedUser.isEmailVerified ? 'Email verified' : 'Email not verified'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Last sign-in</label>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {selectedUser.lastLogin ? formatDate(selectedUser.lastLogin) : 'Never'}
+                    </p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Orders</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Orders</label>
+                    <Link
+                      href={`/admin/orders?q=${encodeURIComponent(selectedUser.email)}`}
+                      className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                      onClick={() => setShowUserModal(false)}
+                    >
+                      Open this customer’s orders
+                    </Link>
+                  </div>
                   <p className="mt-1 text-sm text-gray-900 dark:text-white">
                     {selectedUser.deliveredOrderCount ?? 0} delivered
                     {(selectedUser.orderCount ?? 0) > 0 && (
@@ -758,6 +977,75 @@ export default function AdminUsersPage() {
                         {' '}· {selectedUser.orderCount} total
                       </span>
                     )}
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {' '}· {formatMoney(selectedUser.totalSpentCents, selectedUser.recentOrders?.[0]?.currency)} spent
+                    </span>
+                  </p>
+                  {selectedUser.recentOrders && selectedUser.recentOrders.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {selectedUser.recentOrders.map((order) => (
+                        <li key={order.id} className="text-sm text-gray-700 dark:text-gray-300">
+                          <Link
+                            href={`/admin/orders?q=${encodeURIComponent(order.id)}`}
+                            className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                            onClick={() => setShowUserModal(false)}
+                          >
+                            {order.id.slice(0, 8)}
+                          </Link>
+                          {' · '}{order.status}{' · '}{formatMoney(order.totalAmountCents, order.currency)}{' · '}{formatDate(order.createdAt)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Wishlist ({selectedUser.wishlist?.length || 0})
+                  </label>
+                  {selectedUser.wishlist && selectedUser.wishlist.length > 0 ? (
+                    <ul className="mt-2 space-y-2">
+                      {selectedUser.wishlist.map((item) => (
+                        <li key={item.id}>
+                          <Link
+                            href={`/admin/products/${item.product.id}`}
+                            onClick={() => setShowUserModal(false)}
+                            className="flex items-center gap-3 rounded-lg bg-gray-50 dark:bg-gray-700 p-2 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          >
+                            {getImageUrl(item.product.imageUrl) ? (
+                              <img
+                                src={getImageUrl(item.product.imageUrl) || ''}
+                                alt=""
+                                className="h-12 w-12 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="h-12 w-12 rounded bg-gray-200 dark:bg-gray-600" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {item.product.name}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Saved {formatDate(item.addedAt)}
+                                {item.product.isActive === false ? ' · Hidden' : ''}
+                              </p>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No saved pieces</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email choices</label>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                    Orders {selectedUser.preferences?.orderEmails === false ? 'off' : 'on'}
+                    {' · '}Back in stock {selectedUser.preferences?.stockEmails === false ? 'off' : 'on'}
+                    {' · '}Newsletter {selectedUser.preferences?.newsletter === false ? 'off' : 'on'}
+                    {' · '}Marketing {selectedUser.preferences?.marketingEmails === false ? 'off' : 'on'}
                   </p>
                 </div>
                 

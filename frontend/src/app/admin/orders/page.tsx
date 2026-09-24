@@ -138,8 +138,14 @@ export default function AdminOrdersPage() {
   const [perPage, setPerPage] = useState(20);
   
   // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') || '';
+  });
+  const [searchInput, setSearchInput] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') || '';
+  });
 
   useEffect(() => {
     (async () => {

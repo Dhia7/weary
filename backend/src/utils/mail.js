@@ -209,7 +209,21 @@ function buildShippingText(order) {
   return [addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ');
 }
 
+async function customerAllowsEmail(order, preferenceKey) {
+  const userId = order?.userId || order?.User?.id;
+  if (!userId) return true;
+  let preferences = order?.User?.preferences;
+  if (!preferences) {
+    const User = require('../models/User');
+    const user = await User.findByPk(userId, { attributes: ['preferences'] });
+    preferences = user?.preferences;
+  }
+  if (!preferences || preferences[preferenceKey] === undefined) return true;
+  return preferences[preferenceKey] !== false;
+}
+
 async function sendOrderConfirmationEmail(order) {
+  if (!(await customerAllowsEmail(order, 'orderEmails'))) return;
   const { email, firstName } = resolveOrderRecipient(order);
   if (!email) {
     console.warn('Order confirmation skipped: no customer email on order', order?.id);
@@ -264,6 +278,13 @@ After phone confirmation the item is soft-reserved for you; stock is finalized o
 }
 
 async function sendOrderAdminNotificationEmail(order) {
+  try {
+    const { readSettings } = require('../controllers/settingsController');
+    const settings = await readSettings();
+    if (settings.notifyOrders === false) return;
+  } catch (err) {
+    console.warn('Order notification preference check failed:', err.message || err);
+  }
   const adminEmail = getAdminNotifyEmail();
   if (!adminEmail) {
     console.warn('Order admin notification skipped: no ADMIN_NOTIFY_EMAIL configured');
@@ -312,7 +333,7 @@ async function sendPersonalizedOrderEmails(order, { designImageUrl, tshirtColor 
   const orderRef = shortOrderId(order.id);
   const adminEmail = getAdminNotifyEmail();
 
-  if (email) {
+  if (email && (await customerAllowsEmail(order, 'orderEmails'))) {
     const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
     const subject = `Personalized order received #${orderRef} — ${BRAND}`;
     const text = `${greeting}
@@ -377,6 +398,7 @@ function sendTransactional(promise, label) {
 }
 
 async function sendOrderCancelledEmail(order, reasonLabel) {
+  if (!(await customerAllowsEmail(order, 'orderEmails'))) return;
   const { email, firstName } = resolveOrderRecipient(order);
   if (!email) return;
 

@@ -6,6 +6,7 @@ const orderController = require('../controllers/orderController');
 const categoryController = require('../controllers/categoryController');
 const contactController = require('../controllers/contactController');
 const codBlocklistController = require('../controllers/codBlocklistController');
+const settingsController = require('../controllers/settingsController');
 
 // Admin routes - all require authentication and admin privileges
 router.use(protect);
@@ -31,6 +32,9 @@ router.delete('/users/:id/addresses/:addressId', adminController.deleteUserAddre
 
 // Dashboard statistics
 router.get('/dashboard', adminController.getDashboardStats);
+
+router.get('/settings', settingsController.getSettings);
+router.put('/settings', settingsController.updateSettings);
 
 // Toggle admin status
 router.put('/users/:id/admin', adminController.toggleUserAdmin);

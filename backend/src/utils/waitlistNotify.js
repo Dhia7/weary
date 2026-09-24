@@ -34,7 +34,13 @@ async function notifyWaitlistForItem(productId, variantId = null) {
 		if (!product) return;
 
 		for (const entry of entries) {
-			if (hasMailTransport() && entry.email) {
+			let allowStockEmail = true;
+			if (entry.userId) {
+				const User = require('../models/User');
+				const account = await User.findByPk(entry.userId, { attributes: ['preferences'] });
+				if (account?.preferences?.stockEmails === false) allowStockEmail = false;
+			}
+			if (allowStockEmail && hasMailTransport() && entry.email) {
 				sendTransactional(
 					sendStockAvailableEmail({
 						email: entry.email,

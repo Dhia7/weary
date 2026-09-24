@@ -135,6 +135,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     // French footer / nav paths → existing English routes
     const frenchPathRewrites = [
+      { source: '/review', destination: '/merci' },
+      { source: '/avis', destination: '/merci' },
       { source: '/aide', destination: '/help' },
       { source: '/retours', destination: '/returns' },
       { source: '/guide-des-tailles', destination: '/size-guide' },

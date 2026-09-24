@@ -3,6 +3,7 @@ const Address = require('../models/Address');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
+const Wishlist = require('../models/Wishlist');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { verifyAdminPassword } = require('../utils/adminAuth');
@@ -24,6 +25,13 @@ const getUserOrderStats = async (userIds) => {
         ),
         'deliveredOrderCount',
       ],
+      [
+        sequelize.fn(
+          'SUM',
+          sequelize.literal(`CASE WHEN status <> 'cancelled' THEN "totalAmountCents" ELSE 0 END`)
+        ),
+        'totalSpentCents',
+      ],
     ],
     where: { userId: { [Op.in]: userIds } },
     group: ['userId'],
@@ -36,6 +44,7 @@ const getUserOrderStats = async (userIds) => {
       {
         orderCount: parseInt(row.orderCount, 10) || 0,
         deliveredOrderCount: parseInt(row.deliveredOrderCount, 10) || 0,
+        totalSpentCents: parseInt(row.totalSpentCents, 10) || 0,
       },
     ])
   );
@@ -47,12 +56,19 @@ const enrichUsers = async (users) => {
 
   return users.map((user) => {
     const plain = user.toJSON();
-    const stats = orderStatsMap[user.id] || { orderCount: 0, deliveredOrderCount: 0 };
+    const stats = orderStatsMap[user.id] || { orderCount: 0, deliveredOrderCount: 0, totalSpentCents: 0 };
+    const signupMethod = plain.googleId
+      ? (plain.hasLocalPassword === false ? 'google' : 'google-and-password')
+      : 'password';
+    delete plain.googleId;
+    delete plain.password;
 
     return {
       ...plain,
       orderCount: stats.orderCount,
       deliveredOrderCount: stats.deliveredOrderCount,
+      totalSpentCents: stats.totalSpentCents,
+      signupMethod,
       isFake: !plain.isAdmin && !plain.isEmailVerified && stats.orderCount === 0,
     };
   });
@@ -127,12 +143,13 @@ const getAllUsers = async (req, res) => {
       include: [{
         model: Address,
         as: 'addresses',
-        attributes: ['id', 'type', 'city', 'state', 'country', 'isDefault']
+        attributes: ['id', 'type', 'street', 'city', 'state', 'zipCode', 'country', 'isDefault']
       }],
       attributes: [
         'id', 'email', 'firstName', 'lastName', 'phone',
-        'isEmailVerified', 'isActive', 'twoFactorEnabled', 'isAdmin',
-        'lastLogin', 'createdAt', 'updatedAt'
+        'isEmailVerified', 'isActive', 'twoFactorEnabled', 'isAdmin', 'role',
+        'googleId', 'hasLocalPassword', 'avatarUrl',
+        'lastLogin', 'lastSeenAt', 'createdAt', 'updatedAt'
       ],
       order: [['createdAt', 'DESC']],
       limit,
@@ -185,6 +202,26 @@ const getUserById = async (req, res) => {
       });
     }
 
+    const [recentOrders, orderStatsMap, wishlistItems] = await Promise.all([
+      Order.findAll({
+        where: { userId: user.id },
+        attributes: ['id', 'status', 'totalAmountCents', 'currency', 'createdAt'],
+        order: [['createdAt', 'DESC']],
+        limit: 8,
+      }),
+      getUserOrderStats([user.id]),
+      Wishlist.findAll({
+        where: { userId: user.id },
+        include: [{
+          model: Product,
+          attributes: ['id', 'name', 'slug', 'imageUrl', 'price', 'isActive'],
+        }],
+        order: [['addedAt', 'DESC']],
+        limit: 24,
+      }),
+    ]);
+    const stats = orderStatsMap[user.id] || { orderCount: 0, deliveredOrderCount: 0, totalSpentCents: 0 };
+
     res.json({
       success: true,
       data: {
@@ -195,15 +232,44 @@ const getUserById = async (req, res) => {
           lastName: user.lastName,
           fullName: user.getFullName(),
           phone: user.phone,
+          avatarUrl: user.avatarUrl || null,
           isEmailVerified: user.isEmailVerified,
           isAdmin: user.isAdmin,
+          role: user.role,
           isActive: user.isActive,
           twoFactorEnabled: user.twoFactorEnabled,
+          hasLocalPassword: user.hasLocalPassword !== false,
+          signupMethod: user.googleId
+            ? (user.hasLocalPassword === false ? 'google' : 'google-and-password')
+            : 'password',
           preferences: user.preferences,
           addresses: user.addresses || [],
           lastLogin: user.lastLogin,
+          lastSeenAt: user.lastSeenAt,
           createdAt: user.createdAt,
-          updatedAt: user.updatedAt
+          updatedAt: user.updatedAt,
+          orderCount: stats.orderCount,
+          deliveredOrderCount: stats.deliveredOrderCount,
+          totalSpentCents: stats.totalSpentCents,
+          recentOrders: recentOrders.map((order) => ({
+            id: order.id,
+            status: order.status,
+            totalAmountCents: order.totalAmountCents,
+            currency: order.currency,
+            createdAt: order.createdAt,
+          })),
+          wishlist: wishlistItems.map((item) => ({
+            id: item.id,
+            addedAt: item.addedAt,
+            product: item.Product ? {
+              id: item.Product.id,
+              name: item.Product.name,
+              slug: item.Product.slug,
+              imageUrl: item.Product.imageUrl || null,
+              price: item.Product.price,
+              isActive: item.Product.isActive,
+            } : null,
+          })).filter((item) => item.product),
         }
       }
     });
@@ -251,6 +317,18 @@ const updateUser = async (req, res) => {
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phone !== undefined) user.phone = phone;
+    if (isActive === false && String(user.id) === String(req.user.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot deactivate your own account from here.',
+      });
+    }
+    if (isActive === false && user.isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Remove admin access before deactivating this account.',
+      });
+    }
     if (isActive !== undefined) user.isActive = isActive;
     if (isEmailVerified !== undefined) user.isEmailVerified = isEmailVerified;
     if (isAdmin !== undefined) {
@@ -938,12 +1016,13 @@ const searchUsers = async (req, res) => {
       include: [{
         model: Address,
         as: 'addresses',
-        attributes: ['id', 'type', 'city', 'state', 'country', 'isDefault']
+        attributes: ['id', 'type', 'street', 'city', 'state', 'zipCode', 'country', 'isDefault']
       }],
       attributes: [
-        'id', 'email', 'firstName', 'lastName', 'phone', 
-        'isEmailVerified', 'isActive', 'twoFactorEnabled', 'isAdmin',
-        'lastLogin', 'createdAt'
+        'id', 'email', 'firstName', 'lastName', 'phone',
+        'isEmailVerified', 'isActive', 'twoFactorEnabled', 'isAdmin', 'role',
+        'googleId', 'hasLocalPassword', 'avatarUrl',
+        'lastLogin', 'lastSeenAt', 'createdAt'
       ],
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
