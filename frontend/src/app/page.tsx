@@ -23,7 +23,7 @@ function HomeSectionSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <section
       aria-hidden
-      className={`relative z-10 animate-pulse bg-swisse-mist dark:bg-background ${
+      className={`animate-pulse bg-swisse-mist/60 dark:bg-muted/40 ${
         compact ? "h-48 md:h-56" : "h-[28rem] md:h-[32rem]"
       }`}
     />

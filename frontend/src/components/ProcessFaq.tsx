@@ -90,7 +90,7 @@ export default function ProcessFaq() {
     <section
       id="process-faq"
       aria-labelledby="process-faq-heading"
-      className="relative z-10 overflow-x-hidden bg-swisse-linen py-20 dark:bg-muted/20 dark:max-md:bg-background md:py-28"
+      className="overflow-x-hidden bg-swisse-linen py-20 md:py-28 dark:bg-muted/20"
     >
       <div className="mx-auto max-w-3xl px-6 md:px-8">
         <motion.div

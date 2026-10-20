@@ -8,7 +8,7 @@ export default function BrandStory() {
   const { isFrench } = useLanguage();
 
   return (
-    <section id="brand-story" className="relative z-10 overflow-x-hidden bg-swisse-linen py-24 md:py-40">
+    <section id="brand-story" className="overflow-x-hidden bg-swisse-linen py-24 md:py-40">
       <div className="mx-auto max-w-swisse px-6 md:px-8">
         <div className="grid grid-cols-1 items-center gap-14 sm:gap-16 lg:grid-cols-2 lg:gap-24">
           <motion.div

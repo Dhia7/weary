@@ -79,7 +79,7 @@ const FeaturedProducts = () => {
 
   if (loading && products.length === 0) {
     return (
-      <section id="most-loved" className="relative z-10 bg-swisse-canvas py-20 dark:bg-background md:py-28">
+      <section id="most-loved" className="py-20 md:py-28 bg-swisse-canvas dark:bg-background">
         <div className="max-w-swisse mx-auto px-6 md:px-8">
           <div className="mb-14 md:mb-16 animate-pulse">
             <div className="min-h-[220px] md:min-h-[300px] bg-swisse-mist dark:bg-muted" />
@@ -120,7 +120,7 @@ const FeaturedProducts = () => {
   };
 
   return (
-    <section id="most-loved" className="relative z-10 bg-swisse-canvas py-20 dark:bg-background md:py-28">
+    <section id="most-loved" className="py-20 md:py-28 bg-swisse-canvas dark:bg-background">
       <div className="max-w-swisse mx-auto px-6 md:px-8">
         {products.length > 0 ? (
           <>

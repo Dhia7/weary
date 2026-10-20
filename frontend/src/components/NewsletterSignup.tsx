@@ -24,7 +24,7 @@ const NewsletterSignup = () => {
   };
 
   return (
-    <section className="relative z-10 border-t border-swisse-gold/10 bg-swisse-canvas py-24 dark:border-border dark:bg-background md:py-32">
+    <section className="py-24 md:py-32 bg-swisse-canvas dark:bg-background border-t border-swisse-gold/10 dark:border-border">
       <div className="max-w-3xl mx-auto px-6 md:px-8 text-center">
         <motion.div
           initial={{ opacity: 0, y: 24 }}

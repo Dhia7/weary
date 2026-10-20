@@ -1,6 +1,5 @@
 import { getServerLanguage } from '@/lib/getServerLanguage';
 import HeroBackgroundVideo from '@/components/HeroBackgroundVideo';
-import HeroCopy from '@/components/HeroCopy';
 import HeroScrollButton from '@/components/HeroScrollButton';
 import HeroAnimatedBadge from '@/components/HeroAnimatedBadge';
 import HeroAnimatedCtas from '@/components/HeroAnimatedCtas';
@@ -11,14 +10,14 @@ export default async function Hero() {
   return (
     <section
       id="hero"
-      className="relative z-0 flex min-h-screen items-start dark:bg-swisse-ink max-md:sticky max-md:top-0 max-md:h-[100svh] max-md:min-h-[100svh] md:aspect-video md:min-h-0 md:items-center"
+      className="relative flex min-h-screen items-start dark:bg-swisse-ink md:aspect-video md:min-h-0 md:items-center"
     >
       <div className="absolute inset-0">
         <HeroBackgroundVideo isFrench={isFrench} />
         <div className="pointer-events-none absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />
       </div>
 
-      <HeroCopy className="relative z-10 mx-auto w-full max-w-swisse px-6 pb-52 pt-32 md:px-8 md:pb-16 md:pt-24 xl:mx-0 xl:max-w-[36rem] xl:pl-10 xl:pr-6">
+      <div className="relative z-10 mx-auto w-full max-w-swisse px-6 pb-52 pt-32 md:px-8 md:pb-16 md:pt-24 xl:mx-0 xl:max-w-[36rem] xl:pl-10 xl:pr-6">
         <div className="max-w-2xl">
           <HeroAnimatedBadge isFrench={isFrench} />
           <h1 className="mb-8 font-serif text-5xl leading-[1.1] text-swisse-ink dark:text-swisse-canvas sm:text-6xl md:text-7xl">
@@ -53,7 +52,7 @@ export default async function Hero() {
           </div>
           <HeroAnimatedCtas isFrench={isFrench} />
         </div>
-      </HeroCopy>
+      </div>
 
       <HeroScrollButton isFrench={isFrench} />
     </section>

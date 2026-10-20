@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PauseIcon, PlayIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/outline';
 import { HOME_IMAGES } from '@/lib/homeImages';
-import { publishHeroCopyVisible } from '@/components/heroPlayback';
 
 const MOBILE_SRC = '/videos/hero-mobile.mp4?v=1';
 const DESKTOP_SRC = '/videos/hero.mp4?v=3';
@@ -32,14 +31,7 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
   const [volume, setVolume] = useState(1);
   const [paused, setPaused] = useState(false);
   const [volumeOpen, setVolumeOpen] = useState(false);
-  const revealedRef = useRef(false);
   const src = useSyncExternalStore(subscribeHeroSource, heroSource, () => MOBILE_SRC);
-
-  const scheduleReveal = useCallback((delayMs: number) => {
-    if (revealedRef.current) return;
-    revealedRef.current = true;
-    window.setTimeout(publishHeroCopyVisible, delayMs);
-  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -60,28 +52,16 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
       void video.play().catch(() => {});
     };
 
-    const revealAfterStart = () => {
-      const wide = window.matchMedia('(min-width: 768px)').matches;
-      scheduleReveal(wide ? 0 : 1000);
-    };
-
     startPlayback();
     video.addEventListener('loadeddata', startPlayback);
     video.addEventListener('canplay', startPlayback);
-    video.addEventListener('playing', revealAfterStart);
     document.addEventListener('visibilitychange', startPlayback);
     return () => {
       video.removeEventListener('loadeddata', startPlayback);
       video.removeEventListener('canplay', startPlayback);
-      video.removeEventListener('playing', revealAfterStart);
       document.removeEventListener('visibilitychange', startPlayback);
     };
-  }, [scheduleReveal, src]);
-
-  useEffect(() => {
-    const fallback = window.setTimeout(() => scheduleReveal(0), 2500);
-    return () => window.clearTimeout(fallback);
-  }, [scheduleReveal]);
+  }, [src]);
 
   useEffect(() => {
     const endDrag = () => {
