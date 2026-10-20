@@ -1,11 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PauseIcon, PlayIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/outline';
 import { HOME_IMAGES } from '@/lib/homeImages';
+import { publishHeroCopyVisible } from '@/components/heroPlayback';
 
-const PORTRAIT_SRC = '/videos/hero.mp4?v=3';
-const LANDSCAPE_SRC = '/videos/hero.mp4?v=3';
+const MOBILE_SRC = '/videos/hero-mobile.mp4?v=1';
+const DESKTOP_SRC = '/videos/hero.mp4?v=3';
+
+function subscribeHeroSource(onStoreChange: () => void) {
+  const media = window.matchMedia('(min-width: 768px)');
+  media.addEventListener('change', onStoreChange);
+  return () => media.removeEventListener('change', onStoreChange);
+}
+
+function heroSource() {
+  return window.matchMedia('(min-width: 768px)').matches ? DESKTOP_SRC : MOBILE_SRC;
+}
 
 type HeroBackgroundVideoProps = {
   isFrench: boolean;
@@ -21,19 +32,18 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
   const [volume, setVolume] = useState(1);
   const [paused, setPaused] = useState(false);
   const [volumeOpen, setVolumeOpen] = useState(false);
-  const [src, setSrc] = useState<string | null>(null);
+  const revealedRef = useRef(false);
+  const src = useSyncExternalStore(subscribeHeroSource, heroSource, () => MOBILE_SRC);
 
-  useEffect(() => {
-    const wide = window.matchMedia('(min-width: 768px)');
-    const apply = () => setSrc(wide.matches ? LANDSCAPE_SRC : PORTRAIT_SRC);
-    apply();
-    wide.addEventListener('change', apply);
-    return () => wide.removeEventListener('change', apply);
+  const scheduleReveal = useCallback((delayMs: number) => {
+    if (revealedRef.current) return;
+    revealedRef.current = true;
+    window.setTimeout(publishHeroCopyVisible, delayMs);
   }, []);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video) return;
 
     // Muted has to be set on the element itself or desktop browsers block autoplay.
     video.defaultMuted = true;
@@ -50,16 +60,28 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
       void video.play().catch(() => {});
     };
 
+    const revealAfterStart = () => {
+      const wide = window.matchMedia('(min-width: 768px)').matches;
+      scheduleReveal(wide ? 0 : 1000);
+    };
+
     startPlayback();
     video.addEventListener('loadeddata', startPlayback);
     video.addEventListener('canplay', startPlayback);
+    video.addEventListener('playing', revealAfterStart);
     document.addEventListener('visibilitychange', startPlayback);
     return () => {
       video.removeEventListener('loadeddata', startPlayback);
       video.removeEventListener('canplay', startPlayback);
+      video.removeEventListener('playing', revealAfterStart);
       document.removeEventListener('visibilitychange', startPlayback);
     };
-  }, [src]);
+  }, [scheduleReveal, src]);
+
+  useEffect(() => {
+    const fallback = window.setTimeout(() => scheduleReveal(0), 2500);
+    return () => window.clearTimeout(fallback);
+  }, [scheduleReveal]);
 
   useEffect(() => {
     const endDrag = () => {
@@ -125,27 +147,19 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
 
   return (
     <>
-      {src ? (
-        <video
-          key={src}
-          ref={videoRef}
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-          src={src}
-          poster={HOME_IMAGES.hero}
-          autoPlay
-          loop
-          muted={muted}
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-        />
-      ) : (
-        <img
-          src={HOME_IMAGES.hero}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center"
-        />
-      )}
+      <video
+        key={src}
+        ref={videoRef}
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+        src={src}
+        poster={HOME_IMAGES.hero}
+        autoPlay
+        loop
+        muted={muted}
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      />
       <span className="sr-only">{isFrench ? 'Hero mode suisse' : 'Swiss fashion hero'}</span>
       <div className="absolute bottom-6 right-6 z-30 flex items-center gap-2 md:bottom-10 md:right-8">
         <button

@@ -23,7 +23,7 @@ function HomeSectionSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <section
       aria-hidden
-      className={`animate-pulse bg-swisse-mist/60 dark:bg-muted/40 ${
+      className={`relative z-10 animate-pulse bg-swisse-mist dark:bg-background ${
         compact ? "h-48 md:h-56" : "h-[28rem] md:h-[32rem]"
       }`}
     />
@@ -33,6 +33,20 @@ function HomeSectionSkeleton({ compact = false }: { compact?: boolean }) {
 export default function Home() {
   return (
     <div className="min-h-screen bg-swisse-canvas dark:bg-background">
+      <link
+        rel="preload"
+        as="video"
+        href="/videos/hero-mobile.mp4?v=1"
+        media="(max-width: 767px)"
+        fetchPriority="high"
+      />
+      <link
+        rel="preload"
+        as="video"
+        href="/videos/hero.mp4?v=3"
+        media="(min-width: 768px)"
+        fetchPriority="high"
+      />
       <Suspense fallback={null}>
         <HomeUrlNotifications />
       </Suspense>

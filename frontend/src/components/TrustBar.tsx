@@ -27,7 +27,7 @@ export default function TrustBar() {
   return (
     <section
       aria-label={isFrench ? 'Nos garanties' : 'Our guarantees'}
-      className="border-y border-swisse-gold/15 bg-swisse-mist/70 dark:bg-muted/30 dark:border-border"
+      className="relative z-10 border-y border-swisse-gold/15 bg-swisse-mist/70 max-md:bg-swisse-mist dark:border-border dark:bg-muted/30 dark:max-md:bg-background"
     >
       <div className="max-w-swisse mx-auto px-4 sm:px-6 md:px-8">
         {/* Same 4-up row on every breakpoint */}

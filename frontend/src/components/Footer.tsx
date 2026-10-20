@@ -51,7 +51,7 @@ const Footer = () => {
     : footerLinks;
 
   return (
-    <footer className="bg-swisse-canvas dark:bg-background border-t border-swisse-gold/10 dark:border-border text-swisse-ink dark:text-foreground">
+    <footer className="relative z-10 border-t border-swisse-gold/10 bg-swisse-canvas text-swisse-ink dark:border-border dark:bg-background dark:text-foreground">
       <div className="max-w-swisse mx-auto px-6 md:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
           <div className="lg:col-span-1">
