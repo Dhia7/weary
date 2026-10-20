@@ -35,6 +35,12 @@ export default function Home() {
     <div className="min-h-screen bg-swisse-canvas dark:bg-background">
       <link
         rel="preload"
+        as="image"
+        href="/images/hero-video-poster.jpg"
+        fetchPriority="high"
+      />
+      <link
+        rel="preload"
         as="video"
         href="/videos/hero-mobile.mp4?v=1"
         media="(max-width: 767px)"
@@ -43,7 +49,7 @@ export default function Home() {
       <link
         rel="preload"
         as="video"
-        href="/videos/hero.mp4?v=3"
+        href="/videos/hero.mp4?v=4"
         media="(min-width: 768px)"
         fetchPriority="high"
       />

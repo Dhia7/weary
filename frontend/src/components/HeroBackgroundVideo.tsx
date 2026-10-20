@@ -1,31 +1,24 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PauseIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { HOME_IMAGES } from '@/lib/homeImages';
 
 const MOBILE_SRC = '/videos/hero-mobile.mp4?v=1';
-const DESKTOP_SRC = '/videos/hero.mp4?v=3';
-
-function subscribeHeroSource(onStoreChange: () => void) {
-  const media = window.matchMedia('(min-width: 768px)');
-  media.addEventListener('change', onStoreChange);
-  return () => media.removeEventListener('change', onStoreChange);
-}
-
-function heroSource() {
-  return window.matchMedia('(min-width: 768px)').matches ? DESKTOP_SRC : MOBILE_SRC;
-}
+const DESKTOP_SRC = '/videos/hero.mp4?v=4';
+const POSTER_SRC = '/images/hero-video-poster.jpg';
 
 type HeroBackgroundVideoProps = {
   isFrench: boolean;
 };
 
+function sourceMatches(currentSrc: string, next: string) {
+  return currentSrc.includes(next);
+}
+
 export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const userPausedRef = useRef(false);
   const [paused, setPaused] = useState(false);
-  const src = useSyncExternalStore(subscribeHeroSource, heroSource, () => MOBILE_SRC);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -35,8 +28,6 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
     video.defaultMuted = true;
     video.muted = true;
     video.volume = 0;
-    userPausedRef.current = false;
-    setPaused(false);
 
     const startPlayback = () => {
       if (document.hidden) {
@@ -47,16 +38,28 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
       void video.play().catch(() => {});
     };
 
+    const media = window.matchMedia('(min-width: 768px)');
+    const onBreakpoint = () => {
+      const next = media.matches ? DESKTOP_SRC : MOBILE_SRC;
+      if (sourceMatches(video.currentSrc, next)) return;
+      userPausedRef.current = false;
+      setPaused(false);
+      video.src = next;
+      video.load();
+    };
+
     startPlayback();
     video.addEventListener('loadeddata', startPlayback);
     video.addEventListener('canplay', startPlayback);
     document.addEventListener('visibilitychange', startPlayback);
+    media.addEventListener('change', onBreakpoint);
     return () => {
       video.removeEventListener('loadeddata', startPlayback);
       video.removeEventListener('canplay', startPlayback);
       document.removeEventListener('visibilitychange', startPlayback);
+      media.removeEventListener('change', onBreakpoint);
     };
-  }, [src]);
+  }, []);
 
   const togglePaused = () => {
     const video = videoRef.current;
@@ -83,18 +86,19 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
   return (
     <>
       <video
-        key={src}
         ref={videoRef}
         className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-        src={src}
-        poster={HOME_IMAGES.hero}
+        poster={POSTER_SRC}
         autoPlay
         loop
         muted
         playsInline
         preload="auto"
         aria-hidden="true"
-      />
+      >
+        <source src={DESKTOP_SRC} type="video/mp4" media="(min-width: 768px)" />
+        <source src={MOBILE_SRC} type="video/mp4" media="(max-width: 767px)" />
+      </video>
       <span className="sr-only">{isFrench ? 'Hero mode suisse' : 'Swiss fashion hero'}</span>
       <div className="absolute bottom-6 right-6 z-30 flex items-center gap-2 md:bottom-10 md:right-8">
         <button
