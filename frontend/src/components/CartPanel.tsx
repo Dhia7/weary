@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -16,57 +17,95 @@ interface CartPanelProps {
 }
 
 const formatPrice = (price: number | string) => `${Number(price).toFixed(2)} TND`;
+const CART_SLIDE_MS = 420;
 
 export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
   const { items, subtotal, updateQuantity, removeItem, clearCart } = useCart();
   const { isFrench } = useLanguage();
   const router = useRouter();
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isRendered, setIsRendered] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setIsAnimating(true);
-      // Prevent body scroll when panel is open
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (isOpen) setIsRendered(true);
+  }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const handler = (e: MouseEvent | TouchEvent) => {
-      const panel = panelRef.current;
-      if (!panel) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
 
-      const target = e.target as Node | null;
-      if (!target) return;
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
-      // Close when clicking/tapping outside the panel content
-      if (!panel.contains(target)) {
-        handleClose();
+  useEffect(() => {
+    if (!isRendered) return;
+    const panel = panelRef.current;
+    const backdrop = backdropRef.current;
+    if (!panel || !backdrop) return;
+
+    const opening = isOpen;
+    const duration = opening ? CART_SLIDE_MS : 320;
+    const easing = opening
+      ? 'cubic-bezier(0.16, 1, 0.3, 1)'
+      : 'cubic-bezier(0.4, 0, 1, 1)';
+
+    const play = (
+      element: HTMLElement,
+      from: string,
+      to: string,
+      property: 'transform' | 'opacity'
+    ) => {
+      element.getAnimations().forEach((animation) => animation.cancel());
+      const frames =
+        property === 'transform'
+          ? [{ transform: from }, { transform: to }]
+          : [{ opacity: from }, { opacity: to }];
+      const animation = element.animate(frames, { duration, easing, fill: 'forwards' });
+      if (document.timeline.currentTime != null) {
+        animation.startTime = document.timeline.currentTime;
       }
+      return animation;
     };
 
-    document.addEventListener('mousedown', handler, true);
-    document.addEventListener('touchstart', handler, true);
+    const panelAnimation = play(
+      panel,
+      getComputedStyle(panel).transform,
+      opening ? 'translateX(0)' : 'translateX(100%)',
+      'transform'
+    );
+    play(backdrop, getComputedStyle(backdrop).opacity, opening ? '1' : '0', 'opacity');
+
+    let cancelled = false;
+    let timer = 0;
+    if (!opening) {
+      const finish = () => {
+        if (!cancelled) setIsRendered(false);
+      };
+      panelAnimation.finished.then(finish).catch(finish);
+      timer = window.setTimeout(finish, duration + 80);
+    }
+
     return () => {
-      document.removeEventListener('mousedown', handler, true);
-      document.removeEventListener('touchstart', handler, true);
+      cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [isOpen]);
+  }, [isRendered, isOpen]);
 
   const handleClose = () => {
-    setIsAnimating(false);
-    setTimeout(() => {
-      onClose();
-    }, 200);
+    onClose();
   };
 
   const handleCheckout = () => {
@@ -76,27 +115,21 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
 
   const hasItems = items.length > 0;
 
-  return (
-    <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className={`fixed inset-0 bg-black/60 z-[60] transition-opacity duration-200 ${
-            isAnimating ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={handleClose}
-          aria-hidden="true"
-        />
-      )}
+  if (!isRendered) return null;
 
-      {/* Cart Panel */}
-      <div 
+  return createPortal(
+    <>
+      <div
+        ref={backdropRef}
+        className="cart-panel-backdrop fixed inset-0 z-[60] bg-black/60"
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+      <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-panel-title"
-        className={`fixed inset-y-0 right-0 w-full sm:max-w-md lg:max-w-lg h-[100dvh] bg-card text-card-foreground shadow-2xl z-[70] transform transition-transform duration-200 ease-in-out ${
-          isOpen && isAnimating ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className="cart-panel-slide fixed inset-y-0 right-0 z-[70] flex h-[100dvh] w-full flex-col bg-card text-card-foreground shadow-2xl sm:max-w-md lg:max-w-lg"
         ref={panelRef}
       >
         <div className="flex flex-col h-full min-h-0">
@@ -266,6 +299,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
