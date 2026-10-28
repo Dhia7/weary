@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
+const { normalizeStoredPhone, isValidStoredPhone } = require('../utils/phone');
 
 const User = sequelize.define('User', {
   // Authentication fields
@@ -62,10 +63,15 @@ const User = sequelize.define('User', {
   phone: {
     type: DataTypes.STRING,
     allowNull: true,
+    set(value) {
+      this.setDataValue('phone', normalizeStoredPhone(value));
+    },
     validate: {
-      is: {
-        args: /^[\+]?[1-9][\d]{0,15}$/,
-        msg: 'Please enter a valid phone number'
+      isValidPhone(value) {
+        if (value == null || value === '') return;
+        if (!isValidStoredPhone(value)) {
+          throw new Error('Please enter a valid phone number');
+        }
       }
     }
   },

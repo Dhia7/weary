@@ -81,6 +81,7 @@ export async function apiFetch(
 
 type ApiErrorPayload = {
   message?: string;
+  errors?: Array<{ msg?: string }>;
 };
 
 /** Build a user-facing message; enriches 429 responses with retry timing when headers allow. */
@@ -88,7 +89,8 @@ export function getApiErrorMessage(
   response: Response,
   data?: ApiErrorPayload
 ): string {
-  const base = data?.message || `Request failed (${response.status})`;
+  const fieldMessage = data?.errors?.map((error) => error?.msg).find((msg) => !!msg);
+  const base = data?.message || fieldMessage || `Request failed (${response.status})`;
 
   if (response.status !== 429) {
     return base;

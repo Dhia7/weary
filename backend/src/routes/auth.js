@@ -8,6 +8,7 @@ const {
   emailLimiter,
   resetPasswordLimiter,
 } = require('../middleware/rateLimit');
+const { validateOptionalPhone } = require('../utils/phone');
 
 const router = express.Router();
 
@@ -41,10 +42,7 @@ const registerValidation = [
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Last name must be between 2 and 50 characters'),
-  body('phone')
-    .optional()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Please enter a valid phone number')
+  validateOptionalPhone
 ];
 
 const loginValidation = [
@@ -82,10 +80,7 @@ const updateProfileValidation = [
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Last name must be between 2 and 50 characters'),
-  body('phone')
-    .optional()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Please enter a valid phone number'),
+  validateOptionalPhone,
   body('preferences.sizePreference')
     .optional()
     .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
@@ -111,10 +106,7 @@ const updateProfileComprehensiveValidation = [
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Last name must be between 2 and 50 characters'),
-  body('phone')
-    .optional()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Please enter a valid phone number'),
+  validateOptionalPhone,
   body('preferences.sizePreference')
     .optional()
     .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])

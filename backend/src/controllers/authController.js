@@ -18,6 +18,25 @@ const { setAuthCookies, clearAuthCookies } = require('../utils/authCookies');
 const bcrypt = require('bcryptjs');
 
 const { deleteFromCloudinary } = require('../utils/cloudinary');
+const { normalizeStoredPhone } = require('../utils/phone');
+
+function validationFailure(res, errors) {
+  const list = errors.array();
+  return res.status(400).json({
+    success: false,
+    message: list[0]?.msg || 'Please check your details and try again.',
+    errors: list,
+  });
+}
+
+function savedPhone(phone) {
+  if (phone === undefined) return undefined;
+  return normalizeStoredPhone(phone);
+}
+
+function isRecordValidationError(error) {
+  return error?.name === 'SequelizeValidationError' || error?.name === 'SequelizeUniqueConstraintError';
+}
 
 const formatAddress = (address) => ({
   id: address.id,
@@ -580,10 +599,7 @@ const updateProfile = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
+      return validationFailure(res, errors);
     }
 
     const { firstName, lastName, phone, preferences } = req.body;
@@ -599,9 +615,10 @@ const updateProfile = async (req, res) => {
     // Update fields
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
-    if (phone) user.phone = phone;
+    if (phone !== undefined) user.phone = savedPhone(phone);
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
+      user.changed('preferences', true);
     }
 
     await user.save();
@@ -625,6 +642,12 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    if (isRecordValidationError(error)) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors?.[0]?.message || 'Please check your details and try again.'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -639,10 +662,7 @@ const updateProfileComprehensive = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
+      return validationFailure(res, errors);
     }
 
     const { 
@@ -670,28 +690,33 @@ const updateProfileComprehensive = async (req, res) => {
     // Update basic profile fields
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
-    if (phone !== undefined) user.phone = phone;
+    if (phone !== undefined) user.phone = savedPhone(phone);
     
     // Update preferences
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
+      user.changed('preferences', true);
     }
 
-    // Update addresses if provided
-    if (addresses && Array.isArray(addresses)) {
-      // Delete existing addresses
-      await Address.destroy({ where: { userId: user.id } });
-      
-      // Create new addresses
-      for (const address of addresses) {
-        await Address.create({
-          ...address,
-          userId: user.id
-        });
+    await sequelize.transaction(async (transaction) => {
+      if (addresses && Array.isArray(addresses)) {
+        await Address.destroy({ where: { userId: user.id }, transaction });
+        for (const address of addresses) {
+          await Address.create({
+            type: address.type || 'home',
+            street: address.street,
+            city: address.city,
+            state: address.state,
+            zipCode: address.zipCode,
+            country: address.country || 'Tunisia',
+            isDefault: address.isDefault === true,
+            userId: user.id,
+          }, { transaction });
+        }
       }
-    }
 
-    await user.save();
+      await user.save({ transaction });
+    });
 
     // Fetch updated user with addresses
     const updatedUser = await User.findByPk(user.id, {
@@ -710,6 +735,12 @@ const updateProfileComprehensive = async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile comprehensive error:', error);
+    if (isRecordValidationError(error)) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors?.[0]?.message || 'Please check your details and try again.'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Internal server error'

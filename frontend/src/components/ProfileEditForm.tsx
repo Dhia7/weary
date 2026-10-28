@@ -30,15 +30,21 @@ type AddressForm = {
   isDefault: boolean;
 };
 
+const phoneSchema = z.string().trim().refine((value) => {
+  if (!value) return true;
+  const compact = value.replace(/[\s().-]/g, '').replace(/^00/, '+');
+  return /^\+?[0-9]{8,15}$/.test(compact);
+}, 'Enter a valid phone number, or leave it blank');
+
 const profileSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters').max(50, 'First name must be less than 50 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters').max(50, 'Last name must be less than 50 characters'),
-  phone: z.string().optional(),
+  phone: phoneSchema,
   preferences: z.object({
     sizePreference: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']),
     newsletter: z.boolean(),
     marketingEmails: z.boolean(),
-    favoriteCategories: z.array(z.enum(['men', 'women', 'kids', 'accessories', 'shoes']))
+    favoriteCategories: z.array(z.enum(['men', 'women', 'kids', 'accessories', 'shoes'])).catch([])
   }),
   addresses: z.array(z.object({
     type: z.enum(['home', 'work', 'other']),
@@ -47,7 +53,7 @@ const profileSchema = z.object({
     state: z.string().min(1, 'State is required'),
     zipCode: z.string().min(1, 'Zip code is required'),
     country: z.string().min(1, 'Country is required'),
-    isDefault: z.boolean()
+    isDefault: z.boolean().catch(false)
   })).optional()
 });
 
@@ -79,8 +85,8 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
         sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user?.preferences?.sizePreference as string) || '')
           ? (user?.preferences?.sizePreference as AllowedSize)
           : 'M',
-        newsletter: user?.preferences?.newsletter || true,
-        marketingEmails: user?.preferences?.marketingEmails || true,
+        newsletter: user?.preferences?.newsletter !== false,
+        marketingEmails: user?.preferences?.marketingEmails !== false,
         favoriteCategories: Array.isArray(user?.preferences?.favoriteCategories)
           ? (user?.preferences?.favoriteCategories.filter((c) =>
               (ALLOWED_CATEGORIES as readonly string[]).includes((c as string) || '')
@@ -108,8 +114,8 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
           sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user.preferences?.sizePreference as string) || '')
             ? (user.preferences?.sizePreference as AllowedSize)
             : 'M',
-          newsletter: user.preferences?.newsletter || true,
-          marketingEmails: user.preferences?.marketingEmails || true,
+          newsletter: user.preferences?.newsletter !== false,
+          marketingEmails: user.preferences?.marketingEmails !== false,
           favoriteCategories: Array.isArray(user.preferences?.favoriteCategories)
             ? (user.preferences?.favoriteCategories.filter((c) =>
                 (ALLOWED_CATEGORIES as readonly string[]).includes((c as string) || '')
@@ -204,7 +210,12 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={handleSubmit(onSubmit, () => {
+            setError('Could not save. Check the name, phone, and address fields.');
+          })}
+          className="space-y-6"
+        >
           {/* Basic Information */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">

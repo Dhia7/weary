@@ -355,7 +355,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser((prev) => (prev ? { ...prev, ...responseData.data.user } : null));
         return { success: true, message: responseData.message };
       }
-      return { success: false, message: responseData.message || 'Update failed' };
+      return { success: false, message: getApiErrorMessage(response, responseData) };
     } catch (error) {
       console.error('Update profile error:', error);
       return { success: false, message: 'Network error. Please try again.' };
@@ -398,7 +398,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser((prev) => (prev ? { ...prev, ...responseData.data.user } : null));
         return { success: true, message: responseData.message };
       }
-      return { success: false, message: responseData.message || 'Update failed' };
+      return { success: false, message: getApiErrorMessage(response, responseData) };
     } catch (error) {
       console.error('Update profile comprehensive error:', error);
       return { success: false, message: 'Network error. Please try again.' };
