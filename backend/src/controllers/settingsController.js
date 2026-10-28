@@ -1,6 +1,9 @@
 const User = require('../models/User');
 const ShopSetting = require('../models/ShopSetting');
 const { sequelize } = require('../config/database');
+const { userIsSuperAdmin } = require('../config/roles');
+
+const SECURITY_SETTING_KEYS = ['siteUrl', 'requireAdmin2FA', 'sessionTimeoutMinutes', 'passwordMinLength'];
 
 const TIMEZONES = [
   'UTC',
@@ -109,6 +112,13 @@ async function updateSettings(req, res) {
     const parsed = sanitizeSettings(req.body);
     if (parsed.error) {
       return res.status(400).json({ success: false, message: parsed.error });
+    }
+
+    if (!userIsSuperAdmin(req.userData)) {
+      const current = await readSettings();
+      for (const key of SECURITY_SETTING_KEYS) {
+        parsed.settings[key] = current[key];
+      }
     }
 
     const [row] = await ShopSetting.findOrCreate({

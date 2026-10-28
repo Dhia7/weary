@@ -1,12 +1,13 @@
 /**
  * Role and permission definitions for RBAC.
- * `isAdmin` on User is kept in sync with role === 'admin' for backward compatibility.
+ * `isAdmin` stays true for both admin and super_admin so the admin panel check keeps working.
  */
 
 const ROLES = Object.freeze({
   CUSTOMER: 'customer',
   STAFF: 'staff',
   ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
 });
 
 const PERMISSIONS = Object.freeze({
@@ -28,6 +29,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     PERMISSIONS.PRODUCTS_READ,
   ],
   [ROLES.ADMIN]: Object.values(PERMISSIONS),
+  [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
 });
 
 function resolveUserRole(user) {
@@ -53,7 +55,11 @@ function userHasPermission(user, permission) {
 }
 
 function userIsAdmin(user) {
-  return userHasRole(user, ROLES.ADMIN);
+  return userHasRole(user, ROLES.ADMIN, ROLES.SUPER_ADMIN);
+}
+
+function userIsSuperAdmin(user) {
+  return userHasRole(user, ROLES.SUPER_ADMIN);
 }
 
 module.exports = {
@@ -66,4 +72,5 @@ module.exports = {
   userHasRole,
   userHasPermission,
   userIsAdmin,
+  userIsSuperAdmin,
 };

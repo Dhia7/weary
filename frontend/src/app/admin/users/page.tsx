@@ -39,7 +39,7 @@ interface User {
   isAdmin: boolean;
   isActive?: boolean;
   twoFactorEnabled?: boolean;
-  role?: 'customer' | 'staff' | 'admin';
+  role?: 'customer' | 'staff' | 'admin' | 'super_admin';
   signupMethod?: 'google' | 'password' | 'google-and-password';
   hasLocalPassword?: boolean;
   lastLogin?: string | null;
@@ -92,7 +92,16 @@ function signupLabel(method?: User['signupMethod']) {
   return 'Email and password';
 }
 
+function isSuperAdminUser(user: Pick<User, 'role'>) {
+  return user.role === 'super_admin';
+}
+
+function isPrivilegedUser(user: Pick<User, 'role' | 'isAdmin'>) {
+  return isSuperAdminUser(user) || user.role === 'admin' || user.isAdmin === true;
+}
+
 function roleLabel(user: Pick<User, 'role' | 'isAdmin'>) {
+  if (isSuperAdminUser(user)) return 'Super admin';
   if (user.role === 'staff') return 'Staff';
   if (user.role === 'admin' || user.isAdmin) return 'Admin';
   return 'Customer';
@@ -167,9 +176,15 @@ export default function AdminUsersPage() {
     setSelectedUserIds([]);
   }, [currentPage, usersPerPage, filter]);
 
+  const viewerIsSuperAdmin = currentUser?.role === 'super_admin';
+
   const selectableUsers = useMemo(
-    () => users.filter((user) => !user.isAdmin),
-    [users]
+    () => users.filter((user) => {
+      if (isSuperAdminUser(user)) return false;
+      if (isPrivilegedUser(user) && !viewerIsSuperAdmin) return false;
+      return true;
+    }),
+    [users, viewerIsSuperAdmin]
   );
 
   const fakeUsersOnPage = useMemo(
@@ -291,12 +306,12 @@ export default function AdminUsersPage() {
         setPasswordModal(null);
         setUsers(users.map(user =>
           user.id === userId
-            ? { ...user, isAdmin: newAdminStatus }
+            ? { ...user, isAdmin: newAdminStatus, role: newAdminStatus ? 'admin' : 'customer' }
             : user
         ));
 
         if (selectedUser && selectedUser.id === userId) {
-          setSelectedUser({ ...selectedUser, isAdmin: newAdminStatus });
+          setSelectedUser({ ...selectedUser, isAdmin: newAdminStatus, role: newAdminStatus ? 'admin' : 'customer' });
         }
       } else {
         const error = await res.json();
@@ -588,10 +603,16 @@ export default function AdminUsersPage() {
                           type="checkbox"
                           checked={selectedUserIds.includes(user.id)}
                           onChange={() => toggleUserSelection(user.id)}
-                          disabled={user.isAdmin}
+                          disabled={isSuperAdminUser(user) || (isPrivilegedUser(user) && !viewerIsSuperAdmin)}
                           className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                           aria-label={`Select ${user.email}`}
-                          title={user.isAdmin ? 'Admin users cannot be bulk deleted' : `Select ${user.email}`}
+                          title={
+                            isSuperAdminUser(user)
+                              ? 'The super admin account cannot be deleted'
+                              : isPrivilegedUser(user) && !viewerIsSuperAdmin
+                                ? 'Only a super admin can delete an admin account'
+                                : `Select ${user.email}`
+                          }
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -636,7 +657,11 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col space-y-1">
-                          {user.isAdmin && (
+                          {isSuperAdminUser(user) ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100">
+                              Super admin
+                            </span>
+                          ) : (user.role === 'admin' || user.isAdmin) && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                               Admin
                             </span>
@@ -707,7 +732,7 @@ export default function AdminUsersPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          {!user.isAdmin && String(user.id) !== String(currentUser?.id) && (
+                          {String(user.id) !== String(currentUser?.id) && (!isPrivilegedUser(user) || (viewerIsSuperAdmin && !isSuperAdminUser(user))) && (
                             <button
                               onClick={() => handleToggleActive(user)}
                               className="text-amber-600 hover:text-amber-800 dark:text-amber-400"
@@ -716,28 +741,32 @@ export default function AdminUsersPage() {
                               {user.isActive === false ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
                             </button>
                           )}
-                          <button
-                            onClick={() => handleToggleAdmin(user.id, user.isAdmin)}
-                            className={`${
-                              user.isAdmin 
-                                ? 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300' 
-                                : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
-                            }`}
-                            title={user.isAdmin ? "Remove admin privileges" : "Grant admin privileges"}
-                          >
-                            {user.isAdmin ? (
-                              <ShieldCheck className="h-4 w-4" />
-                            ) : (
-                              <Shield className="h-4 w-4" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete user"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {viewerIsSuperAdmin && !isSuperAdminUser(user) && String(user.id) !== String(currentUser?.id) && (
+                            <button
+                              onClick={() => handleToggleAdmin(user.id, user.isAdmin)}
+                              className={`${
+                                user.isAdmin
+                                  ? 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
+                                  : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                              }`}
+                              title={user.isAdmin ? 'Remove admin privileges' : 'Grant admin privileges'}
+                            >
+                              {user.isAdmin ? (
+                                <ShieldCheck className="h-4 w-4" />
+                              ) : (
+                                <Shield className="h-4 w-4" />
+                              )}
+                            </button>
+                          )}
+                          {!isSuperAdminUser(user) && String(user.id) !== String(currentUser?.id) && (!isPrivilegedUser(user) || viewerIsSuperAdmin) && (
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                              title="Delete user"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -40,7 +40,7 @@ const requirePermission = (...permissions) => (req, res, next) => {
   return next();
 };
 
-const requireAdmin = requireRole(ROLES.ADMIN);
+const requireAdmin = requireRole(ROLES.ADMIN, ROLES.SUPER_ADMIN);
 
 module.exports = {
   requireRole,

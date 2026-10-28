@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { ROLES } = require('../config/roles');
 
 /**
  * Automatically create admin account from environment variables on startup
@@ -22,7 +23,7 @@ async function autoCreateAdmin() {
       if (syncPassword) {
         existingUser.password = adminPassword;
         existingUser.isAdmin = true;
-        existingUser.role = 'admin';
+        existingUser.role = ROLES.SUPER_ADMIN;
         existingUser.isEmailVerified = true;
         existingUser.isActive = true;
         await User.resetLoginAttempts(existingUser.id);
@@ -32,7 +33,7 @@ async function autoCreateAdmin() {
       }
       // Update existing user to admin
       existingUser.isAdmin = true;
-      existingUser.role = 'admin';
+      existingUser.role = ROLES.SUPER_ADMIN;
       existingUser.isEmailVerified = true;
       existingUser.isActive = true;
       if (adminPassword) {
@@ -58,7 +59,7 @@ async function autoCreateAdmin() {
       firstName: process.env.ADMIN_FIRST_NAME || 'Admin',
       lastName: process.env.ADMIN_LAST_NAME || 'User',
       isAdmin: true,
-      role: 'admin',
+      role: ROLES.SUPER_ADMIN,
       isEmailVerified: true,
       isActive: true
     });

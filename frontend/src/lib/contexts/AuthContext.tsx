@@ -24,7 +24,7 @@ interface User {
   avatarUrl?: string | null;
   isEmailVerified: boolean;
   isAdmin?: boolean;
-  role?: 'customer' | 'staff' | 'admin';
+  role?: 'customer' | 'staff' | 'admin' | 'super_admin';
   twoFactorEnabled?: boolean;
   /** False when the account was created with Google and has no site password yet. */
   hasLocalPassword?: boolean;
@@ -365,6 +365,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfileComprehensive = async (data: {
     firstName?: string;
     lastName?: string;
+    email?: string;
     phone?: string;
     preferences?: {
       newsletter?: boolean;

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Settings, Database, Shield, Bell, Save } from 'lucide-react';
 import { useAuthorizedFetch } from '@/lib/admin';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 type AdminSettings = {
   siteName: string;
@@ -32,6 +33,8 @@ const EMPTY_SETTINGS: AdminSettings = {
 
 export default function AdminSettingsPage() {
   const fetcher = useAuthorizedFetch();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -170,7 +173,10 @@ export default function AdminSettingsPage() {
               </div>
               <div>
                 <label htmlFor="site-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Site URL</label>
-                <input id="site-url" type="url" value={settings.siteUrl} onChange={(e) => update('siteUrl', e.target.value)} className={inputClass} />
+                <input id="site-url" type="url" value={settings.siteUrl} onChange={(e) => update('siteUrl', e.target.value)} disabled={!isSuperAdmin} className={inputClass} />
+                {!isSuperAdmin && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Only a super admin can change the site URL.</p>
+                )}
               </div>
               <div>
                 <label htmlFor="contact-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Contact Email</label>
@@ -193,6 +199,9 @@ export default function AdminSettingsPage() {
         {activeTab === 'security' && (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Security Settings</h3>
+            {!isSuperAdmin && (
+              <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Only a super admin can change these security settings.</p>
+            )}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -204,7 +213,8 @@ export default function AdminSettingsPage() {
                   aria-label="Require 2FA for all admin accounts"
                   checked={settings.requireAdmin2FA}
                   onChange={(e) => update('requireAdmin2FA', e.target.checked)}
-                  className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  disabled={!isSuperAdmin}
+                  className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -216,7 +226,8 @@ export default function AdminSettingsPage() {
                   aria-label="Session Timeout"
                   value={String(settings.sessionTimeoutMinutes)}
                   onChange={(e) => update('sessionTimeoutMinutes', Number(e.target.value))}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={!isSuperAdmin}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="30">30 minutes</option>
                   <option value="60">1 hour</option>
@@ -233,7 +244,8 @@ export default function AdminSettingsPage() {
                   aria-label="Password Policy"
                   value={String(settings.passwordMinLength)}
                   onChange={(e) => update('passwordMinLength', Number(e.target.value))}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  disabled={!isSuperAdmin}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="6">6 characters</option>
                   <option value="8">8 characters</option>

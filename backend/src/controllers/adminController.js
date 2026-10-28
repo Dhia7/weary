@@ -7,7 +7,28 @@ const Wishlist = require('../models/Wishlist');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { verifyAdminPassword } = require('../utils/adminAuth');
-const { ROLES } = require('../config/roles');
+const { ROLES, userIsSuperAdmin } = require('../config/roles');
+
+function sameAccount(user, actorId) {
+  return String(user.id) === String(actorId);
+}
+
+function isSuperAdminAccount(user) {
+  return user?.role === ROLES.SUPER_ADMIN;
+}
+
+function isPrivilegedAccount(user) {
+  return isSuperAdminAccount(user) || user?.role === ROLES.ADMIN || user?.isAdmin === true;
+}
+
+function forbidUnlessSuperAdmin(req, res) {
+  if (userIsSuperAdmin(req.userData)) return false;
+  res.status(403).json({
+    success: false,
+    message: 'Only a super admin can do that.',
+  });
+  return true;
+}
 
 const getUserOrderStats = async (userIds) => {
   if (!userIds.length) {
@@ -317,23 +338,49 @@ const updateUser = async (req, res) => {
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phone !== undefined) user.phone = phone;
-    if (isActive === false && String(user.id) === String(req.user.userId)) {
+    if (isAdmin !== undefined && isAdmin !== user.isAdmin) {
+      if (forbidUnlessSuperAdmin(req, res)) return;
+      if (sameAccount(user, req.user.userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'You cannot change your own admin access.',
+        });
+      }
+      if (isSuperAdminAccount(user)) {
+        return res.status(400).json({
+          success: false,
+          message: 'A super admin role cannot be changed here.',
+        });
+      }
+    }
+
+    if (isActive !== undefined && isActive !== user.isActive && isPrivilegedAccount(user)) {
+      if (forbidUnlessSuperAdmin(req, res)) return;
+      if (sameAccount(user, req.user.userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'You cannot change your own account status here.',
+        });
+      }
+      if (isSuperAdminAccount(user)) {
+        return res.status(400).json({
+          success: false,
+          message: 'The super admin account cannot be deactivated.',
+        });
+      }
+    }
+
+    if (isActive === false && sameAccount(user, req.user.userId)) {
       return res.status(400).json({
         success: false,
         message: 'You cannot deactivate your own account from here.',
       });
     }
-    if (isActive === false && user.isAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: 'Remove admin access before deactivating this account.',
-      });
-    }
     if (isActive !== undefined) user.isActive = isActive;
     if (isEmailVerified !== undefined) user.isEmailVerified = isEmailVerified;
-    if (isAdmin !== undefined) {
-      user.isAdmin = isAdmin;
+    if (isAdmin !== undefined && isAdmin !== user.isAdmin) {
       user.role = isAdmin ? ROLES.ADMIN : (user.role === ROLES.ADMIN ? ROLES.CUSTOMER : user.role);
+      user.isAdmin = user.role === ROLES.ADMIN || user.role === ROLES.SUPER_ADMIN;
     }
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
@@ -354,6 +401,7 @@ const updateUser = async (req, res) => {
           phone: user.phone,
           isEmailVerified: user.isEmailVerified,
           isAdmin: user.isAdmin,
+          role: user.role,
           isActive: user.isActive,
           preferences: user.preferences
         }
@@ -391,11 +439,15 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    if (user.isAdmin) {
+    if (isSuperAdminAccount(user)) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete admin users'
+        message: 'The super admin account cannot be deleted.',
       });
+    }
+
+    if (isPrivilegedAccount(user)) {
+      if (forbidUnlessSuperAdmin(req, res)) return;
     }
 
     if (user.id === req.user.userId) {
@@ -1092,8 +1144,13 @@ const bulkDeleteUsers = async (req, res) => {
         continue;
       }
 
-      if (user.isAdmin) {
-        skipped.push({ id: user.id, email: user.email, reason: 'Cannot delete admin users' });
+      if (isSuperAdminAccount(user)) {
+        skipped.push({ id: user.id, email: user.email, reason: 'The super admin account cannot be deleted' });
+        continue;
+      }
+
+      if (isPrivilegedAccount(user) && !userIsSuperAdmin(req.userData)) {
+        skipped.push({ id: user.id, email: user.email, reason: 'Only a super admin can delete an admin account' });
         continue;
       }
 
@@ -1142,9 +1199,22 @@ const toggleUserAdmin = async (req, res) => {
       });
     }
 
-    // Update admin status
-    user.isAdmin = isAdmin;
-    user.role = isAdmin ? ROLES.ADMIN : ROLES.CUSTOMER;
+    if (forbidUnlessSuperAdmin(req, res)) return;
+    if (sameAccount(user, req.user.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot change your own admin access.',
+      });
+    }
+    if (isSuperAdminAccount(user)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A super admin role cannot be changed here.',
+      });
+    }
+
+    user.role = isAdmin ? ROLES.ADMIN : (user.role === ROLES.ADMIN ? ROLES.CUSTOMER : user.role);
+    user.isAdmin = user.role === ROLES.ADMIN || user.role === ROLES.SUPER_ADMIN;
     await user.save();
 
     res.json({
@@ -1156,7 +1226,8 @@ const toggleUserAdmin = async (req, res) => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          isAdmin: user.isAdmin
+          isAdmin: user.isAdmin,
+          role: user.role
         }
       }
     });

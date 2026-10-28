@@ -125,7 +125,7 @@ const User = sequelize.define('User', {
     defaultValue: false
   },
   role: {
-    type: DataTypes.ENUM('customer', 'staff', 'admin'),
+    type: DataTypes.ENUM('customer', 'staff', 'admin', 'super_admin'),
     defaultValue: 'customer',
     allowNull: false
   },
@@ -175,11 +175,13 @@ const User = sequelize.define('User', {
       }
 
       if (user.changed('role')) {
-        user.isAdmin = user.role === 'admin';
+        user.isAdmin = user.role === 'admin' || user.role === 'super_admin';
       } else if (user.changed('isAdmin')) {
         if (user.isAdmin) {
-          user.role = 'admin';
-        } else if (user.role === 'admin') {
+          if (user.role !== 'super_admin') {
+            user.role = 'admin';
+          }
+        } else if (user.role === 'admin' || user.role === 'super_admin') {
           user.role = 'customer';
         }
       }
