@@ -1,11 +1,18 @@
+import { headers } from 'next/headers';
 import { getServerLanguage } from '@/lib/getServerLanguage';
 import HeroBackgroundVideo from '@/components/HeroBackgroundVideo';
 import HeroScrollButton from '@/components/HeroScrollButton';
 import HeroAnimatedBadge from '@/components/HeroAnimatedBadge';
 import HeroAnimatedCtas from '@/components/HeroAnimatedCtas';
 
+function prefersMobileHero(userAgent: string) {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent);
+}
+
 export default async function Hero() {
   const isFrench = (await getServerLanguage()) === 'fr';
+  const userAgent = (await headers()).get('user-agent') ?? '';
+  const preferMobile = prefersMobileHero(userAgent);
 
   return (
     <section
@@ -13,7 +20,7 @@ export default async function Hero() {
       className="relative flex min-h-screen items-start dark:bg-swisse-ink md:aspect-video md:min-h-0 md:items-center"
     >
       <div className="absolute inset-0">
-        <HeroBackgroundVideo isFrench={isFrench} />
+        <HeroBackgroundVideo isFrench={isFrench} preferMobile={preferMobile} />
         <div className="pointer-events-none absolute inset-0 bg-white/10 bg-gradient-to-t from-swisse-canvas via-swisse-canvas/40 to-transparent dark:from-background dark:via-background/50 dark:to-transparent" />
       </div>
 

@@ -1,63 +1,137 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PauseIcon, PlayIcon } from '@heroicons/react/24/outline';
 
 const MOBILE_SRC = '/videos/hero-mobile.mp4?v=1';
 const DESKTOP_SRC = '/videos/hero.mp4?v=4';
 const POSTER_SRC = '/images/hero-video-poster.jpg';
 
+const GESTURE_EVENTS = ['touchstart', 'pointerdown', 'scroll'] as const;
+
 type HeroBackgroundVideoProps = {
   isFrench: boolean;
+  preferMobile: boolean;
 };
 
-function sourceMatches(currentSrc: string, next: string) {
-  return currentSrc.includes(next);
+function armAutoplay(video: HTMLVideoElement) {
+  // The muted attribute is not enough: browsers read the DOM property, and React
+  // does not always set it before the autoplay check. Phones then draw a start button.
+  video.defaultMuted = true;
+  video.muted = true;
+  video.volume = 0;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', 'true');
 }
 
-export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoProps) {
+export default function HeroBackgroundVideo({ isFrench, preferMobile }: HeroBackgroundVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const userPausedRef = useRef(false);
   const [paused, setPaused] = useState(false);
+  const initialSrc = preferMobile ? MOBILE_SRC : DESKTOP_SRC;
+
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (!node) return;
+    armAutoplay(node);
+    if (node.paused && !document.hidden) {
+      void node.play().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Muted has to be set on the element itself or desktop browsers block autoplay.
-    video.defaultMuted = true;
-    video.muted = true;
-    video.volume = 0;
+    armAutoplay(video);
+    let gestureArmed = false;
 
-    const startPlayback = () => {
-      if (document.hidden) {
-        video.pause();
+    const detachGesture = () => {
+      if (!gestureArmed) return;
+      gestureArmed = false;
+      for (const eventName of GESTURE_EVENTS) {
+        window.removeEventListener(eventName, startPlayback);
+      }
+    };
+
+    const attachGesture = () => {
+      if (gestureArmed || userPausedRef.current) return;
+      gestureArmed = true;
+      for (const eventName of GESTURE_EVENTS) {
+        window.addEventListener(eventName, startPlayback, { passive: true });
+      }
+    };
+
+    function startPlayback() {
+      if (!video || userPausedRef.current || document.hidden) return;
+      armAutoplay(video);
+      if (!video.paused) {
+        detachGesture();
         return;
       }
-      if (userPausedRef.current || !video.paused) return;
-      void video.play().catch(() => {});
-    };
+      const pending = video.play();
+      if (!pending) return;
+      pending.then(() => {
+        detachGesture();
+      }).catch(() => {
+        // Low Power Mode and in-app browsers can block the first attempt.
+        // The next touch or scroll on the page starts it, with no play button.
+        attachGesture();
+      });
+    }
 
     const media = window.matchMedia('(min-width: 768px)');
     const onBreakpoint = () => {
       const next = media.matches ? DESKTOP_SRC : MOBILE_SRC;
-      if (sourceMatches(video.currentSrc, next)) return;
+      if ((video.currentSrc || video.src).includes(next)) return;
       userPausedRef.current = false;
       setPaused(false);
       video.src = next;
-      video.load();
+      armAutoplay(video);
+      startPlayback();
+    };
+
+    const onVisible = () => {
+      if (!document.hidden) startPlayback();
+    };
+
+    let autoRetries = 0;
+    const onPause = () => {
+      if (userPausedRef.current || document.hidden) return;
+      if (autoRetries >= 5) {
+        attachGesture();
+        return;
+      }
+      autoRetries += 1;
+      window.setTimeout(startPlayback, 200);
+    };
+    const onPlaying = () => {
+      autoRetries = 0;
+      detachGesture();
     };
 
     startPlayback();
+    const retries = [300, 1000, 2500].map((delay) => window.setTimeout(startPlayback, delay));
+
     video.addEventListener('loadeddata', startPlayback);
     video.addEventListener('canplay', startPlayback);
-    document.addEventListener('visibilitychange', startPlayback);
+    video.addEventListener('pause', onPause);
+    video.addEventListener('playing', onPlaying);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', startPlayback);
     media.addEventListener('change', onBreakpoint);
+
     return () => {
+      for (const id of retries) window.clearTimeout(id);
       video.removeEventListener('loadeddata', startPlayback);
       video.removeEventListener('canplay', startPlayback);
-      document.removeEventListener('visibilitychange', startPlayback);
+      video.removeEventListener('pause', onPause);
+      video.removeEventListener('playing', onPlaying);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', startPlayback);
       media.removeEventListener('change', onBreakpoint);
+      detachGesture();
     };
   }, []);
 
@@ -67,6 +141,7 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
     if (video.paused) {
       userPausedRef.current = false;
       setPaused(false);
+      armAutoplay(video);
       void video.play().catch(() => {});
       return;
     }
@@ -86,19 +161,18 @@ export default function HeroBackgroundVideo({ isFrench }: HeroBackgroundVideoPro
   return (
     <>
       <video
-        ref={videoRef}
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+        ref={setVideoRef}
+        className="hero-video pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+        src={initialSrc}
         poster={POSTER_SRC}
         autoPlay
         loop
         muted
         playsInline
         preload="auto"
+        disablePictureInPicture
         aria-hidden="true"
-      >
-        <source src={DESKTOP_SRC} type="video/mp4" media="(min-width: 768px)" />
-        <source src={MOBILE_SRC} type="video/mp4" media="(max-width: 767px)" />
-      </video>
+      />
       <span className="sr-only">{isFrench ? 'Hero mode suisse' : 'Swiss fashion hero'}</span>
       <div className="absolute bottom-6 right-6 z-30 flex items-center gap-2 md:bottom-10 md:right-8">
         <button
