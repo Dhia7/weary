@@ -669,6 +669,7 @@ const updateProfileComprehensive = async (req, res) => {
       firstName, 
       lastName, 
       phone, 
+      email,
       preferences,
       addresses 
     } = req.body;
@@ -691,6 +692,31 @@ const updateProfileComprehensive = async (req, res) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (phone !== undefined) user.phone = savedPhone(phone);
+
+    let emailChanged = false;
+    let verifyUrl = '';
+    if (email !== undefined) {
+      const nextEmail = String(email).trim().toLowerCase();
+      if (nextEmail && nextEmail !== String(user.email || '').toLowerCase()) {
+        const taken = await User.findOne({
+          where: { email: nextEmail, id: { [Op.ne]: user.id } },
+        });
+        if (taken) {
+          return res.status(400).json({
+            success: false,
+            message: 'That email is already in use.',
+          });
+        }
+        const rawVerificationToken = crypto.randomBytes(32).toString('hex');
+        user.email = nextEmail;
+        user.isEmailVerified = false;
+        user.emailVerificationToken = crypto.createHash('sha256').update(rawVerificationToken).digest('hex');
+        user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+        verifyUrl = `${frontendBase}/auth/verify-email?token=${rawVerificationToken}`;
+        emailChanged = true;
+      }
+    }
     
     // Update preferences
     if (preferences) {
@@ -726,9 +752,27 @@ const updateProfileComprehensive = async (req, res) => {
       }]
     });
 
+    let message = 'Profile updated successfully';
+    if (emailChanged) {
+      try {
+        if (hasMailTransport()) {
+          await sendVerificationEmail(updatedUser.email, verifyUrl, updatedUser.firstName);
+          message = 'Profile updated. Check your new inbox to verify that email address.';
+        } else if (process.env.NODE_ENV === 'development') {
+          console.log('[dev] Email change verification URL (no mail transport):', verifyUrl);
+          message = 'Profile updated. The new email still needs verification.';
+        } else {
+          message = 'Profile updated, but the verification email could not be sent. Use resend verification on the sign-in page.';
+        }
+      } catch (err) {
+        console.error('Failed to send email-change verification:', err.message || err);
+        message = 'Profile updated, but the verification email could not be sent. Use resend verification on the sign-in page.';
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Profile updated successfully',
+      message,
       data: {
         user: formatUserProfile(updatedUser)
       }
@@ -1209,7 +1253,7 @@ const deleteAccount = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (user.isAdmin || user.role === 'admin') {
+    if (user.isAdmin || user.role === 'admin' || user.role === 'super_admin') {
       return res.status(400).json({
         success: false,
         message: 'Admin accounts cannot be deleted from account settings.',

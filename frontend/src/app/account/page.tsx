@@ -29,6 +29,13 @@ import WishlistTab from '@/components/WishlistTab';
 import OrdersTab from '@/components/OrdersTab';
 import AccountSettings from '@/components/AccountSettings';
 
+function accountRoleLabel(role?: string, isAdmin?: boolean) {
+  if (role === 'super_admin') return { title: 'Super admin', badge: '' };
+  if (role === 'admin' || isAdmin) return { title: 'Administrator', badge: 'Admin' };
+  if (role === 'staff') return { title: 'Staff', badge: 'Staff' };
+  return { title: 'Customer', badge: '' };
+}
+
 function formatMemberSince(createdAt?: string) {
   if (!createdAt) return '—';
   const date = new Date(createdAt);
@@ -64,6 +71,7 @@ function AccountPageContent() {
   const { showOrderSuccess } = useOrderNotification();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
+  const [profileNotice, setProfileNotice] = useState('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -113,8 +121,9 @@ function AccountPageContent() {
     router.push(`/auth/login?${params.toString()}`);
   };
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = (message?: string) => {
     setIsEditing(false);
+    setProfileNotice(message || 'Profile updated successfully');
   };
 
 
@@ -283,13 +292,20 @@ function AccountPageContent() {
                       Profile Information
                     </h2>
                     <button 
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => {
+                        setProfileNotice('');
+                        setIsEditing(true);
+                      }}
                       className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                       <span>Edit</span>
                     </button>
                   </div>
+
+                  {profileNotice && (
+                    <p className="mb-4 text-sm text-green-600 dark:text-green-400">{profileNotice}</p>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
@@ -329,11 +345,11 @@ function AccountPageContent() {
                         <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <Crown className="w-4 h-4 text-gray-400" />
                           <span className="text-gray-900 dark:text-white">
-                            {user.isAdmin ? 'Administrator' : 'Regular User'}
+                            {accountRoleLabel(user.role, user.isAdmin).title}
                           </span>
-                          {user.isAdmin && (
+                          {accountRoleLabel(user.role, user.isAdmin).badge && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                              Admin
+                              {accountRoleLabel(user.role, user.isAdmin).badge}
                             </span>
                           )}
                         </div>

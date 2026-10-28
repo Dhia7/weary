@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { 
   User, 
   Phone, 
+  Mail,
   Save,
   X,
   Plus,
@@ -39,6 +40,7 @@ const phoneSchema = z.string().trim().refine((value) => {
 const profileSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters').max(50, 'First name must be less than 50 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters').max(50, 'Last name must be less than 50 characters'),
+  email: z.string().trim().email('Enter a valid email address'),
   phone: phoneSchema,
   preferences: z.object({
     sizePreference: z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']),
@@ -61,7 +63,14 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 interface ProfileEditFormProps {
   onCancel: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
+}
+
+function accountRoleLabel(role?: string, isAdmin?: boolean) {
+  if (role === 'super_admin') return { title: 'Super admin', badge: '' };
+  if (role === 'admin' || isAdmin) return { title: 'Administrator', badge: 'Admin' };
+  if (role === 'staff') return { title: 'Staff', badge: 'Staff' };
+  return { title: 'Customer', badge: '' };
 }
 
 export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditFormProps) {
@@ -80,6 +89,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
     defaultValues: {
       firstName: user?.firstName || '',
       lastName: user?.lastName || '',
+      email: user?.email || '',
       phone: user?.phone || '',
       preferences: {
         sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user?.preferences?.sizePreference as string) || '')
@@ -109,6 +119,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       reset({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
+        email: user.email || '',
         phone: user.phone || '',
         preferences: {
           sizePreference: (ALLOWED_SIZES as readonly string[]).includes((user.preferences?.sizePreference as string) || '')
@@ -139,6 +150,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
       const result = await updateProfileComprehensive({
         firstName: data.firstName,
         lastName: data.lastName,
+        email: data.email,
         phone: data.phone,
         preferences: data.preferences,
         addresses: data.addresses
@@ -146,7 +158,7 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
 
       if (result.success) {
         await refreshUser();
-        onSuccess();
+        onSuccess(result.message);
       } else {
         setError(result.message);
       }
@@ -172,6 +184,8 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
   const removeAddress = (index: number) => {
     remove(index);
   };
+
+  const accountRole = accountRoleLabel(user?.role, user?.isAdmin);
 
   const categories = [
     { value: 'men', label: 'Men' },
@@ -286,23 +300,50 @@ export default function ProfileEditForm({ onCancel, onSuccess }: ProfileEditForm
                 )}
               </div>
 
-              {user?.isAdmin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Account role
-                  </label>
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <Crown className="w-4 h-4 text-purple-500" />
-                    <span className="text-gray-700 dark:text-gray-300">Administrator</span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                      Admin
-                    </span>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Admin access is managed by existing administrators only.
-                  </p>
+                  <input
+                    {...register('email')}
+                    type="email"
+                    autoComplete="email"
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
-              )}
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.email.message}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Changing this email sends a new verification link. Sign-in uses the new address after you confirm it.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Account type
+                </label>
+                <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Crown className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-700 dark:text-gray-300">{accountRole.title}</span>
+                  {accountRole.badge && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                      {accountRole.badge}
+                    </span>
+                  )}
+                </div>
+                {(user?.isAdmin || user?.role === 'staff' || user?.role === 'super_admin') && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Only a super admin can change this role.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

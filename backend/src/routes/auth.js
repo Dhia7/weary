@@ -107,6 +107,12 @@ const updateProfileComprehensiveValidation = [
     .isLength({ min: 2, max: 50 })
     .withMessage('Last name must be between 2 and 50 characters'),
   validateOptionalPhone,
+  body('email')
+    .optional()
+    .trim()
+    .isEmail()
+    .withMessage('Please enter a valid email')
+    .customSanitizer((value) => String(value).trim().toLowerCase()),
   body('preferences.sizePreference')
     .optional()
     .isIn(['XS', 'S', 'M', 'L', 'XL', 'XXL'])
