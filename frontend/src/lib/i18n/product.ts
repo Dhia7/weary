@@ -104,7 +104,7 @@ const FR = {
   askAboutPiece: 'Vous voulez le même ?',
   soldInquiryTitle: 'Cette pièce unique est vendue',
   soldInquiryBody:
-    'Vous voulez le même modèle ou une pièce proche ? Écrivez-nous ou contactez-nous sur Instagram — nous vous dirons si nous pouvons en trouver une autre.',
+    'Vous voulez le même modèle ou une pièce proche ? Écrivez-nous ou contactez-nous sur Instagram — nous vous dirons si nous pouvons en trouver un autre.',
   askSameHint: 'Vendu. Nous pouvons en chercher une autre.',
   dmInstagram: 'Écrire sur Instagram',
   addToCart: 'Ajouter au panier',
