@@ -72,6 +72,7 @@ interface AuthContextType {
   updateProfileComprehensive: (data: {
     firstName?: string;
     lastName?: string;
+    email?: string;
     phone?: string;
     preferences?: {
       newsletter?: boolean;
