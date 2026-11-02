@@ -14,7 +14,7 @@ import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import ProductTitle from '@/components/product/ProductTitle';
 import { getSoldInquiryHref } from '@/lib/shopLinks';
-import { productHasSizes, isProductSoldOut } from '@/lib/types/product';
+import { productHasSizes, isFinalSold, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
 import SoldBadge from '@/components/product/SoldBadge';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
@@ -146,6 +146,7 @@ export default function CollectionDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {collection.products.map((product) => {
               const soldOut = isProductSoldOut(product);
+              const showSoldInquiry = soldOut && !isFinalSold(product);
               return (
               <div
                 key={product.id}
@@ -170,7 +171,7 @@ export default function CollectionDetailPage() {
                   {soldOut ? (
                     <SoldBadge overlay label={isFrench ? 'Vendu' : 'Sold'} />
                   ) : null}
-                  {soldOut ? (
+                  {showSoldInquiry ? (
                     <div className="absolute inset-x-0 bottom-0 z-10 p-3">
                       <Link
                         href={getSoldInquiryHref({
@@ -183,7 +184,7 @@ export default function CollectionDetailPage() {
                         {isFrench ? 'Vous voulez le même ?' : 'Want the same piece?'}
                       </Link>
                     </div>
-                  ) : (
+                  ) : soldOut ? null : (
                     <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                       <button
                         onClick={(e) => handleAddToCart(product, e)}

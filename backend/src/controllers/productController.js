@@ -234,7 +234,7 @@ const parseBooleanField = (value, defaultValue = false) => {
 const parseDisplayBadge = (value) => {
 	if (value === undefined) return undefined;
 	if (value === null || value === '' || value === 'none') return null;
-	if (value === 'new_arrival' || value === 'sold') return value;
+	if (value === 'new_arrival' || value === 'sold' || value === 'sold_final') return value;
 	return null;
 };
 
@@ -1108,8 +1108,15 @@ const updateProductDisplayBadge = async (req, res) => {
 					});
 				}
 
-				if (nextBadge === 'sold') {
+				if (nextBadge === 'sold' || nextBadge === 'sold_final') {
 					await setColorSoldState(product.id, colorName, true, t);
+					if (nextBadge === 'sold_final') {
+						product.displayBadge = 'sold_final';
+						await product.save({ transaction: t, fields: ['displayBadge'] });
+					} else if (product.displayBadge === 'sold_final') {
+						product.displayBadge = null;
+						await product.save({ transaction: t, fields: ['displayBadge'] });
+					}
 				} else {
 					await setColorSoldState(product.id, colorName, false, t);
 					product.displayBadge = nextBadge ?? null;

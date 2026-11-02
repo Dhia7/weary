@@ -1,5 +1,5 @@
-/** Sold listing photos: grayscale only, no fade or blur. */
-export const soldPhotoClass = 'grayscale';
+/** Sold listing photos keep their original colors. The Sold label is overlaid separately. */
+export const soldPhotoClass = '';
 
 
 

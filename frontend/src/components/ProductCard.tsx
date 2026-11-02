@@ -23,6 +23,7 @@ import {
   getProductMaxStock,
   getVariantPrice,
   isColorSold,
+  isFinalSold,
   isProductSoldOut,
   productHasSizes,
   resolveProductColor,
@@ -210,6 +211,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const soldOut =
     Boolean(selectedColor && isColorSold(product, selectedColor)) ||
     isProductSoldOut(product, selectedVariant);
+  const showSoldInquiry = soldOut && !isFinalSold(product);
   const badge = getDisplayBadge(product, selectedColor);
   const soldLabel = isFrench ? 'Vendu' : 'Sold';
 
@@ -262,11 +264,11 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           <div className="absolute top-4 right-4 z-[9] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <WishlistButton productId={product.id.toString()} size="md" variant="default" />
           </div>
-          {soldOut ? (
+          {showSoldInquiry ? (
             <div className="absolute inset-x-0 bottom-0 z-[12] p-4">
               <SoldAskButton href={soldInquiryHref} label={t.askUs} onClick={handleSoldInquiry} />
             </div>
-          ) : (
+          ) : soldOut ? null : (
             <div className="absolute inset-0 z-[8] flex items-end p-6 bg-swisse-canvas/0 opacity-0 transition-opacity duration-300 group-hover:bg-swisse-canvas/20 group-hover:opacity-100 pointer-events-none">
               <button
                 type="button"
@@ -451,7 +453,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
           )}
         </div>
       </Link>
-      {soldOut ? (
+      {showSoldInquiry ? (
         <div className="px-4 pb-4 space-y-2">
           <p className="text-xs text-swisse-ink/70 dark:text-muted-foreground">{t.askSameHint}</p>
           <SoldAskButton href={soldInquiryHref} label={t.askUs} onClick={handleSoldInquiry} />

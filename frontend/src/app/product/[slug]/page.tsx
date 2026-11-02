@@ -20,6 +20,7 @@ import {
   getProductMaxStock,
   isProductSoldOut,
   isColorSold,
+  isFinalSold,
   getDisplayBadge,
   resolveProductColor,
 } from '@/lib/types/product';
@@ -102,6 +103,8 @@ export default function ProductDetailPage() {
     if (selectedColor && isColorSold(product, selectedColor)) return true;
     return isProductSoldOut(product, selectedVariant);
   }, [product, selectedVariant, selectedColor]);
+
+  const showSoldInquiry = isOutOfStock && !isFinalSold(product);
 
   const maxPurchasableQty = useMemo(() => {
     if (!product) return 0;
@@ -340,7 +343,7 @@ export default function ProductDetailPage() {
   return (
     <div className={pageShellClass}>
       <Navigation />
-      <main id="main-content" className={`max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 ${isOutOfStock ? 'pb-28 lg:pb-20' : 'pb-20'}`}>
+      <main id="main-content" className={`max-w-swisse mx-auto px-4 sm:px-6 lg:px-8 pt-28 ${showSoldInquiry ? 'pb-28 lg:pb-20' : 'pb-20'}`}>
         <nav
           aria-label={t.breadcrumbAria}
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-swisse-ink/50 dark:text-muted-foreground mb-10"
@@ -426,7 +429,7 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {isOutOfStock ? (
+            {showSoldInquiry ? (
               <SoldInquiryPanel
                 slug={product.slug}
                 sku={product.SKU}
@@ -645,7 +648,7 @@ export default function ProductDetailPage() {
         </div>
       </main>
 
-      {isOutOfStock ? (
+      {showSoldInquiry ? (
         <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden border-t border-swisse-gold/30 bg-swisse-canvas/95 dark:bg-background/95 backdrop-blur px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <Link
             href={getSoldInquiryHref({

@@ -1,6 +1,7 @@
 const { getActiveVariants } = require('./variantHelpers');
 
-const isSoldBadge = (product) => product?.displayBadge === 'sold';
+const isSoldBadge = (product) =>
+	product?.displayBadge === 'sold' || product?.displayBadge === 'sold_final';
 
 const hasActiveVariants = (product) =>
 	getActiveVariants(product?.variants || []).length > 0;

@@ -41,7 +41,16 @@ export interface ProductPriceRange {
   hasVariablePricing: boolean;
 }
 
-export type ProductDisplayBadge = 'new_arrival' | 'sold' | null;
+export type ProductDisplayBadge = 'new_arrival' | 'sold' | 'sold_final' | null;
+
+/** Sold, including the closed sale that does not offer another piece. */
+export const isSoldBadge = (badge?: ProductDisplayBadge | null): boolean =>
+  badge === 'sold' || badge === 'sold_final';
+
+/** Sold and we cannot source another — hide contact and Instagram prompts. */
+export const isFinalSold = (
+  product?: { displayBadge?: ProductDisplayBadge | null } | null
+): boolean => product?.displayBadge === 'sold_final';
 
 export interface Product {
   id: number;
@@ -113,7 +122,7 @@ export const isMadeToOrderProduct = (
   Boolean(
     product.size?.trim() &&
       !product.hasVariants &&
-      product.displayBadge !== 'sold'
+      !isSoldBadge(product.displayBadge)
   );
 
 /** True when every SKU for this color is sold or reserved. */
@@ -144,7 +153,7 @@ export const getDisplayBadge = (
 ): ProductDisplayBadge => {
   if (selectedColor && isColorSold(product, selectedColor)) return 'sold';
   if (isProductSoldOut(product)) return 'sold';
-  if (product.displayBadge === 'sold') return null;
+  if (isSoldBadge(product.displayBadge)) return null;
   return product.displayBadge ?? null;
 };
 
@@ -174,7 +183,7 @@ export const isProductSoldOut = (
     );
   }
 
-  if (product.displayBadge === 'sold') return true;
+  if (isSoldBadge(product.displayBadge)) return true;
 
   if (isMadeToOrderProduct(product)) return false;
 
@@ -192,7 +201,7 @@ export const getProductMaxStock = (
   if (product.hasVariants) {
     return product.stockInfo?.quantity ?? product.quantity ?? 0;
   }
-  if (product.displayBadge === 'sold') return 0;
+  if (isSoldBadge(product.displayBadge)) return 0;
   if (isMadeToOrderProduct(product)) return 999;
   return product.stockInfo?.quantity ?? product.quantity ?? 0;
 };

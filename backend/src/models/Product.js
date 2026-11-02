@@ -50,9 +50,9 @@ const Product = sequelize.define('Product', {
 		allowNull: true,
 		defaultValue: null,
 		validate: {
-			isIn: [['new_arrival', 'sold']]
+			isIn: [['new_arrival', 'sold', 'sold_final']]
 		},
-		comment: 'Optional storefront badge: new_arrival, sold, or null for none'
+		comment: 'Optional storefront badge: new_arrival, sold (contact us), sold_final (no replacement), or null'
 	},
 	allowCustomerQuantity: {
 		type: DataTypes.BOOLEAN,

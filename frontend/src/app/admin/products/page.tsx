@@ -5,9 +5,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl } from '@/lib/utils';
-import type { ColorOption, Product as CatalogProduct, ProductDisplayBadge } from '@/lib/types/product';
+import {
+  isSoldBadge,
+  orderColorsSelectedFirst,
+  type ColorOption,
+  type Product as CatalogProduct,
+  type ProductDisplayBadge,
+} from '@/lib/types/product';
 import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
-import { orderColorsSelectedFirst } from '@/lib/types/product';
 import ColorSwatches from '@/components/ColorSwatches';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 import ProductTitle from '@/components/product/ProductTitle';
@@ -88,8 +93,10 @@ const isFeaturedColorSold = (product: Product, colorName: string): boolean => {
 const adminListBadge = (product: Product): ProductDisplayBadge => {
   if (product.hasVariants && (product.colorOptions?.length ?? 0) > 0) {
     const color = featuredColorName(product);
-    if (color && isFeaturedColorSold(product, color)) return 'sold';
-    return product.displayBadge === 'sold' ? null : (product.displayBadge ?? null);
+    if (color && isFeaturedColorSold(product, color)) {
+      return product.displayBadge === 'sold_final' ? 'sold_final' : 'sold';
+    }
+    return isSoldBadge(product.displayBadge) ? null : (product.displayBadge ?? null);
   }
   return product.displayBadge ?? null;
 };
@@ -97,7 +104,8 @@ const adminListBadge = (product: Product): ProductDisplayBadge => {
 const BADGE_OPTIONS: Array<{ value: ProductDisplayBadge; label: string }> = [
   { value: null, label: 'None' },
   { value: 'new_arrival', label: 'New Arrival' },
-  { value: 'sold', label: 'Sold' },
+  { value: 'sold', label: 'Sold (contact us)' },
+  { value: 'sold_final', label: 'Sold (no replacement)' },
 ];
 
 const COLLAGE_OPTIONS: Array<{ value: number | null; label: string }> = [
@@ -584,22 +592,18 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <select
                           aria-label={`Badge for ${product.name}`}
-                          title={
-                            product.hasVariants && (product.colorOptions?.length ?? 0) > 1
-                              ? 'Sold applies to the featured color only. Switch color to see the other.'
-                              : undefined
-                          }
+                          title="Sold (contact us) lets shoppers ask for another piece. Sold (no replacement) is a final sale with no contact options."
                           value={adminListBadge(product) ?? ''}
                           disabled={updatingBadgeId === product.id}
                           onChange={(e) => {
                             const value = e.target.value;
                             handleBadgeChange(
                               product.id,
-                              value === '' ? null : (value as 'new_arrival' | 'sold'),
+                              value === '' ? null : (value as Exclude<ProductDisplayBadge, null>),
                               featuredColorName(product) || null
                             );
                           }}
-                          className="block w-full min-w-[8.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                          className="block w-full min-w-[11.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                         >
                           {BADGE_OPTIONS.map((option) => (
                             <option key={option.label} value={option.value ?? ''}>
@@ -607,8 +611,13 @@ export default function AdminProductsPage() {
                             </option>
                           ))}
                         </select>
+                        {adminListBadge(product) === 'sold_final' ? (
+                          <p className="mt-1 max-w-[11.5rem] text-[10px] leading-tight text-gray-500 dark:text-gray-400">
+                            Final sale. Shoppers will not see contact or Instagram.
+                          </p>
+                        ) : null}
                         {product.hasVariants && (product.colorOptions?.length ?? 0) > 1 ? (
-                          <p className="mt-1 max-w-[10rem] text-[10px] leading-tight text-gray-500 dark:text-gray-400">
+                          <p className="mt-1 max-w-[11.5rem] text-[10px] leading-tight text-gray-500 dark:text-gray-400">
                             Sold is for {featuredColorName(product) || 'this color'} only
                           </p>
                         ) : null}

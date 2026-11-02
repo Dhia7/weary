@@ -17,7 +17,7 @@ export interface CollectionProduct {
   size?: string | null;
   hasVariants?: boolean;
   availableSizes?: string[];
-  displayBadge?: 'new_arrival' | 'sold' | null;
+  displayBadge?: 'new_arrival' | 'sold' | 'sold_final' | null;
   variants?: Product['variants'];
   colorOptions?: Product['colorOptions'];
   stockInfo?: Product['stockInfo'];

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useOrderNotification } from '@/lib/contexts/OrderNotificationContext';
 import type { CartItem } from '@/lib/contexts/CartContext';
-import { isProductSoldOut } from '@/lib/types/product';
+import { isFinalSold, isProductSoldOut } from '@/lib/types/product';
 import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import ProductTitle from '@/components/product/ProductTitle';
@@ -193,6 +193,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
         <AnimatePresence>
           {wishlistItems.map((item) => {
             const soldOut = isProductSoldOut(item.Product);
+            const showSoldInquiry = soldOut && !isFinalSold(item.Product);
             return (
             <motion.div
               key={item.id}
@@ -281,7 +282,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                     <span className="whitespace-nowrap">View</span>
                   </Link>
 
-                  {soldOut ? (
+                  {showSoldInquiry ? (
                     <Link
                       href={getSoldInquiryHref({
                         slug: item.Product.slug,
@@ -291,7 +292,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                     >
                       {isFrench ? 'Vous voulez le même ?' : 'Want the same piece?'}
                     </Link>
-                  ) : (
+                  ) : soldOut ? null : (
                     <button
                       onClick={() => handleAddToCart(item.Product.id)}
                       disabled={addingToCart.has(item.Product.id)}

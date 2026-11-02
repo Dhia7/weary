@@ -20,6 +20,7 @@ import {
   getProductMaxStock,
   isProductSoldOut,
   isColorSold,
+  isFinalSold,
   getDisplayBadge,
   resolveProductColor,
 } from '@/lib/types/product';
@@ -99,6 +100,8 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
     if (selectedColor && isColorSold(product, selectedColor)) return true;
     return isProductSoldOut(product, selectedVariant);
   }, [product, selectedVariant, selectedColor]);
+
+  const showSoldInquiry = isOutOfStock && !isFinalSold(product);
 
   const maxPurchasableQty = useMemo(() => {
     if (!product) return 0;
@@ -429,7 +432,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                {isOutOfStock ? (
+                {showSoldInquiry ? (
                   <Link
                     href={getSoldInquiryHref({
                       slug: product.slug,
@@ -441,7 +444,7 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                   >
                     {t.askAboutPiece}
                   </Link>
-                ) : (
+                ) : isOutOfStock ? null : (
                   <button
                     onClick={handleAddToCart}
                     disabled={sizeChoices.length > 0 && !selectedSize}

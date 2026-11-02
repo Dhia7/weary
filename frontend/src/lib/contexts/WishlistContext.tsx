@@ -24,7 +24,7 @@ interface WishlistItem {
     isActive: boolean;
     quantity: number;
     size?: string | null;
-    displayBadge?: 'new_arrival' | 'sold' | null;
+    displayBadge?: 'new_arrival' | 'sold' | 'sold_final' | null;
     hasVariants?: boolean;
     variants?: Array<{
       color: string;
