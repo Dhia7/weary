@@ -65,7 +65,7 @@ const getCategory = async (req, res) => {
 const getCategoryProducts = async (req, res) => {
 	try {
 		const { idOrSlug } = req.params;
-		const { page = 1, limit = 20, sort = 'name', order = 'ASC' } = req.query;
+		const { page = 1, limit = 20, sort = 'sortOrder', order = 'ASC' } = req.query;
 		
 		console.log('Getting products for category:', idOrSlug);
 		
@@ -109,14 +109,17 @@ const getCategoryProducts = async (req, res) => {
 		const count = parseInt(countResult[0].count);
 		console.log('Product count:', count);
 		
-		// Handle sorting
-		let orderClause = 'p."createdAt" DESC'; // Default sort
+		// Handle sorting. Only whitelisted column names are interpolated.
+		let orderClause = 'p."sortOrder" ASC, p."createdAt" DESC';
 		if (sort && order) {
-			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt'];
+			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt', 'sortOrder'];
 			const validOrders = ['ASC', 'DESC'];
 			
 			if (validSortFields.includes(sort) && validOrders.includes(order.toUpperCase())) {
-				orderClause = `p."${sort}" ${order.toUpperCase()}`;
+				const direction = order.toUpperCase();
+				orderClause = sort === 'sortOrder'
+					? `p."sortOrder" ${direction}, p."createdAt" DESC`
+					: `p."${sort}" ${direction}`;
 			}
 		}
 

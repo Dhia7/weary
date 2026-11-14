@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { GripVertical } from 'lucide-react';
 import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { getImageUrl } from '@/lib/utils';
 import {
@@ -129,30 +130,87 @@ export default function AdminProductsPage() {
   const [updatingColorId, setUpdatingColorId] = useState<number | null>(null);
   const [updatingCollageId, setUpdatingCollageId] = useState<number | null>(null);
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState<number | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const draggingIdRef = useRef<number | null>(null);
+  const didDragRef = useRef(false);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const cacheBuster = `&t=${Date.now()}`;
-      const res = await fetcher(`/products?limit=50&sort=createdAt&order=DESC${cacheBuster}`);
-      const json = await res.json();
-      if (res.ok) {
-        setProducts(json.data.products);
-        console.log('Products loaded:', json.data.products.length, 'products');
-        // Log stock info for debugging products with stock issues
-        json.data.products.forEach((p: Product) => {
-          const quantity = p.stockInfo?.quantity ?? p.quantity ?? 0;
-          const isInStock = p.stockInfo?.isInStock ?? quantity > 0;
-          if (!isInStock && quantity === 0) {
-            console.log(`⚠️ Product "${p.name}" (ID: ${p.id}) - Quantity: ${quantity}, StockInfo:`, p.stockInfo);
-          }
-        });
+      const cacheBuster = Date.now();
+      const all: Product[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages && page <= 50) {
+        const res = await fetcher(
+          `/products?limit=100&page=${page}&sort=sortOrder&order=ASC&t=${cacheBuster}`
+        );
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(json.message || 'Failed to load products');
+        }
+        const batch = (json.data?.products || []) as Product[];
+        all.push(...batch);
+        totalPages = json.data?.pagination?.totalPages ?? 1;
+        if (batch.length === 0) break;
+        page += 1;
       }
+
+      setProducts(all);
+      console.log('Products loaded:', all.length, 'products');
+      all.forEach((p: Product) => {
+        const quantity = p.stockInfo?.quantity ?? p.quantity ?? 0;
+        const isInStock = p.stockInfo?.isInStock ?? quantity > 0;
+        if (!isInStock && quantity === 0) {
+          console.log(`⚠️ Product "${p.name}" (ID: ${p.id}) - Quantity: ${quantity}, StockInfo:`, p.stockInfo);
+        }
+      });
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const persistOrder = async (next: Product[], previous: Product[]) => {
+    try {
+      setSavingOrder(true);
+      setOrderError(null);
+      const res = await fetcher('/products/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: next.map((p) => p.id) }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setProducts(previous);
+        setOrderError(json.message || 'Could not save the new order');
+      }
+    } catch (error) {
+      console.error('Error saving product order:', error);
+      setProducts(previous);
+      setOrderError('Could not save the new order');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const moveProduct = (sourceId: number, targetId: number) => {
+    if (sourceId === targetId || savingOrder) return;
+    const from = products.findIndex((p) => p.id === sourceId);
+    const to = products.findIndex((p) => p.id === targetId);
+    if (from < 0 || to < 0) return;
+    const previous = products;
+    const next = [...products];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setSavingOrder(true);
+    setProducts(next);
+    void persistOrder(next, previous);
   };
 
   useEffect(() => {
@@ -346,7 +404,16 @@ export default function AdminProductsPage() {
     <AdminGuard>
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Products</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Products</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Drag the handle to set the order on the shop.
+              {savingOrder ? ' Saving…' : ''}
+            </p>
+            {orderError ? (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{orderError}</p>
+            ) : null}
+          </div>
           <Link 
             href="/admin/products/new" 
             className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200"
@@ -369,6 +436,9 @@ export default function AdminProductsPage() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-900">
                   <tr>
+                    <th className="px-3 py-3 w-10">
+                      <span className="sr-only">Order</span>
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Product
                     </th>
@@ -408,12 +478,67 @@ export default function AdminProductsPage() {
                     const featuredSold = Boolean(
                       selectedColor && isFeaturedColorSold(product, selectedColor)
                     );
+                    const isDragging = draggingId === product.id;
+                    const isDropTarget = dropTargetId === product.id && draggingId !== product.id;
                     return (
                     <tr 
                       key={product.id} 
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200 hover:shadow-sm"
-                      onClick={() => window.location.href = `/admin/products/${product.id}`}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200 hover:shadow-sm ${
+                        isDragging ? 'opacity-50' : ''
+                      } ${isDropTarget ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}
+                      onClick={() => {
+                        if (didDragRef.current) {
+                          didDragRef.current = false;
+                          return;
+                        }
+                        window.location.href = `/admin/products/${product.id}`;
+                      }}
+                      onDragOver={(event) => {
+                        if (draggingIdRef.current == null) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        if (dropTargetId !== product.id) setDropTargetId(product.id);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const sourceId = draggingIdRef.current;
+                        draggingIdRef.current = null;
+                        setDraggingId(null);
+                        setDropTargetId(null);
+                        if (sourceId != null) moveProduct(sourceId, product.id);
+                      }}
                     >
+                      <td
+                        className="px-3 py-4 whitespace-nowrap"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          draggable={!savingOrder}
+                          aria-label={`Reorder ${product.name}`}
+                          title="Drag to reorder"
+                          className="inline-flex items-center justify-center rounded p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-grab active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={savingOrder}
+                          onDragStart={(event) => {
+                            event.stopPropagation();
+                            didDragRef.current = true;
+                            draggingIdRef.current = product.id;
+                            setDraggingId(product.id);
+                            event.dataTransfer.effectAllowed = 'move';
+                            event.dataTransfer.setData('text/plain', String(product.id));
+                          }}
+                          onDragEnd={() => {
+                            draggingIdRef.current = null;
+                            setDraggingId(null);
+                            setDropTargetId(null);
+                            window.setTimeout(() => {
+                              didDragRef.current = false;
+                            }, 0);
+                          }}
+                        >
+                          <GripVertical className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-12 w-12 relative">

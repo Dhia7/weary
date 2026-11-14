@@ -16,6 +16,7 @@ router.post('/:id/waitlist', contactLimiter, optionalAuth, waitlistController.jo
 router.get('/:idOrSlug', optionalAuth, controller.getProduct);
 
 // Admin protected mutations
+router.patch('/reorder', protect, admin, controller.reorderProducts);
 router.post('/', protect, admin, uploadMultipleImages, controller.createProduct);
 router.put('/:id', protect, admin, uploadMultipleImages, controller.updateProduct);
 router.patch('/:id/display-badge', protect, admin, controller.updateProductDisplayBadge);

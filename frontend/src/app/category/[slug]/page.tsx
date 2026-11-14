@@ -86,7 +86,7 @@ export default function CategoryPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  const [sortBy, setSortBy] = useState('name');
+  const [sortBy, setSortBy] = useState('sortOrder');
   const [sortOrder, setSortOrder] = useState('ASC');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -185,6 +185,7 @@ export default function CategoryPage() {
                     title="Sort products"
                     className={`${inputClass} py-2 text-sm`}
                   >
+                    <option value="sortOrder-ASC">Featured</option>
                     <option value="name-ASC">Name A-Z</option>
                     <option value="name-DESC">Name Z-A</option>
                     <option value="price-ASC">Price Low to High</option>

@@ -161,6 +161,12 @@ const Product = sequelize.define('Product', {
 	outerMaterial: {
 		type: DataTypes.STRING(200),
 		allowNull: true
+	},
+	sortOrder: {
+		type: DataTypes.INTEGER,
+		allowNull: false,
+		defaultValue: 0,
+		comment: 'Manual catalog order; lower numbers appear first'
 	}
 	// sizeStock removed - column doesn't exist in database and products with sizes are made-to-order
 }, {

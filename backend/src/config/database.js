@@ -231,6 +231,13 @@ const connectDB = async () => {
       }
 
       try {
+        const addProductSortOrder = require('../scripts/add-product-sort-order');
+        await addProductSortOrder();
+      } catch (error) {
+        console.warn('product sortOrder migration failed (non-critical):', error.message);
+      }
+
+      try {
         const addDefaultDisplayColor = require('../scripts/add-default-display-color');
         await addDefaultDisplayColor();
       } catch (error) {

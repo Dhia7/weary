@@ -372,6 +372,12 @@ const createProduct = async (req, res) => {
 			parsedVariants
 		);
 
+		// New products stay first until an admin drags them.
+		await Product.increment('sortOrder', {
+			by: 1,
+			where: { id: { [Op.gt]: 0 } }
+		});
+
 		// Note: sizeStock column doesn't exist in database, so we don't include it in create
 		const product = await Product.create({ 
 			name,
@@ -404,7 +410,8 @@ const createProduct = async (req, res) => {
 			quantity: parseInt(quantity) || 0,
 			barcode: barcode || null,
 			size: normalizeSizeField(size),
-			...specs
+			...specs,
+			sortOrder: 0
 		});
 
 		if (Array.isArray(parsedCategoryIds) && parsedCategoryIds.length) {
@@ -483,19 +490,22 @@ const createProduct = async (req, res) => {
 			include[0].where = { id: categoryId };
 		}
 
-		// Handle sorting
-		let orderClause = [['createdAt', 'DESC']]; // Default sort
+		// Handle sorting. Manual catalog order is the default.
+		let orderClause = [['sortOrder', 'ASC'], ['createdAt', 'DESC']];
 		if (collageOnly) {
 			orderClause = [
 				['homepageCollageOrder', 'ASC'],
 				['updatedAt', 'DESC'],
 			];
 		} else if (sort && order) {
-			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt'];
+			const validSortFields = ['name', 'price', 'createdAt', 'updatedAt', 'sortOrder'];
 			const validOrders = ['ASC', 'DESC'];
 			
 			if (validSortFields.includes(sort) && validOrders.includes(order.toUpperCase())) {
 				orderClause = [[sort, order.toUpperCase()]];
+				if (sort === 'sortOrder') {
+					orderClause.push(['createdAt', 'DESC']);
+				}
 			}
 		}
 
@@ -1234,6 +1244,58 @@ const updateProductHomepageCollageOrder = async (req, res) => {
 	}
 };
 
+// Save the manual catalog order (admin). ids are the products to place, in display order.
+// Products omitted from the list keep their current sortOrder.
+const reorderProducts = async (req, res) => {
+	const transaction = await sequelize.transaction();
+	try {
+		const { ids } = req.body || {};
+		if (!Array.isArray(ids) || ids.length === 0) {
+			await transaction.rollback();
+			return res.status(400).json({ success: false, message: 'ids must be a non-empty array of product ids' });
+		}
+
+		const parsed = [];
+		for (const raw of ids) {
+			const id = typeof raw === 'number' ? raw : parseInt(raw, 10);
+			if (!Number.isInteger(id) || id <= 0) {
+				await transaction.rollback();
+				return res.status(400).json({ success: false, message: 'ids must be product ids' });
+			}
+			parsed.push(id);
+		}
+
+		if (new Set(parsed).size !== parsed.length) {
+			await transaction.rollback();
+			return res.status(400).json({ success: false, message: 'Duplicate product ids' });
+		}
+
+		const found = await Product.findAll({
+			where: { id: parsed },
+			attributes: ['id'],
+			transaction
+		});
+		if (found.length !== parsed.length) {
+			await transaction.rollback();
+			return res.status(400).json({ success: false, message: 'Unknown product ids' });
+		}
+
+		for (let index = 0; index < parsed.length; index += 1) {
+			await Product.update(
+				{ sortOrder: index },
+				{ where: { id: parsed[index] }, transaction }
+			);
+		}
+
+		await transaction.commit();
+		res.json({ success: true, data: { ids: parsed } });
+	} catch (error) {
+		await transaction.rollback();
+		console.error('Reorder products error:', error);
+		res.status(500).json({ success: false, message: 'Internal server error' });
+	}
+};
+
 // Hide or show a product on the storefront (admin, quick toggle from list)
 const updateProductVisibility = async (req, res) => {
 	try {
@@ -1272,6 +1334,7 @@ module.exports = {
 	updateProductDefaultDisplayColor,
 	updateProductHomepageCollageOrder,
 	updateProductVisibility,
+	reorderProducts,
 	deleteProduct,
 	setProductCategories,
 	searchAutocomplete,
