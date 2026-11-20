@@ -26,6 +26,7 @@ import {
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SalePercentMark from '@/components/product/SalePercentMark';
 import SoldBadge from '@/components/product/SoldBadge';
 import ProductTitle from '@/components/product/ProductTitle';
 import {
@@ -337,9 +338,12 @@ const QuickViewModal = ({ isOpen, onClose, product }: QuickViewModalProps) => {
                   sellPrice={displayPrice}
                   className="gap-x-2 text-sm"
                 />
-                <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {formatPriceTnd(displayPrice)}
-                </span>
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {formatPriceTnd(displayPrice)}
+                  </span>
+                  <SalePercentMark percent={product.salePercent} />
+                </div>
               </div>
 
               {product.hasVariants && product.colorOptions && product.colorOptions.length > 0 && (

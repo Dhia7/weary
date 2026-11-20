@@ -26,6 +26,7 @@ import {
 } from '@/lib/types/product';
 import QuantitySelector from '@/components/product/QuantitySelector';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SalePercentMark from '@/components/product/SalePercentMark';
 import ColorSwatches from '@/components/ColorSwatches';
 import ProductImageGallery from '@/components/product/ProductImageGallery';
 import SoldBadge from '@/components/product/SoldBadge';
@@ -417,6 +418,7 @@ export default function ProductDetailPage() {
                 <span className="font-serif text-3xl text-swisse-ink dark:text-foreground">
                   {formatPrice(displayPrice)}
                 </span>
+                <SalePercentMark percent={product.salePercent} />
               </div>
               {product.priceRange?.hasVariablePricing && !selectedVariant && (
                 <p className={`text-sm ${bodyTextClass}`}>

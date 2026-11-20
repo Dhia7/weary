@@ -29,6 +29,8 @@ async function main() {
 		console.log('');
 		await require('./add-cost-price')();
 		console.log('');
+		await require('./add-sale-percent')();
+		console.log('');
 		await require('./add-hover-image-index')();
 		console.log('');
 		await require('./ensure-hover-image-index')();

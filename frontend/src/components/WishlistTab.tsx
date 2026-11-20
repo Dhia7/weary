@@ -22,6 +22,7 @@ import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { getProductDisplayName } from '@/lib/i18n/product';
 import ProductTitle from '@/components/product/ProductTitle';
 import SoldBadge from '@/components/product/SoldBadge';
+import SalePercentMark from '@/components/product/SalePercentMark';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 
@@ -256,6 +257,7 @@ export default function WishlistTab({ className = '' }: WishlistTabProps) {
                       {formatPrice(item.Product.compareAtPrice)}
                     </span>
                   )}
+                  <SalePercentMark percent={item.Product.salePercent} />
                 </div>
 
                 {/* Stock Status */}

@@ -1,37 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import NotFoundState from '@/components/NotFoundState';
 import { motion } from 'framer-motion';
 import { Grid, List } from 'lucide-react';
-import { useProducts } from '@/lib/hooks/useProducts';
+import { useInfiniteProducts } from '@/lib/hooks/useInfiniteProducts';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
+
+function collectionLine(count: number, isFrench: boolean) {
+  if (isFrench) {
+    return count === 1
+      ? 'Découvrez notre collection complète de 1 produit'
+      : `Découvrez notre collection complète de ${count} produits`;
+  }
+  return count === 1
+    ? 'Discover our complete collection of 1 product'
+    : `Discover our complete collection of ${count} products`;
+}
 
 export default function ProductsPage() {
   const [sortBy, setSortBy] = useState('sortOrder');
   const [sortOrder, setSortOrder] = useState('ASC');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [currentPage, setCurrentPage] = useState(1);
+  const { isFrench } = useLanguage();
   const productsPerPage = 12;
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false);
 
-  const { products, pagination, loading, error, mutate } = useProducts({
-    sort: sortBy,
-    order: sortOrder,
-    page: currentPage,
-    limit: productsPerPage,
-    active: true,
-  });
+  const { products, totalProducts, hasMore, isLoadingMore, loading, error, setSize, mutate } =
+    useInfiniteProducts({
+      sort: sortBy,
+      order: sortOrder,
+      limit: productsPerPage,
+      active: true,
+    });
 
-  const totalPages = pagination?.totalPages ?? 1;
-  const totalProducts = pagination?.totalProducts ?? 0;
   const errorMessage = error instanceof Error ? error.message : error ? String(error) : '';
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  useEffect(() => {
+    loadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting || loadingMoreRef.current || error) return;
+        loadingMoreRef.current = true;
+        setSize((current) => current + 1);
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, error, isLoadingMore, setSize]);
 
   if (loading && products.length === 0) {
     return (
@@ -60,9 +89,11 @@ export default function ProductsPage() {
     return (
       <NotFoundState
         code="!"
-        title="Error Loading Products"
+        title={isFrench ? 'Erreur lors du chargement des produits' : 'Error Loading Products'}
         description={errorMessage}
         onRetry={() => mutate()}
+        retryLabel={isFrench ? 'Réessayer' : 'Try Again'}
+        homeLabel={isFrench ? 'Accueil' : 'Go Home'}
         showBack={false}
       />
     );
@@ -75,10 +106,10 @@ export default function ProductsPage() {
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            All Products
+            {isFrench ? 'Tous les produits' : 'All Products'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Discover our complete collection of {totalProducts} products
+            {collectionLine(totalProducts, isFrench)}
           </p>
         </div>
 
@@ -86,7 +117,7 @@ export default function ProductsPage() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <label htmlFor="products-sort" className="text-sm text-gray-600 dark:text-gray-400">
-                Sort by:
+                {isFrench ? 'Trier par :' : 'Sort by:'}
               </label>
               <select
                 id="products-sort"
@@ -95,28 +126,28 @@ export default function ProductsPage() {
                   const [newSortBy, newSortOrder] = e.target.value.split('-');
                   setSortBy(newSortBy);
                   setSortOrder(newSortOrder);
-                  setCurrentPage(1);
+                  setSize(1);
                 }}
-                title="Sort products"
+                title={isFrench ? 'Trier les produits' : 'Sort products'}
                 className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
-                <option value="sortOrder-ASC">Featured</option>
-                <option value="createdAt-DESC">Newest First</option>
-                <option value="createdAt-ASC">Oldest First</option>
-                <option value="name-ASC">Name A-Z</option>
-                <option value="name-DESC">Name Z-A</option>
-                <option value="price-ASC">Price Low to High</option>
-                <option value="price-DESC">Price High to Low</option>
+                <option value="sortOrder-ASC">{isFrench ? 'En vedette' : 'Featured'}</option>
+                <option value="createdAt-DESC">{isFrench ? 'Plus récents' : 'Newest First'}</option>
+                <option value="createdAt-ASC">{isFrench ? 'Plus anciens' : 'Oldest First'}</option>
+                <option value="name-ASC">{isFrench ? 'Nom A-Z' : 'Name A-Z'}</option>
+                <option value="name-DESC">{isFrench ? 'Nom Z-A' : 'Name Z-A'}</option>
+                <option value="price-ASC">{isFrench ? 'Prix croissant' : 'Price Low to High'}</option>
+                <option value="price-DESC">{isFrench ? 'Prix décroissant' : 'Price High to Low'}</option>
               </select>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">{isFrench ? 'Affichage :' : 'View:'}</span>
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              aria-label="Grid view"
+              aria-label={isFrench ? 'Vue grille' : 'Grid view'}
               aria-pressed={viewMode === 'grid'}
               className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 ${
                 viewMode === 'grid'
@@ -129,7 +160,7 @@ export default function ProductsPage() {
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              aria-label="List view"
+              aria-label={isFrench ? 'Vue liste' : 'List view'}
               aria-pressed={viewMode === 'list'}
               className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 ${
                 viewMode === 'list'
@@ -160,44 +191,33 @@ export default function ProductsPage() {
         ) : (
           <div className="text-center py-12">
             <p className="text-gray-500 dark:text-gray-400 text-lg">
-              No products found.
+              {isFrench ? 'Aucun produit trouvé.' : 'No products found.'}
             </p>
           </div>
         )}
 
-        {totalPages > 1 && (
-          <div className="mt-12 flex justify-center">
-            <nav className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        {products.length > 0 && (hasMore || isLoadingMore || (error && products.length > 0)) && (
+          <div className="mt-10 flex flex-col items-center gap-3">
+            <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
+            {isLoadingMore && (
+              <p className="text-sm text-gray-500 dark:text-gray-400" role="status">
+                {isFrench ? 'Chargement d’autres produits' : 'Loading more products'}
+              </p>
+            )}
+            {error && !isLoadingMore && (
+              <div className="text-center" role="alert">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  {isFrench ? 'Impossible de charger d’autres produits.' : 'Could not load more products.'}
+                </p>
                 <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-2 text-sm font-medium rounded-md ${
-                    page === currentPage
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
+                  type="button"
+                  onClick={() => mutate()}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
-                  {page}
+                  {isFrench ? 'Réessayer' : 'Retry'}
                 </button>
-              ))}
-              
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </nav>
+              </div>
+            )}
           </div>
         )}
       </main>

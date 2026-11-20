@@ -78,6 +78,8 @@ export interface Product {
   defaultDisplayColor?: string | null;
   price: number;
   compareAtPrice?: number;
+  /** Off-percent shown beside the price. Independent of Sold for. */
+  salePercent?: number | null;
   costPrice?: number | null;
   quantity: number;
   size?: string | null;

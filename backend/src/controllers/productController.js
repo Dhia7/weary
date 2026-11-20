@@ -38,6 +38,13 @@ const parsePriceField = (value) => {
 	return Number.isFinite(n) ? n : null;
 };
 
+/** Display-only off-percent. Empty, zero, and out-of-range values are cleared. */
+const parseSalePercent = (value) => {
+	const n = parsePriceField(value);
+	if (n == null || n <= 0 || n > 99.99) return null;
+	return Math.round(n * 100) / 100;
+};
+
 const normalizeProductPrices = (productData) => {
 	if (productData.price != null) {
 		productData.price = parsePriceField(productData.price);
@@ -49,6 +56,9 @@ const normalizeProductPrices = (productData) => {
 	}
 	if (productData.costPrice != null) {
 		productData.costPrice = parsePriceField(productData.costPrice);
+	}
+	if (productData.salePercent != null) {
+		productData.salePercent = parsePriceField(productData.salePercent);
 	}
 	if (Array.isArray(productData.variants)) {
 		productData.variants = productData.variants.map((variant) => {
@@ -311,7 +321,7 @@ const normalizeSizeField = (size) => {
 // Create product (admin)
 const createProduct = async (req, res) => {
 	try {
-		const { name, nameFr, brand, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, allowCustomerQuantity, homepageCollageOrder } = req.body;
+		const { name, nameFr, brand, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, salePercent, costPrice, quantity, barcode, size, allowCustomerQuantity, homepageCollageOrder } = req.body;
 		const specs = parseSpecFields(req.body);
 		
 		// Parse categoryIds if it's a string (from FormData)
@@ -402,6 +412,7 @@ const createProduct = async (req, res) => {
 				const compare = parseFloat(compareAtPrice);
 				return Number.isFinite(compare) && compare >= 0 ? compare : null;
 			})(),
+			salePercent: parseSalePercent(salePercent),
 			costPrice: (() => {
 				if (costPrice == null || costPrice === '') return null;
 				const cost = parseFloat(costPrice);
@@ -673,7 +684,7 @@ const getProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, nameFr, brand, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity, homepageCollageOrder } = req.body;
+		const { name, nameFr, brand, slug, description, SKU, weightGrams, isActive, displayBadge, categoryIds, price, compareAtPrice, salePercent, costPrice, quantity, barcode, size, sizeStock, dimensions, outerMaterial, allowCustomerQuantity, homepageCollageOrder } = req.body;
 		
 		console.log('=== UPDATE PRODUCT REQUEST ===');
 		console.log('Product ID:', id);
@@ -807,6 +818,9 @@ const updateProduct = async (req, res) => {
 				product.compareAtPrice =
 					Number.isFinite(compare) && compare >= 0 ? compare : null;
 			}
+		}
+		if (salePercent !== undefined) {
+			product.salePercent = parseSalePercent(salePercent);
 		}
 		if (costPrice !== undefined) {
 			if (costPrice === '' || costPrice == null) {

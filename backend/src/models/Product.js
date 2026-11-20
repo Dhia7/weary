@@ -112,6 +112,15 @@ const Product = sequelize.define('Product', {
 			min: 0
 		}
 	},
+	salePercent: {
+		type: DataTypes.DECIMAL(5, 2),
+		allowNull: true,
+		validate: {
+			min: 0,
+			max: 99.99
+		},
+		comment: 'Off-percent shown on the product. Does not change the sold price.'
+	},
 	costPrice: {
 		type: DataTypes.DECIMAL(12, 2),
 		allowNull: true,

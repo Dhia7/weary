@@ -13,6 +13,7 @@ export interface CollectionProduct {
   imageUrl?: string;
   price: number;
   compareAtPrice?: number;
+  salePercent?: number | null;
   quantity: number;
   size?: string | null;
   hasVariants?: boolean;

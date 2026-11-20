@@ -6,7 +6,14 @@ import { AdminGuard, useAuthorizedFetch } from '@/lib/admin';
 import { dataUrlToBlob } from '@/lib/utils';
 import ImageEditor from '@/components/ImageEditor';
 import VariantEditor, { type VariantDraft } from '@/components/admin/VariantEditor';
+import SalePriceFields from '@/components/admin/SalePriceFields';
 import ProductImagesMedia from '@/components/admin/ProductImagesMedia';
+import {
+  prepareVariantsForSave,
+  storedPricesFromSale,
+  isActiveSale,
+  type AmountInput,
+} from '@/lib/salePrice';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import ProductTitle from '@/components/product/ProductTitle';
 
@@ -29,9 +36,12 @@ export default function NewProductPage() {
   const [description, setDescription] = useState('');
   
   // Pricing
-  const [price, setPrice] = useState<number | ''>('');
-  const [compareAtPrice, setCompareAtPrice] = useState<number | ''>('');
-  const [costPrice, setCostPrice] = useState<number | ''>('');
+  const [price, setPrice] = useState<AmountInput>('');
+  const [soldFor, setSoldFor] = useState<AmountInput>('');
+  const [salePercent, setSalePercent] = useState<AmountInput>('');
+  const [saleEngaged, setSaleEngaged] = useState(false);
+  const [compareAtPrice, setCompareAtPrice] = useState<AmountInput>('');
+  const [costPrice, setCostPrice] = useState<AmountInput>('');
   
   // Inventory
   const [SKU, setSKU] = useState('');
@@ -90,6 +100,21 @@ export default function NewProductPage() {
 
   const invalidInputClass = (invalid: boolean) =>
     invalid ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
+
+  const endSale = saleEngaged && soldFor === '';
+
+  const changePrice = (next: AmountInput) => {
+    setPrice(next);
+  };
+
+  const changeSoldFor = (next: AmountInput) => {
+    setSoldFor(next);
+    setSaleEngaged(true);
+  };
+
+  const changePercent = (next: AmountInput) => {
+    setSalePercent(next);
+  };
 
   // Add category modal state
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
@@ -385,8 +410,13 @@ export default function NewProductPage() {
       formData.append('brand', brand.trim());
       formData.append('slug', slug);
       formData.append('description', description);
-      formData.append('price', price === '' ? '0' : price.toString());
-      formData.append('compareAtPrice', compareAtPrice === '' ? '' : compareAtPrice.toString());
+      const storedPrices = storedPricesFromSale(price, soldFor, salePercent, compareAtPrice);
+      formData.append('price', String(storedPrices.price));
+      formData.append(
+        'compareAtPrice',
+        storedPrices.compareAtPrice == null ? '' : String(storedPrices.compareAtPrice)
+      );
+      formData.append('salePercent', salePercent === '' ? '' : String(salePercent));
       formData.append('costPrice', costPrice === '' ? '' : costPrice.toString());
       formData.append('SKU', SKU);
       formData.append('quantity', quantity === '' ? '0' : quantity.toString());
@@ -399,12 +429,18 @@ export default function NewProductPage() {
       // For made-to-order products, send empty sizeStock (not tracking stock per size)
       formData.append('sizeStock', JSON.stringify({}));
       if (hasVariants && variants.length > 0) {
-        formData.append('variants', JSON.stringify(variants));
-        const totalQty = variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+        const pricedVariants = prepareVariantsForSave(variants, {
+          price,
+          soldFor,
+          salePercent,
+          endSale,
+        });
+        formData.append('variants', JSON.stringify(pricedVariants));
+        const totalQty = pricedVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
         formData.set('quantity', String(totalQty));
         formData.set('size', '');
 
-        const variantPrices = variants
+        const variantPrices = pricedVariants
           .map((v) => (v.price == null ? null : Number(v.price)))
           .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
         if (variantPrices.length > 0) {
@@ -416,7 +452,7 @@ export default function NewProductPage() {
           formData.set('price', '0');
         }
 
-        const compareAtPrices = variants
+        const compareAtPrices = pricedVariants
           .map((v) => (v.compareAtPrice == null ? null : Number(v.compareAtPrice)))
           .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
         if (compareAtPrices.length > 0) {
@@ -426,7 +462,7 @@ export default function NewProductPage() {
           formData.set('compareAtPrice', String(compareAtPrice));
         }
 
-        const variantCosts = variants
+        const variantCosts = pricedVariants
           .map((v) => (v.costPrice == null ? null : Number(v.costPrice)))
           .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
         if (variantCosts.length > 0) {
@@ -612,12 +648,22 @@ export default function NewProductPage() {
                       step="0.01"
                       min="0"
                       value={price} 
-                      onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))} 
+                      onChange={(e) => changePrice(e.target.value === '' ? '' : Number(e.target.value))} 
                       className={`w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${invalidInputClass(fieldErrors.price)}`}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">The selling price</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Regular price. Sold for, when set, is what the customer pays, and this price is shown struck through.
+                  </p>
                 </div>
+
+                <SalePriceFields
+                  price={price}
+                  soldFor={soldFor}
+                  salePercent={salePercent}
+                  onSoldForChange={changeSoldFor}
+                  onPercentChange={changePercent}
+                />
                 
                 <div>
                   <label htmlFor="compareAtPrice" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at Price</label>
@@ -641,6 +687,7 @@ export default function NewProductPage() {
                   </p>
                   {compareAtPrice !== '' &&
                     price !== '' &&
+                    !isActiveSale(price, soldFor, salePercent) &&
                     Number(compareAtPrice) <= Number(price) && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                       Compare at must be higher than Price or it will not appear on the landing page.
@@ -688,14 +735,22 @@ export default function NewProductPage() {
                       step="0.01"
                       min="0"
                       value={price}
-                      onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      onChange={(e) => changePrice(e.target.value === '' ? '' : Number(e.target.value))}
                       className="w-full pl-14 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Base selling price — override per color in the variants table
+                    Regular price for each color, unless that color has its own price. A sale percent comes off that price.
                   </p>
                 </div>
+                <SalePriceFields
+                  idPrefix="base-"
+                  price={price}
+                  soldFor={soldFor}
+                  salePercent={salePercent}
+                  onSoldForChange={changeSoldFor}
+                  onPercentChange={changePercent}
+                />
                 <div>
                   <label htmlFor="compareAtPriceBase" className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Compare at (base)</label>
                   <div className="relative">
@@ -718,6 +773,7 @@ export default function NewProductPage() {
                   </p>
                   {compareAtPrice !== '' &&
                     price !== '' &&
+                    !isActiveSale(price, soldFor, salePercent) &&
                     Number(compareAtPrice) <= Number(price) && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                       Compare at must be higher than Price or it will not appear on the store.
@@ -843,6 +899,7 @@ export default function NewProductPage() {
                   basePrice={price}
                   baseCompareAtPrice={compareAtPrice}
                   baseCostPrice={costPrice}
+                  salePercent={salePercent}
                   variants={variants}
                   onChange={setVariants}
                   sampleImages={imagePreviews}

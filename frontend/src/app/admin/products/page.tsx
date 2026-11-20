@@ -13,6 +13,7 @@ import {
   type Product as CatalogProduct,
   type ProductDisplayBadge,
 } from '@/lib/types/product';
+import { formatSalePercent } from '@/lib/salePrice';
 import { getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import ColorSwatches from '@/components/ColorSwatches';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
@@ -41,6 +42,7 @@ interface Product {
   mainThumbnailIndex?: number;
   price: number;
   compareAtPrice?: number;
+  salePercent?: number | null;
   quantity: number;
   size?: string | null;
   stockInfo?: {
@@ -588,6 +590,12 @@ export default function AdminProductsPage() {
                         {product.SKU}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {(() => {
+                          const saleOff =
+                            product.salePercent != null && Number(product.salePercent) > 0
+                              ? `−${formatSalePercent(Number(product.salePercent))}%`
+                              : null;
+                          return (
                         <div className="flex flex-col gap-0.5">
                           <span className="font-medium inline-flex items-baseline gap-1.5">
                             <span>{Number(product.price).toFixed(2)}</span>
@@ -599,7 +607,14 @@ export default function AdminProductsPage() {
                               <span>TND</span>
                             </span>
                           )}
+                          {saleOff && (
+                            <span className="text-xs text-amber-700 dark:text-amber-400">
+                              {saleOff}
+                            </span>
+                          )}
                         </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {(() => {

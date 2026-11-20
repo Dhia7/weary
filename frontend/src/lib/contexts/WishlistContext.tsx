@@ -18,6 +18,7 @@ interface WishlistItem {
     description: string;
     price: number;
     compareAtPrice?: number;
+    salePercent?: number | null;
     imageUrl?: string;
     images?: string[];
     mainThumbnailIndex?: number;

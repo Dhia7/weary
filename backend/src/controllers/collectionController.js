@@ -42,6 +42,7 @@ const listCollections = async (req, res) => {
 								'slug',
 								'price',
 								'compareAtPrice',
+								'salePercent',
 								'imageUrl',
 								'isActive'
 							],

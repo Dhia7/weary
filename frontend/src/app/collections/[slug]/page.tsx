@@ -16,6 +16,7 @@ import ProductTitle from '@/components/product/ProductTitle';
 import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { productHasSizes, isFinalSold, isProductSoldOut } from '@/lib/types/product';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SalePercentMark from '@/components/product/SalePercentMark';
 import SoldBadge from '@/components/product/SoldBadge';
 import { soldPhotoClass } from '@/components/product/soldPhotoClass';
 
@@ -237,9 +238,12 @@ export default function CollectionDetailPage() {
                       compareAtPrice={product.compareAtPrice}
                       sellPrice={product.price}
                     />
-                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {formatPrice(product.price)}
-                    </span>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {formatPrice(product.price)}
+                      </span>
+                      <SalePercentMark percent={product.salePercent} />
+                    </div>
                   </div>
 
                   {/* Stock Status */}

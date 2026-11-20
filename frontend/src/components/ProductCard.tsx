@@ -32,9 +32,11 @@ import {
 import ColorSwatches from '@/components/ColorSwatches';
 import { getHoverDisplayImage, getPrimaryDisplayImage } from '@/lib/utils/productImages';
 import { getProductDisplayName, getProductTranslations } from '@/lib/i18n/product';
+import { useTranslatedText } from '@/lib/hooks/useTranslatedText';
 import { getSoldInquiryHref } from '@/lib/shopLinks';
 import { useHoverImageReveal } from '@/lib/hooks/useHoverImageReveal';
 import StorePriceCaption from '@/components/product/StorePriceCaption';
+import SalePercentMark from '@/components/product/SalePercentMark';
 import SoldBadge from '@/components/product/SoldBadge';
 import SoldAskButton from '@/components/product/SoldAskButton';
 import ProductTitle from '@/components/product/ProductTitle';
@@ -80,6 +82,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
   const { isFrench } = useLanguage();
   const t = getProductTranslations(isFrench);
   const displayName = getProductDisplayName(product, isFrench);
+  const { text: descriptionText } = useTranslatedText(product.description, isFrench);
   const router = useRouter();
   const soldInquiryHref = getSoldInquiryHref({
     slug: product.slug,
@@ -312,6 +315,7 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               <span className="text-sm font-medium text-swisse-ink dark:text-foreground">
                 {priceLabel}
               </span>
+              <SalePercentMark percent={product.salePercent} className="mt-1 block" />
             </div>
           </div>
         </Link>
@@ -445,11 +449,14 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
               compareAtPrice={compareAtPrice}
               sellPrice={displayPrice}
             />
-            <span className="text-lg font-semibold text-foreground">{priceLabel}</span>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-lg font-semibold text-foreground">{priceLabel}</span>
+              <SalePercentMark percent={product.salePercent} />
+            </div>
           </div>
 
-          {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{product.description}</p>
+          {descriptionText && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{descriptionText}</p>
           )}
         </div>
       </Link>
@@ -481,9 +488,11 @@ const ProductCard = memo(({ product, variant = 'default' }: ProductCardProps) =>
     prevProps.product.priceRange?.max === nextProps.product.priceRange?.max &&
     prevProps.product.quantity === nextProps.product.quantity &&
     prevProps.product.compareAtPrice === nextProps.product.compareAtPrice &&
+    prevProps.product.salePercent === nextProps.product.salePercent &&
     prevProps.product.stockInfo?.isInStock === nextProps.product.stockInfo?.isInStock &&
     prevProps.product.displayBadge === nextProps.product.displayBadge &&
     prevProps.product.colorOptions === nextProps.product.colorOptions &&
+    prevProps.product.description === nextProps.product.description &&
     prevProps.product.createdAt === nextProps.product.createdAt &&
     prevProps.product.updatedAt === nextProps.product.updatedAt
   );

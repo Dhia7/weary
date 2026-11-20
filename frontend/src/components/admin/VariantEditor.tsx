@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { createPortal } from 'react-dom';
 import { HexColorInput, HexColorPicker } from 'react-colorful';
 import type { ProductVariant } from '@/lib/types/product';
+import {
+  applySaleToVariant,
+  formatSalePercent,
+  isActiveSale,
+  soldForFromPercent,
+  type AmountInput,
+} from '@/lib/salePrice';
 import { getImageUrl } from '@/lib/utils';
 import { slugifyCode } from '@/lib/utils/variants';
 
@@ -31,6 +38,7 @@ interface VariantEditorProps {
   basePrice: number | '';
   baseCompareAtPrice?: number | '';
   baseCostPrice?: number | '';
+  salePercent?: AmountInput;
   variants: VariantDraft[];
   onChange: (variants: VariantDraft[]) => void;
   /** Product / per-color images used to sample swatch colors */
@@ -379,6 +387,7 @@ export default function VariantEditor({
   basePrice,
   baseCompareAtPrice = '',
   baseCostPrice = '',
+  salePercent = '',
   variants,
   onChange,
   sampleImages = [],
@@ -513,6 +522,15 @@ export default function VariantEditor({
     onChange(variants.filter((_, i) => i !== index));
   };
 
+  const canApplySale =
+    salePercent !== '' &&
+    basePrice !== '' &&
+    isActiveSale(
+      basePrice,
+      soldForFromPercent(Number(basePrice), Number(salePercent)),
+      salePercent
+    );
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
@@ -520,7 +538,8 @@ export default function VariantEditor({
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           One style, one slug. Each color (and size for shoes) gets its own SKU, stock, and optional price.
           Leave price empty to use the product&apos;s base price, or set a different price per row (e.g. premium colors).
-          Compare-at is the crossed-out sale price and works independently of bought-for cost — set it once above and apply to all, or override per color.
+          Compare-at is the crossed-out regular price and works independently of bought-for cost — set it once above and apply to all, or override per color.
+          Percentage off is shown on the product and does not change these prices. Apply this sale to all colors writes that percent onto every row when you choose it.
           Bought-for is the purchase cost used for real income on the dashboard and can differ per color.
         </p>
         {variants.length > 0 && (basePrice !== '' || baseCompareAtPrice !== '' || baseCostPrice !== '') && (
@@ -555,6 +574,21 @@ export default function VariantEditor({
                 className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
               >
                 Apply compare-at ({Number(baseCompareAtPrice).toFixed(2)} TND) to all variants
+              </button>
+            )}
+            {canApplySale && (
+              <button
+                type="button"
+                onClick={() =>
+                  onChange(
+                    variants.map((v) =>
+                      applySaleToVariant(v, Number(basePrice), Number(salePercent))
+                    )
+                  )
+                }
+                className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
+              >
+                Apply this sale to all colors ({formatSalePercent(Number(salePercent))}% off)
               </button>
             )}
             {baseCostPrice !== '' && (
