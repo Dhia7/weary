@@ -6,6 +6,7 @@ import { HexColorInput, HexColorPicker } from 'react-colorful';
 import type { ProductVariant } from '@/lib/types/product';
 import {
   applySaleToVariant,
+  customerPriceFromSale,
   formatSalePercent,
   isActiveSale,
   soldForFromPercent,
@@ -38,6 +39,8 @@ interface VariantEditorProps {
   basePrice: number | '';
   baseCompareAtPrice?: number | '';
   baseCostPrice?: number | '';
+  /** What the customer pays. When set below basePrice, basePrice is the regular price. */
+  soldFor?: AmountInput;
   salePercent?: AmountInput;
   variants: VariantDraft[];
   onChange: (variants: VariantDraft[]) => void;
@@ -387,6 +390,7 @@ export default function VariantEditor({
   basePrice,
   baseCompareAtPrice = '',
   baseCostPrice = '',
+  soldFor = '',
   salePercent = '',
   variants,
   onChange,
@@ -438,6 +442,8 @@ export default function VariantEditor({
     return Array.from(set);
   }, [variants]);
 
+  const sellingPrice = customerPriceFromSale(basePrice, soldFor);
+
   const addColorOnlyVariants = () => {
     const name = colorInput.trim();
     if (!name || !swatchConfirmed) return;
@@ -456,7 +462,7 @@ export default function VariantEditor({
         colorHex: colorHex || null,
         size: null,
         quantity: 0,
-        price: basePrice === '' ? null : Number(basePrice),
+        price: sellingPrice === '' ? null : Number(sellingPrice),
         compareAtPrice:
           baseCompareAtPrice === '' ? null : Number(baseCompareAtPrice),
         costPrice: baseCostPrice === '' ? null : Number(baseCostPrice),
@@ -497,7 +503,7 @@ export default function VariantEditor({
           colorHex: null,
           size,
           quantity: 0,
-          price: basePrice === '' ? null : Number(basePrice),
+          price: sellingPrice === '' ? null : Number(sellingPrice),
           compareAtPrice:
             baseCompareAtPrice === '' ? null : Number(baseCompareAtPrice),
           costPrice: baseCostPrice === '' ? null : Number(baseCostPrice),
@@ -544,20 +550,20 @@ export default function VariantEditor({
         </p>
         {variants.length > 0 && (basePrice !== '' || baseCompareAtPrice !== '' || baseCostPrice !== '') && (
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {basePrice !== '' && (
+            {sellingPrice !== '' && (
               <button
                 type="button"
                 onClick={() =>
                   onChange(
                     variants.map((v) => ({
                       ...v,
-                      price: Number(basePrice),
+                      price: Number(sellingPrice),
                     }))
                   )
                 }
                 className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline"
               >
-                Apply base price ({Number(basePrice).toFixed(2)} TND) to all variants
+                Apply base price ({Number(sellingPrice).toFixed(2)} TND) to all variants
               </button>
             )}
             {baseCompareAtPrice !== '' && (
@@ -743,7 +749,7 @@ export default function VariantEditor({
                     <input type="number" min={0} value={variant.quantity} onChange={(e) => updateVariant(index, { quantity: parseInt(e.target.value, 10) || 0 })} className={`w-20 ${variantInputClass}`} />
                   </td>
                   <td className="px-3 py-2">
-                    <input type="number" min={0} step="0.01" value={variant.price ?? ''} onChange={(e) => updateVariant(index, { price: e.target.value === '' ? null : parseFloat(e.target.value) })} placeholder={basePrice === '' ? 'Base' : String(basePrice)} className={`w-24 ${variantInputClass}`} />
+                    <input type="number" min={0} step="0.01" value={variant.price ?? ''} onChange={(e) => updateVariant(index, { price: e.target.value === '' ? null : parseFloat(e.target.value) })} placeholder={sellingPrice === '' ? 'Base' : String(sellingPrice)} className={`w-24 ${variantInputClass}`} />
                   </td>
                   <td className="px-3 py-2">
                     <input

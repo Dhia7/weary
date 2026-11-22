@@ -611,10 +611,10 @@ export default function EditProductPage() {
         if (variantPrices.length > 0) {
           const minPrice = Math.min(...variantPrices);
           formData.set('price', String(minPrice));
-        } else if (productData.price !== '' && productData.price != null) {
-          formData.set('price', String(productData.price));
         } else {
-          formData.set('price', '0');
+          // Price on the form is the regular price while a sale is active.
+          // storedPrices is what the customer pays; do not write the regular price back.
+          formData.set('price', String(storedPrices.price));
         }
 
         const compareAtPrices = pricedVariants
@@ -1126,6 +1126,7 @@ export default function EditProductPage() {
                   basePrice={productData.price}
                   baseCompareAtPrice={productData.compareAtPrice}
                   baseCostPrice={productData.costPrice}
+                  soldFor={soldFor}
                   salePercent={salePercent}
                   variants={variants}
                   onChange={setVariants}

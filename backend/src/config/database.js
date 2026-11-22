@@ -266,6 +266,13 @@ const connectDB = async () => {
       }
 
       try {
+        const addSalePercent = require('../scripts/add-sale-percent');
+        await addSalePercent();
+      } catch (error) {
+        console.warn('salePercent migration failed (non-critical):', error.message);
+      }
+
+      try {
         const { addUserRoleColumn } = require('../scripts/add-user-role-column');
         await addUserRoleColumn();
       } catch (error) {

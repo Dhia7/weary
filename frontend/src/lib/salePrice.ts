@@ -43,6 +43,19 @@ export function formatSalePercent(percent: number): string {
   return rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
+/**
+ * Amount copied into a variant's selling price.
+ * Once Sold for is set, the Price field is the struck-through regular price,
+ * and the variant must store what the customer pays.
+ */
+export function customerPriceFromSale(
+  price: AmountInput,
+  soldFor: AmountInput
+): AmountInput {
+  if (isActiveSale(price, soldFor, '')) return soldFor;
+  return price;
+}
+
 export function isActiveSale(
   price: AmountInput,
   soldFor: AmountInput,
