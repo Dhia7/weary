@@ -124,6 +124,12 @@ const VISIBILITY_OPTIONS: Array<{ value: 'visible' | 'hidden'; label: string }> 
   { value: 'hidden', label: 'Hidden' },
 ];
 
+const fieldClass =
+  'block w-full rounded-md border border-gray-300 bg-white py-1.5 pl-2 pr-8 text-xs leading-5 text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white';
+
+const headClass =
+  'sticky top-0 bg-gray-50 px-2 py-2 text-left text-xs font-semibold uppercase leading-tight text-gray-500 align-bottom shadow-[inset_0_-1px_0_0_rgba(15,23,42,0.08)] dark:bg-gray-900 dark:text-gray-400 dark:shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)]';
+
 export default function AdminProductsPage() {
   const fetcher = useAuthorizedFetch();
   const [products, setProducts] = useState<Product[]>([]);
@@ -404,8 +410,8 @@ export default function AdminProductsPage() {
 
   return (
     <AdminGuard>
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="flex h-[calc(100dvh-6rem)] flex-col">
+        <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Products</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -418,7 +424,7 @@ export default function AdminProductsPage() {
           </div>
           <Link 
             href="/admin/products/new" 
-            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200"
+            className="inline-flex shrink-0 items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200"
           >
             <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -433,47 +439,28 @@ export default function AdminProductsPage() {
             <span className="ml-2 text-gray-600 dark:text-gray-400">Loading products...</span>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-900">
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+              <table className="w-full min-w-[76.75rem] border-separate border-spacing-0 text-sm [&_tbody_td]:border-b [&_tbody_td]:border-gray-200 dark:[&_tbody_td]:border-gray-700">
+                <thead>
                   <tr>
-                    <th className="px-3 py-3 w-10">
+                    <th className={`${headClass} left-0 z-30 w-9 min-w-9 max-w-9 border-r border-gray-200 dark:border-gray-700`}>
                       <span className="sr-only">Order</span>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className={`${headClass} left-9 z-30 min-w-[9.5rem] border-r border-gray-200 dark:border-gray-700`}>
                       Product
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      SKU
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Stock
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Sizes
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Categories
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Featured color
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      View all collage
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Badge
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Visibility
-                    </th>
+                    <th className={`${headClass} z-20 min-w-[4.75rem]`}>SKU</th>
+                    <th className={`${headClass} z-20 min-w-[6.25rem]`}>Price</th>
+                    <th className={`${headClass} z-20 min-w-[7rem]`}>Stock</th>
+                    <th className={`${headClass} z-20 min-w-[5.25rem]`}>Sizes</th>
+                    <th className={`${headClass} z-20 min-w-[5.5rem]`}>Categories</th>
+                    <th className={`${headClass} z-20 min-w-[9.5rem]`}>Featured color</th>
+                    <th className={`${headClass} z-20 min-w-[7rem]`}>View all collage</th>
+                    <th className={`${headClass} z-20 min-w-[13.5rem]`}>Badge</th>
+                    <th className={`${headClass} z-20 min-w-[6.25rem]`}>Visibility</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody>
                   {products.map((product) => {
                     const thumbUrl = adminProductThumb(product);
                     const selectedColor = featuredColorName(product);
@@ -482,12 +469,15 @@ export default function AdminProductsPage() {
                     );
                     const isDragging = draggingId === product.id;
                     const isDropTarget = dropTargetId === product.id && draggingId !== product.id;
+                    const stickyCell = isDropTarget
+                      ? 'bg-indigo-50 dark:bg-indigo-950'
+                      : 'bg-white group-hover:bg-gray-50 dark:bg-gray-800 dark:group-hover:bg-gray-700';
                     return (
                     <tr 
                       key={product.id} 
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200 hover:shadow-sm ${
+                      className={`group cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-700 ${
                         isDragging ? 'opacity-50' : ''
-                      } ${isDropTarget ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}
+                      } ${isDropTarget ? 'bg-indigo-50 dark:bg-indigo-950' : ''}`}
                       onClick={() => {
                         if (didDragRef.current) {
                           didDragRef.current = false;
@@ -511,7 +501,7 @@ export default function AdminProductsPage() {
                       }}
                     >
                       <td
-                        className="px-3 py-4 whitespace-nowrap"
+                        className={`sticky left-0 z-10 w-9 min-w-9 max-w-9 border-r border-gray-200 px-1 py-2.5 align-middle dark:border-gray-700 ${stickyCell}`}
                         onClick={(event) => event.stopPropagation()}
                       >
                         <button
@@ -541,9 +531,9 @@ export default function AdminProductsPage() {
                           <GripVertical className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-12 w-12 relative">
+                      <td className={`sticky left-9 z-10 min-w-[9.5rem] border-r border-gray-200 px-2 py-2.5 align-middle dark:border-gray-700 ${stickyCell}`}>
+                        <div className="flex items-center gap-2">
+                          <div className="relative h-10 w-10 shrink-0">
                             {thumbUrl ? (
                               <Image 
                                 src={thumbUrl} 
@@ -553,19 +543,19 @@ export default function AdminProductsPage() {
                                 className={`object-cover rounded-lg border border-gray-200 dark:border-gray-600 ${
                                   featuredSold ? soldPhotoClass : ''
                                 }`}
-                                sizes="48px"
+                                sizes="40px"
                               />
                             ) : (
-                              <div className="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                <span className="text-gray-400 text-xs">No image</span>
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700">
+                                <span className="px-0.5 text-center text-[9px] leading-tight text-gray-400">No image</span>
                               </div>
                             )}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm text-gray-900 dark:text-white">
+                          <div className="min-w-0">
+                            <div className="break-words text-sm text-gray-900 dark:text-white">
                               <ProductTitle product={product} brandClassName="text-sm mb-0.5" className="font-medium" />
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <div className="break-all text-xs text-gray-500 dark:text-gray-400">
                               {product.slug}
                             </div>
                             {product.colorOptions && product.colorOptions.length > 1 ? (
@@ -586,10 +576,10 @@ export default function AdminProductsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <td className="min-w-[4.75rem] break-all px-2 py-2.5 align-middle text-xs text-gray-900 dark:text-white">
                         {product.SKU}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <td className="min-w-[6.25rem] whitespace-nowrap px-2 py-2.5 align-middle text-xs tabular-nums text-gray-900 dark:text-white">
                         {(() => {
                           const saleOff =
                             product.salePercent != null && Number(product.salePercent) > 0
@@ -616,7 +606,7 @@ export default function AdminProductsPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <td className="min-w-[7rem] whitespace-nowrap px-2 py-2.5 align-middle text-xs text-gray-900 dark:text-white">
                         {(() => {
                           const featured = featuredColorName(product);
                           const colorQty =
@@ -648,17 +638,17 @@ export default function AdminProductsPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                      <td className="min-w-[5.25rem] px-2 py-2.5 align-middle text-xs text-gray-600 dark:text-gray-300">
                         {product.size?.trim() ? (
-                          <span className="line-clamp-2">{product.size}</span>
+                          <span className="whitespace-normal break-words">{product.size}</span>
                         ) : (
                           <span className="text-gray-400">No sizes</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <td className="min-w-[5.5rem] px-2 py-2.5 align-middle text-xs text-gray-600 dark:text-gray-300">
                         {product.categories && product.categories.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {product.categories.slice(0, 2).map((category) => (
+                            {product.categories.map((category) => (
                               <span 
                                 key={category.id}
                                 className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded"
@@ -666,17 +656,12 @@ export default function AdminProductsPage() {
                                 {category.name}
                               </span>
                             ))}
-                            {product.categories.length > 2 && (
-                              <span className="text-xs text-gray-400">
-                                +{product.categories.length - 2} more
-                              </span>
-                            )}
                           </div>
                         ) : (
                           <span className="text-gray-400">No categories</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="min-w-[9.5rem] px-2 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
                         {product.hasVariants && product.colorOptions && product.colorOptions.length > 0 ? (
                           <select
                             aria-label={`Featured color for ${product.name}`}
@@ -689,7 +674,7 @@ export default function AdminProductsPage() {
                             onChange={(e) => {
                               handleDefaultDisplayColorChange(product.id, e.target.value || null);
                             }}
-                            className="block w-full min-w-[8.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                            className={fieldClass}
                           >
                             {orderColorsSelectedFirst(
                               product.colorOptions,
@@ -705,7 +690,7 @@ export default function AdminProductsPage() {
                           <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="min-w-[7rem] px-2 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
                         <select
                           aria-label={`View all collage slot for ${product.name}`}
                           value={product.homepageCollageOrder ?? ''}
@@ -717,7 +702,7 @@ export default function AdminProductsPage() {
                               value === '' ? null : Number(value)
                             );
                           }}
-                          className="block w-full min-w-[6.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                          className={fieldClass}
                         >
                           {COLLAGE_OPTIONS.map((option) => (
                             <option
@@ -729,7 +714,7 @@ export default function AdminProductsPage() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="min-w-[13.5rem] px-2 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
                         <select
                           aria-label={`Badge for ${product.name}`}
                           title="Sold (contact us) lets shoppers ask for another piece. Sold (no replacement) is a final sale with no contact options."
@@ -743,7 +728,7 @@ export default function AdminProductsPage() {
                               featuredColorName(product) || null
                             );
                           }}
-                          className="block w-full min-w-[11.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                          className={fieldClass}
                         >
                           {BADGE_OPTIONS.map((option) => (
                             <option key={option.label} value={option.value ?? ''}>
@@ -752,17 +737,17 @@ export default function AdminProductsPage() {
                           ))}
                         </select>
                         {adminListBadge(product) === 'sold_final' ? (
-                          <p className="mt-1 max-w-[11.5rem] text-[10px] leading-tight text-gray-500 dark:text-gray-400">
+                          <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
                             Final sale. Shoppers will not see contact or Instagram.
                           </p>
                         ) : null}
                         {product.hasVariants && (product.colorOptions?.length ?? 0) > 1 ? (
-                          <p className="mt-1 max-w-[11.5rem] text-[10px] leading-tight text-gray-500 dark:text-gray-400">
+                          <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
                             Sold is for {featuredColorName(product) || 'this color'} only
                           </p>
                         ) : null}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="min-w-[6.25rem] px-2 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
                         <select
                           aria-label={`Visibility for ${product.name}`}
                           value={product.isActive ? 'visible' : 'hidden'}
@@ -773,7 +758,7 @@ export default function AdminProductsPage() {
                               e.target.value === 'visible'
                             );
                           }}
-                          className="block w-full min-w-[7.5rem] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1.5 pl-2 pr-8 text-xs text-gray-900 dark:text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                          className={fieldClass}
                         >
                           {VISIBILITY_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -787,7 +772,6 @@ export default function AdminProductsPage() {
                   })}
                 </tbody>
               </table>
-            </div>
             {products.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-gray-500 dark:text-gray-400">

@@ -41,6 +41,7 @@ export default function AdminShell({
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const pathname = usePathname();
+  const isProductCatalog = pathname === '/admin/products';
   const fetcher = useAuthorizedFetch();
 
   const calculateUnseenCount = (ids: string[], getSeenIds: () => Set<string>) => {
@@ -258,8 +259,14 @@ export default function AdminShell({
           </div>
 
           {/* Page content */}
-          <main className="py-6">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <main className={isProductCatalog ? 'py-4' : 'py-6'}>
+            <div
+              className={
+                isProductCatalog
+                  ? 'px-4'
+                  : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'
+              }
+            >
               {children}
             </div>
           </main>
