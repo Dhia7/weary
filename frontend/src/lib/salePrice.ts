@@ -159,7 +159,7 @@ export function storedPricesFromSale(
   salePercent: AmountInput,
   compareAtPrice: AmountInput
 ): { price: number; compareAtPrice: number | null } {
-  if (isActiveSale(price, soldFor, salePercent)) {
+  if (isActiveSale(price, soldFor, salePercent) && price !== '' && soldFor !== '') {
     return { price: soldFor, compareAtPrice: price };
   }
   return {
